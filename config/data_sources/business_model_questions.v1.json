@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "question_set_id": "business_model_questions",
+  "version": "1.0.0",
+  "scope": "business_model",
+  "topics": [
+    {
+      "question_id": "BM.Q01.IDENTITY_BUSINESS_MODEL",
+      "topic": "公司起源、招股、主营业务构成与盈利模式",
+      "description": "追踪公司身份锚点、招股材料、主营业务构成与公开披露的盈利模式材料；只证明资料覆盖。",
+      "query_families": [
+        "company_bootstrap",
+        "prospectus",
+        "periodic_report"
+      ]
+    },
+    {
+      "question_id": "BM.Q02.PRODUCT_REGION_ECONOMICS",
+      "topic": "分产品、分地区收入与毛利",
+      "description": "追踪定期报告和业务公告中的产品及地区经营披露；不在采集层计算单位经济。",
+      "query_families": [
+        "periodic_report",
+        "business_announcement"
+      ]
+    },
+    {
+      "question_id": "BM.Q03.COUNTERPARTY_CHANNEL",
+      "topic": "客户、供应商集中度与渠道",
+      "description": "追踪招股书、定期报告和获批 IR 发布中的客户供应商及渠道材料。",
+      "query_families": [
+        "prospectus",
+        "periodic_report",
+        "ir_publication"
+      ]
+    },
+    {
+      "question_id": "BM.Q04.UNIT_ECONOMICS_PRICING",
+      "topic": "单位经济与定价相关披露",
+      "description": "追踪单位经济、价格和销量相关公开材料；不据此推断定价权。",
+      "query_families": [
+        "prospectus",
+        "periodic_report",
+        "business_announcement"
+      ]
+    },
+    {
+      "question_id": "BM.Q05.CAPACITY_OPERATIONS",
+      "topic": "产能、产量、销量、库存、利用率与在建产能",
+      "description": "追踪经营规模、产销存、利用率和在建产能相关公开材料。",
+      "query_families": [
+        "periodic_report",
+        "business_announcement",
+        "ir_publication"
+      ]
+    },
+    {
+      "question_id": "BM.Q06.CAPEX_CYCLE",
+      "topic": "资本开支周期",
+      "description": "追踪定期报告和重大经营公告中的资本开支及建设周期材料。",
+      "query_families": [
+        "periodic_report",
+        "business_announcement"
+      ]
+    },
+    {
+      "question_id": "BM.Q07.RD_INPUT_EFFICIENCY",
+      "topic": "研发投入与研发效率相关披露",
+      "description": "追踪研发投入、人员及产出相关公开材料；不在采集层判断研发效率。",
+      "query_families": [
+        "periodic_report",
+        "prospectus"
+      ]
+    },
+    {
+      "question_id": "BM.Q08.VALUE_CHAIN",
+      "topic": "上下游关系与供应链位置",
+      "description": "追踪招股书、定期报告和获批 IR 发布中的上下游及供应链材料。",
+      "query_families": [
+        "prospectus",
+        "periodic_report",
+        "ir_publication"
+      ]
+    },
+    {
+      "question_id": "BM.Q09.STRATEGY_CHANGES",
+      "topic": "未来战略与重大经营变化",
+      "description": "追踪公司公开披露的战略计划和重大经营变化；不判断战略可信度。",
+      "query_families": [
+        "periodic_report",
+        "business_announcement",
+        "ir_publication"
+      ]
+    },
+    {
+      "question_id": "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE",
+      "topic": "技术、成本、渠道、品牌竞争力声明及可观察证据",
+      "description": "追踪竞争力声明及其公开可观察材料；不在采集层判断护城河或投资价值。",
+      "query_families": [
+        "prospectus",
+        "periodic_report",
+        "business_announcement",
+        "ir_publication"
+      ]
+    }
+  ]
+}

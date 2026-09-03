@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -105,6 +105,11 @@ class SourceRecord(BaseModel):
     retrieved_at: datetime = Field(default_factory=utc_now)
     document_hash: str | None = None
     authority_level: int = Field(default=3, ge=1, le=5)
+    source_definition_id: str | None = None
+    source_definition_version: str | None = None
+    raw_resource_snapshot_id: str | None = None
+    canonical_resource_id: str | None = None
+    available_at: datetime | None = None
     notes: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -713,6 +718,9 @@ class SyncRequest(BaseModel):
     event_types: list[str] = Field(default_factory=list)
     download_official_documents: bool = True
     request_timeout_seconds: float = Field(default=30.0, ge=5.0, le=120.0)
+    acquisition_mode: Literal["baseline", "incremental", "reconcile"] | None = None
+    acquisition_parent_run_id: str | None = None
+    acquisition_plan_only: bool = False
 
     @field_validator("scopes")
     @classmethod
@@ -728,6 +736,7 @@ class SyncRequest(BaseModel):
             "market",
             "forecasts",
             "peers",
+            "business_model",
         }
         normalized = list(dict.fromkeys(item.strip().lower() for item in scopes if item.strip()))
         unknown = sorted(set(normalized) - allowed)
@@ -765,6 +774,36 @@ class SyncResult(BaseModel):
     peer_sets: list[PeerSetVersion] = Field(default_factory=list)
     announcements: list[AnnouncementRecord] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    acquisition_run_id: str | None = None
+    acquisition_status: str = "legacy_unassessed"
+    provider_results_authority: Literal[
+        "structured_attempts", "legacy_unassessed"
+    ] = "legacy_unassessed"
+    coverage_accounted: bool | None = None
+    material_gap_count: int | None = Field(default=None, ge=0)
+    default_consume_eligible: bool = True
+    checkpoint_ids: list[str] = Field(default_factory=list)
+    raw_resource_snapshot_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_acquisition_compatibility(self) -> "SyncResult":
+        if self.acquisition_run_id is None:
+            return self
+        if self.provider_results_authority != "structured_attempts":
+            raise ValueError(
+                "关联acquisition run的SyncResult必须以结构化attempts作为provider摘要来源"
+            )
+        if self.acquisition_status == "legacy_unassessed":
+            raise ValueError("关联acquisition run的SyncResult必须声明规范运行状态")
+        if self.default_consume_eligible and (
+            self.acquisition_status != "succeeded"
+            or self.coverage_accounted is not True
+            or self.material_gap_count != 0
+        ):
+            raise ValueError(
+                "默认可消费的acquisition SyncResult必须成功、覆盖可解释且无材料缺口"
+            )
+        return self
 
 
 class FactVerificationRequest(BaseModel):
@@ -780,6 +819,10 @@ class DocumentIngestRequest(BaseModel):
     source_name: str
     source_url: str | None = None
     published_at: datetime | None = None
+    source_definition_id: str | None = None
+    source_definition_version: str | None = None
+    canonical_resource_id: str | None = None
+    upstream_material_id: str | None = None
 
 
 class DocumentRecord(BaseModel):
@@ -790,8 +833,92 @@ class DocumentRecord(BaseModel):
     text_path: str
     sha256: str
     source: SourceRecord
+    raw_resource_snapshot_id: str | None = None
+    derived_artifact_id: str | None = None
+    supersedes_document_id: str | None = None
+    document_version: int = Field(default=1, ge=1)
     page_count: int = 0
     ocr_used: bool = False
     warnings: list[str] = Field(default_factory=list)
     extracted_at: datetime = Field(default_factory=utc_now)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# Acquisition v1 lives in a focused module, while these imports preserve the
+# original public `analysis.models` import surface for callers migrating in
+# stages.  The acquisition module deliberately does not import this module, so
+# the compatibility facade cannot create an import cycle.
+from .acquisition.models import (  # noqa: E402,F401
+    AcquisitionAttempt,
+    AcquisitionAttemptEvent,
+    AcquisitionAttemptEventType,
+    AcquisitionAttemptSegment,
+    AcquisitionExecutionLease,
+    AcquisitionMode,
+    AcquisitionOutcome,
+    AcquisitionPlan,
+    AcquisitionRun,
+    AcquisitionRunEvent,
+    AcquisitionRunEventType,
+    AcquisitionRunKind,
+    AcquisitionRunResult,
+    AnchorEvidence,
+    AttemptKind,
+    AvailableAtBasis,
+    BarrierResolution,
+    BootstrapStage,
+    BusinessQuestion,
+    BusinessQuestionSet,
+    CheckpointPartition,
+    CheckpointPosition,
+    CompanyAcquisitionProfile,
+    ContentBlob,
+    CoverageEntry,
+    CoveragePlanDisposition,
+    CoverageResolution,
+    CoverageResolutionStatus,
+    DerivedArtifact,
+    DiscoveryBodyPolicy,
+    DiscoveryObservation,
+    DiscoveryProof,
+    DiscoverySchemaPolicy,
+    DiscoveredResource,
+    EvidenceManifestExclusion,
+    EvidenceManifestItem,
+    EvidenceSnapshotManifest,
+    FetchPolicy,
+    LiveAccessReviewCheck,
+    LiveAccessReviewStatus,
+    PaginationPolicy,
+    PhysicalQueryCoverageLink,
+    PhysicalQueryPlanItem,
+    PolicyDecision,
+    PublishedAtPrecision,
+    QueryStage,
+    RawResourceSnapshot,
+    ResourceDisposition,
+    ResourceObservation,
+    ResourceRole,
+    SnapshotIntegrityEvent,
+    SnapshotIntegrityStatus,
+    SourceAlias,
+    SourceApplicability,
+    SourceCandidate,
+    SourceCandidateStatus,
+    SourceCheckpoint,
+    SourceDefinition,
+    SourceDefinitionRef,
+    SourceEndpointRule,
+    SourceIncrementalPolicy,
+    SourceLicensePolicy,
+    SourceLiveAccessReview,
+    SourcePolicyStatus,
+    SourceRateLimitPolicy,
+    SourceRegistry,
+    SourceResponseLimits,
+    SourceRetentionPolicy,
+    SourceRetryPolicy,
+    StorageBindingIntent,
+    StorageNamespace,
+    ValidatorAnchor,
+)

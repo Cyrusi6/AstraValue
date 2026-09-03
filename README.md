@@ -8,6 +8,58 @@
 
 跨层软件变更使用 OpenSpec 管理 proposal、行为规格、设计和任务；完整流程及其与现有文档的职责边界见 [`docs/openspec_workflow.md`](docs/openspec_workflow.md)。
 
+## 公司业务与商业模式资料采集（v1）
+
+这部分只建立可审计的资料采集底座；业务问题仍以 [`docs/methodology/steps/01_business_model.md`](docs/methodology/steps/01_business_model.md) 的 `content_status: skeleton` 文件为边界。本功能不抽取业务结论，不调用 Codex，不判断护城河、定价权、战略可信度或投资价值。
+
+所有会写入或联网的采集命令都必须显式提供匹配的 `--db` 和 `--data-root`。首次运行使用 `baseline` 完成从证据锚点开始的历史计划；有安全 checkpoint 后使用 `incremental`，它按来源水位线和固定 overlap window 检查新增及变化；缺口、迟到修订、完整性问题或不兼容注册表变化使用 `reconcile`。调用方不能用时间或问题筛选缩小 production baseline 后仍声称完整。
+
+当前注册表中四个 v1 来源的 `live_access_review` 均为 `pending`。以下命令可以冻结计划和覆盖，但真实 HTTP transport 会在 DNS 与请求前失败关闭，并把该位置保留为可审计缺口；只有人工完成 9.1 的 exact endpoint/redirect、响应、时间、保留、限速、许可与 LLM 条款清单，并以带复核人、时间和依据的新来源定义版本标记 `approved` 后，才允许联网。
+
+兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
+
+```powershell
+# 创建计划并执行；加 --plan-only 可只冻结 run/coverage，不联网
+python -m analysis.cli acquire start 600519 --mode baseline `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data --json
+
+# 后续增量
+python -m analysis.cli acquire start 600519 --mode incremental `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data --json
+
+# 从同一 ticker/scope 的确定性最近运行修复缺口
+python -m analysis.cli acquire start 600519 --mode reconcile --from-latest-run `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data --json
+
+# 注册表驱动的最小探针；它持久化 smoke run，但不推进 production checkpoint
+python -m analysis.cli smoke-sources --ticker 300750 --source szse.disclosures `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data --json
+```
+
+`no_data` 只表示一次 discovery 查询成功完成 schema 校验、总数闭合和分页终止证明且结果为空。网络失败、受限、登录、付费、限流、超时、解析失败或部分完成绝不能转换成 `no_data`，也不能自动生成“未披露”或“暂无该数据”。注册表外域名只能形成隔离的 source candidate；人工批准并发布新注册表版本前不得请求正文或进入正式证据。
+
+CLI 退出码固定如下：
+
+- `0`：运行成功并可作为默认消费批次；
+- `2`：参数、注册表或 namespace 校验错误；
+- `3`：运行已终结，但存在材料缺口或不能默认消费；
+- `4`：integrity/internal 失败；
+- `5`：可重试控制面冲突；JSON subtype 为 `active_lease` 或 `storage_busy`。也就是说，exit code 5 不是来源无数据或运行失败结论。
+
+升级已有数据库前可显式创建只读备份：
+
+```powershell
+python -m analysis.cli acquisition-db backup `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data --json
+```
+
+独立 backup 命令只做只读 preflight 和验证后的备份输出；它不会创建 binding intent、namespace、migration、runtime 或 acquisition run，也不会触发迁移。原始响应、PDF、数据库、备份、派生文本、证据清单文件和试点输出都位于 Git 忽略的数据根中，不应提交到仓库。
+
 ## 快速开始
 
 ```powershell
@@ -26,17 +78,20 @@ uvicorn analysis.api:app --reload
 ```powershell
 $env:HTTP_PROXY="http://127.0.0.1:7897"
 $env:HTTPS_PROXY="http://127.0.0.1:7897"
-python scripts/smoke_online_sources.py --ticker 600519 --timeout 20
+python scripts/smoke_online_sources.py --ticker 600519 `
+  --db var/pilots/business-model-acquisition-v1/analysis.db `
+  --data-root var/pilots/business-model-acquisition-v1/data
 ```
 
-在线探测默认只报告 `ok / degraded / unavailable / failed / timeout`，不会阻塞离线测试；需要把任一异常视为失败时加 `--strict`。
+该脚本委托给注册表驱动的 `smoke-sources` 命令，创建带 lease 的独立 smoke run，并报告规范 attempt 状态；它不会推进 production checkpoint。需要把材料缺口反映到退出码时加 `--strict`。
 
 Tushare Pro 不在默认同步列表中。需要时安装可选依赖并仅通过环境变量提供令牌：
 
 ```powershell
 python -m pip install -e ".[tushare]"
 $env:TUSHARE_TOKEN="你的令牌"
-python scripts/smoke_online_sources.py --ticker 600519 --providers tushare
+# Tushare 仍只通过既有 financial/market sync 显式 opt-in；
+# 不属于 business_model v1，也不会由 smoke-sources 枚举。
 ```
 
 Wind 需要本机 Wind 终端、`WindPy` 与有效商业授权，当前免费默认环境不伪装为可用数据源；其后可按同一适配器接口接入。

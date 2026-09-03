@@ -1,0 +1,85 @@
+{
+  "schema_version": "acquisition-golden-v1",
+  "change_id": "business-model-acquisition-v1",
+  "pilot": {
+    "ticker": "600519",
+    "company_name": "贵州茅台"
+  },
+  "status": "pending_manual_validation",
+  "minimum_success_or_unchanged_snapshots": 20,
+  "required_question_ids": [
+    "BM.Q01.IDENTITY_BUSINESS_MODEL",
+    "BM.Q02.PRODUCT_REGION_ECONOMICS",
+    "BM.Q03.COUNTERPARTY_CHANNEL",
+    "BM.Q04.UNIT_ECONOMICS_PRICING",
+    "BM.Q05.CAPACITY_OPERATIONS",
+    "BM.Q06.CAPEX_CYCLE",
+    "BM.Q07.RD_INPUT_EFFICIENCY",
+    "BM.Q08.VALUE_CHAIN",
+    "BM.Q09.STRATEGY_CHANGES",
+    "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+  ],
+  "review_sections": [
+    {
+      "section_id": "company_anchor",
+      "description": "公司上市日、招股书日及其证据锚点",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "source_question_time_coverage",
+      "description": "每个适用来源、十项主题以及早中近期 coverage",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "physical_query_m2m",
+      "description": "共享物理查询与 PhysicalQueryCoverageLink",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "discovery_and_required_fetch",
+      "description": "discovery proof、row lineage 与 required fetch",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "observed_non_success_outcomes",
+      "description": "试点实际观察到的全部非成功状态",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "snapshot_hash_sample",
+      "description": "至少二十个 success/unchanged 快照的磁盘 SHA-256",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    },
+    {
+      "section_id": "same_url_version_chains",
+      "description": "试点发现的全部同 URL 新哈希版本链",
+      "status": "pending",
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": []
+    }
+  ],
+  "limitations": [
+    "该清单只覆盖 600519 试点，不能代表全部 A 股。",
+    "清单签署只验收采集证据，不构成商业模式分析或投资判断。",
+    "原始材料、数据库、本机路径和访问凭据不得写入此文件。"
+  ]
+}

@@ -1,33 +1,38 @@
 from __future__ import annotations
 
 import argparse
-import json
 
-from analysis.online_smoke import DEFAULT_PROVIDERS, PROVIDERS, probe_online_sources
+from analysis.cli import main as analysis_main
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="非阻塞探测免费A股数据适配器")
-    parser.add_argument("--ticker", default="600519", help="六位A股代码")
-    parser.add_argument(
-        "--providers",
-        nargs="+",
-        choices=sorted(PROVIDERS),
-        default=list(DEFAULT_PROVIDERS),
+    """Compatibility launcher for the registry-driven persisted smoke command."""
+
+    parser = argparse.ArgumentParser(
+        description="从版本化来源注册表执行带审计租约的最小在线探针"
     )
-    parser.add_argument("--timeout", type=float, default=20, help="每个适配器的最长等待秒数")
-    parser.add_argument("--strict", action="store_true", help="任一适配器未成功时返回失败")
+    parser.add_argument("--ticker", default="600519", help="六位A股代码")
+    parser.add_argument("--source", action="append", dest="sources")
+    parser.add_argument("--db", required=True)
+    parser.add_argument("--data-root", required=True)
+    parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
-    results = probe_online_sources(args.ticker, args.providers, timeout_seconds=args.timeout)
-    payload = {
-        "ticker": args.ticker,
-        "strict": args.strict,
-        "results": results,
-        "passed": all(item["status"] == "ok" for item in results),
-        "note": "默认模式仅监测并显式报告接口状态，不阻塞离线测试。",
-    }
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0 if payload["passed"] or not args.strict else 1
+
+    forwarded = [
+        "smoke-sources",
+        "--ticker",
+        args.ticker,
+        "--db",
+        args.db,
+        "--data-root",
+        args.data_root,
+        "--json",
+    ]
+    for source_id in args.sources or ():
+        forwarded.extend(("--source", source_id))
+    if args.strict:
+        forwarded.append("--strict")
+    return analysis_main(forwarded)
 
 
 if __name__ == "__main__":

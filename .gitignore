@@ -12,6 +12,17 @@ var/*.duckdb*
 var/parquet/
 var/exports/*
 var/raw/*
+var/acquisition/
+var/backups/
+var/quarantine/
+var/pilots/
+*.acquisition-binding-intent
+*.acquisition-root-marker
+*.sqlite*
+*.duckdb*
+*.parquet
+*.token
+browser-profile/
 outputs/
 output/
 tmp/

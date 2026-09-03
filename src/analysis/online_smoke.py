@@ -1,141 +1,104 @@
 from __future__ import annotations
 
-import multiprocessing
-import queue
-import time
 from typing import Any
 
+from .acquisition.registry import SourceRegistryLoader
 
-PROVIDERS = {"official", "akshare", "sina", "baostock", "tushare"}
-DEFAULT_PROVIDERS = ("official", "akshare", "sina", "baostock")
+
+def _legacy_provider_catalog() -> tuple[frozenset[str], tuple[str, ...]]:
+    """Derive compatibility aliases from the versioned registry.
+
+    This module remains as a legacy watchdog facade.  Formal business-model
+    smoke runs are executed by ``AcquisitionOrchestrator.smoke_sources`` and
+    persisted with a run lease; neither path owns a provider constant.
+    """
+
+    loader = SourceRegistryLoader()
+    questions = loader.load_questions()
+    registry = loader.load_registry(
+        question_set=questions,
+        expect_business_model_v1=4,
+    ).registry
+    pairs = tuple(
+        (alias, definition.license_policy.access_cost.value)
+        for definition in registry.legacy_definitions
+        for alias in (definition.aliases or (definition.adapter_key,))
+    )
+    aliases = tuple(alias for alias, _ in pairs)
+    providers = frozenset(aliases)
+    defaults = tuple(alias for alias, access_cost in pairs if access_cost == "free")
+    return providers, defaults
+
+
+PROVIDERS, DEFAULT_PROVIDERS = _legacy_provider_catalog()
+
+
+def probe_registered_sources(
+    runtime: Any,
+    ticker: str,
+    source_ids: list[str] | None = None,
+    *,
+    timeout_seconds: float = 20,
+) -> dict[str, Any]:
+    """Execute one durable registry-driven smoke run in an injected runtime.
+
+    Typed outcomes, the run lease and the cross-process source gate belong to
+    the acquisition orchestrator.  In particular this function never creates
+    a runtime per source and never infers state from translated error text.
+    """
+
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds必须大于0")
+    orchestrator = getattr(runtime, "orchestrator", None)
+    if orchestrator is None:
+        raise RuntimeError("采集执行器尚不可用")
+    smoke = getattr(orchestrator, "smoke_sources", None) or getattr(
+        orchestrator, "execute_smoke", None
+    )
+    if smoke is None:
+        raise RuntimeError("采集执行器未实现smoke_sources")
+    result = smoke(ticker=ticker, source_ids=source_ids)
+    if hasattr(result, "as_dict"):
+        return result.as_dict()
+    if hasattr(result, "model_dump"):
+        return result.model_dump(mode="json")
+    if isinstance(result, dict):
+        return result
+    raise TypeError("smoke执行器返回了不支持的结果类型")
 
 
 def probe_online_sources(
     ticker: str,
     providers: list[str],
     *,
+    runtime: Any | None = None,
     timeout_seconds: float = 20,
-) -> list[dict[str, Any]]:
-    unknown = sorted(set(providers) - PROVIDERS)
-    if unknown:
-        raise ValueError(f"未知适配器: {', '.join(unknown)}")
+) -> dict[str, Any]:
+    """Deprecated compatibility facade for registry-driven smoke runs.
+
+    Historical callers passed only ``ticker`` and legacy provider names.  That
+    implementation spawned one process per provider and constructed an
+    ``AdapterManager`` inside each worker, bypassing the durable run, attempt,
+    lease and cross-process source gate contracts.  Keep the callable surface
+    so old imports fail with a useful migration message, but never construct a
+    transport or runtime here.  Callers that inject the process-wide runtime
+    are delegated to the single registry-driven path.
+    """
+
+    if runtime is None:
+        unknown = sorted(set(providers) - PROVIDERS)
+        if unknown:
+            raise ValueError(f"未知适配器: {', '.join(unknown)}")
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds必须大于0")
-    context = multiprocessing.get_context("spawn")
-    jobs = []
-    for provider in providers:
-        result_queue = context.Queue(maxsize=1)
-        process = context.Process(target=_probe_provider, args=(provider, ticker, result_queue))
-        process.daemon = True
-        process.start()
-        jobs.append((provider, process, result_queue, time.monotonic()))
-
-    results: list[dict[str, Any]] = []
-    for provider, process, result_queue, started_at in jobs:
-        remaining = max(0.0, timeout_seconds - (time.monotonic() - started_at))
-        process.join(remaining)
-        if process.is_alive():
-            process.terminate()
-            process.join(2)
-            results.append(
-                {
-                    "provider": provider,
-                    "status": "timeout",
-                    "fact_count": 0,
-                    "source_count": 0,
-                    "warnings": [f"超过{timeout_seconds:g}秒，已终止探测进程"],
-                }
-            )
-        else:
-            try:
-                results.append(result_queue.get(timeout=1))
-            except queue.Empty:
-                results.append(
-                    {
-                        "provider": provider,
-                        "status": "failed",
-                        "fact_count": 0,
-                        "source_count": 0,
-                        "warnings": [f"探测进程退出码{process.exitcode}，未返回结果"],
-                    }
-                )
-        result_queue.close()
-        result_queue.join_thread()
-    return results
-
-
-def _probe_provider(provider: str, ticker: str, result_queue) -> None:
-    try:
-        if provider == "akshare":
-            from .adapters.akshare_adapter import AkshareAdapter
-
-            adapter = AkshareAdapter()
-        elif provider == "baostock":
-            from .adapters.baostock_adapter import BaostockAdapter
-
-            adapter = BaostockAdapter()
-        elif provider == "sina":
-            from .adapters.sina_adapter import SinaFinanceAdapter
-
-            adapter = SinaFinanceAdapter()
-        elif provider == "tushare":
-            from .adapters.tushare_adapter import TushareProAdapter
-
-            adapter = TushareProAdapter()
-        elif provider == "official":
-            from .adapters.official_adapter import OfficialDisclosureAdapter
-
-            adapter = OfficialDisclosureAdapter()
-        else:
-            raise ValueError(f"未知适配器: {provider}")
-        from .models import SyncRequest
-
-        # Metadata-only probing keeps the watchdog lightweight. Full PDF download
-        # and parsing are exercised by the normal company sync endpoint.
-        options = SyncRequest(
-            providers=[provider],
-            download_official_documents=provider != "official",
+    if runtime is None:
+        raise RuntimeError(
+            "probe_online_sources已禁用无运行时的直接联网；"
+            "请注入AcquisitionRuntime或使用smoke-sources CLI"
         )
-        result = adapter.sync(ticker, options)
-        usable = bool(result.facts) or (
-            provider == "official" and "仅校验元数据" in result.provider_results.get(provider, "")
-        )
-        status = "ok" if usable and not result.warnings else "degraded"
-        result_queue.put(
-            {
-                "provider": provider,
-                "status": status,
-                "fact_count": len(result.facts),
-                "source_count": len(result.sources),
-                "document_count": len(result.documents),
-                "verification_count": len(result.verification_records),
-                "provider_result": result.provider_results.get(provider),
-                "warnings": result.warnings,
-            }
-        )
-    except RuntimeError as exc:
-        message = str(exc)
-        status = (
-            "unavailable"
-            if any(token in message for token in ("未安装", "未配置", "不可用"))
-            else "failed"
-        )
-        result_queue.put(
-            {
-                "provider": provider,
-                "status": status,
-                "fact_count": 0,
-                "source_count": 0,
-                "warnings": [message],
-            }
-        )
-    except Exception as exc:
-        result_queue.put(
-            {
-                "provider": provider,
-                "status": "failed",
-                "fact_count": 0,
-                "source_count": 0,
-                "warnings": [f"{type(exc).__name__}: {exc}"],
-            }
-        )
+    return probe_registered_sources(
+        runtime,
+        ticker,
+        list(providers),
+        timeout_seconds=timeout_seconds,
+    )

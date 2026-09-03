@@ -229,10 +229,53 @@ function DataDesk({ notify, onError }) {
   const [ticker, setTicker] = useState("");
   const [providers, setProviders] = useState(["akshare", "baostock"]);
   const [result, setResult] = useState(null);
+  const [sourceDefinitions, setSourceDefinitions] = useState([]);
+  const [acquisitionRuns, setAcquisitionRuns] = useState([]);
+  const [acquisitionMode, setAcquisitionMode] = useState("baseline");
+  const [acquisitionBusy, setAcquisitionBusy] = useState(false);
   const [document, setDocument] = useState({ ticker: "", path: "", title: "", source_name: "巨潮/交易所正式文件" });
+  useEffect(() => {
+    api("/source-definitions?scope=business_model")
+      .then(setSourceDefinitions)
+      .catch((err) => onError(err.message));
+  }, []);
+
+  async function refreshAcquisitionRuns(targetTicker = ticker) {
+    if (!targetTicker) return;
+    try {
+      setAcquisitionRuns(await api(`/acquisition-runs?ticker=${encodeURIComponent(targetTicker)}`));
+    } catch (err) { onError(err.message); }
+  }
+
+  async function createAcquisitionRun() {
+    setAcquisitionBusy(true);
+    try {
+      const run = await api(`/companies/${ticker}/acquisition-runs`, {
+        method: "POST",
+        body: JSON.stringify({ mode: acquisitionMode, as_of: new Date().toISOString() }),
+      });
+      setResult(run);
+      await refreshAcquisitionRuns(ticker);
+      notify("采集计划已冻结；尚未执行外部请求");
+    } catch (err) { onError(err.message); }
+    finally { setAcquisitionBusy(false); }
+  }
+
+  async function executeAcquisitionRun(runId) {
+    setAcquisitionBusy(true);
+    try {
+      const run = await api(`/acquisition-runs/${runId}/execute`, { method: "POST" });
+      setResult(run);
+      await refreshAcquisitionRuns(ticker);
+      notify("采集执行已结束；请核对 coverage 与材料缺口");
+    } catch (err) { onError(err.message); }
+    finally { setAcquisitionBusy(false); }
+  }
+
   async function sync() { try { setResult(await api(`/companies/${ticker}/sync`, { method: "POST", body: JSON.stringify({ providers }) })); notify("同步完成；请检查各适配器状态"); } catch (err) { onError(err.message); } }
   async function ingest() { try { const res = await api("/documents", { method: "POST", body: JSON.stringify(document) }); setResult(res); notify("公告已按哈希归档并建立全文索引"); } catch (err) { onError(err.message); } }
-  return <div className="data-grid"><section className="panel"><PanelTitle title="免费数据同步" meta="结构化源只用于抓取/复核，正式披露优先" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="例如 600519" /></label><div className="check-row">{["akshare", "baostock"].map((name) => <label key={name}><input type="checkbox" checked={providers.includes(name)} onChange={() => setProviders(providers.includes(name) ? providers.filter((item) => item !== name) : [...providers, name])} />{name}</label>)}</div><button className="primary" disabled={!ticker || !providers.length} onClick={sync}>同步并交叉核验</button></section>
+  return <div className="data-grid"><section className="panel acquisition-panel"><PanelTitle title="公司业务与商业模式资料采集" meta="固定注册表计划 · 来源与问题不可省略" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} onBlur={() => refreshAcquisitionRuns()} placeholder="例如 600519" /></label><label>运行模式<select value={acquisitionMode} onChange={(e) => setAcquisitionMode(e.target.value)}><option value="baseline">baseline · 首次完整历史回溯</option><option value="incremental">incremental · 水位线增量更新</option><option value="reconcile">reconcile · 缺口与历史修订对账</option></select></label><div className="source-plan"><strong>版本化来源计划</strong>{sourceDefinitions.length ? sourceDefinitions.map((source) => <div key={`${source.source_definition_id}@${source.version}`}><span>{source.display_name}</span><StatusBadge value={source.policy_status || source.status} /><small>{source.applicability_summary || "适用性在计划阶段确定"}</small></div>) : <p className="muted">正在读取来源注册表；没有来源时不能把运行称为完整。</p>}</div><button className="primary" disabled={!ticker || acquisitionBusy || !sourceDefinitions.length} onClick={createAcquisitionRun}>只规划并冻结 coverage</button>{acquisitionRuns.length > 0 && <div className="acquisition-runs"><strong>最近采集运行</strong>{acquisitionRuns.slice(0, 5).map((run) => <div key={run.run_id}><div><code>{run.run_id}</code><span>{run.mode} · {run.status}</span><small>coverage_accounted={String(Boolean(run.coverage_accounted))} · gaps={run.material_gap_count ?? "待计算"}</small></div><button disabled={acquisitionBusy || ["succeeded", "partial", "failed"].includes(run.status)} onClick={() => executeAcquisitionRun(run.run_id)}>执行/恢复</button></div>)}</div>}</section>
+    <section className="panel"><PanelTitle title="Legacy 财务同步" meta="非 business_model v1；保留既有财务兼容范围" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="例如 600519" /></label><div className="check-row">{["akshare", "baostock"].map((name) => <label key={name}><input type="checkbox" checked={providers.includes(name)} onChange={() => setProviders(providers.includes(name) ? providers.filter((item) => item !== name) : [...providers, name])} />{name}</label>)}</div><button className="primary" disabled={!ticker || !providers.length} onClick={sync}>同步并交叉核验</button></section>
     <section className="panel"><PanelTitle title="正式公告归档" meta="PDF/HTML/TXT/Markdown · SHA-256 · FTS5" />{Object.entries(document).map(([key, value]) => <label key={key}>{({ ticker: "股票代码", path: "本地文件绝对路径", title: "公告标题", source_name: "来源名称" })[key]}<input value={value} onChange={(e) => setDocument({ ...document, [key]: e.target.value })} /></label>)}<button className="primary" disabled={!document.ticker || !document.path || !document.title} onClick={ingest}>归档并索引</button></section>
     {result && <section className="panel data-result"><PanelTitle title="本次结果" meta="所有失败显式降级" /><pre>{JSON.stringify(result, null, 2)}</pre></section>}
   </div>;

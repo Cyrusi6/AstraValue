@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from datetime import datetime
+import re
+import threading
+from dataclasses import fields, is_dataclass
+from datetime import date, datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from .adapters.manager import AdapterManager
-from .documents import ingest_document
+from .documents import SourceReviewRequired, ingest_registered_document
 from .exports import export_report
 from .models import (
     AssumptionPatchRequest,
@@ -25,6 +31,30 @@ from .reporting import ReportBuildError
 from .service import AnalysisService
 from .storage import StorageError
 from .verification import verify_pair
+from .acquisition.bootstrap import (
+    BootstrapLockTimeout,
+    StorageNamespaceMismatch,
+    StorageRepairRequired,
+)
+from .acquisition.models import (
+    AcquisitionMode,
+    AcquisitionRunEventType,
+    AcquisitionRunKind,
+    SourceCandidateStatus,
+    SourcePolicyStatus,
+)
+from .acquisition.planner import AcquisitionPlanningError
+from .acquisition.registry import SourceRegistryError, SourceRegistryLoader
+from .acquisition.repository import (
+    AcquisitionNotFoundError,
+    AcquisitionStorageError,
+    LeaseConflictError,
+    StaleLeaseError,
+    StorageBusyError,
+)
+from .acquisition.runtime import AcquisitionRuntime, acquisition_v1_enabled
+from .acquisition.security import is_sensitive_name, redact_url
+from .acquisition.snapshots import SnapshotPipelineError
 
 
 MEDIA_TYPES = {
@@ -37,14 +67,60 @@ MEDIA_TYPES = {
 }
 
 
-def create_app(service: AnalysisService | None = None) -> FastAPI:
+class AcquisitionRunCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: AcquisitionMode
+    as_of: datetime | None = None
+    company_name: str | None = None
+    market: str | None = Field(default=None, pattern="^(SSE|SZSE)$")
+    listing_date: date | None = None
+    prospectus_date: date | None = None
+    run_kind: AcquisitionRunKind = AcquisitionRunKind.PRODUCTION
+    parent_run_id: str | None = None
+    # These fields are accepted only to return a precise contract error rather
+    # than silently narrowing a production baseline.
+    start_at: datetime | None = None
+    question_ids: list[str] | None = None
+
+
+class AcquisitionExecuteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lease_ttl_seconds: int = Field(default=60, ge=5, le=3600)
+
+
+def create_app(
+    service: AnalysisService | None = None,
+    acquisition_runtime: AcquisitionRuntime | None = None,
+    *,
+    acquisition_enabled: bool | None = None,
+) -> FastAPI:
     application = FastAPI(
         title="A股全行业八步财报分析系统",
         version="0.1.0",
         description="本地、可审计、版本冻结的个人投研API；不构成投资建议。",
     )
+    enabled = acquisition_v1_enabled(acquisition_enabled)
+    if acquisition_runtime is not None and acquisition_enabled is None:
+        # Explicit dependency injection is an explicit local enablement.  The
+        # environment flag only controls implicit application startup.
+        enabled = True
+    bound_runtime = acquisition_runtime if enabled else None
+    if bound_runtime is not None:
+        service = (
+            bound_runtime.analysis_service
+            if service is None
+            else bound_runtime.bind_analysis_service(service)
+        )
     application.state.service = service or AnalysisService()
-    application.state.adapters = AdapterManager()
+    application.state.acquisition_runtime = bound_runtime
+    application.state.acquisition_v1_enabled = enabled
+    application.state.adapters = (
+        bound_runtime.adapter_manager
+        if bound_runtime is not None
+        else AdapterManager()
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -58,6 +134,104 @@ def create_app(service: AnalysisService | None = None) -> FastAPI:
         from fastapi.responses import JSONResponse
 
         return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+    @application.exception_handler(AcquisitionNotFoundError)
+    async def acquisition_not_found(_: Request, exc: AcquisitionNotFoundError):
+        return JSONResponse(
+            status_code=404,
+            content={"detail": str(exc), "error": "not_found"},
+        )
+
+    @application.exception_handler(LeaseConflictError)
+    async def acquisition_active_lease(_: Request, exc: LeaseConflictError):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": "采集运行已有未过期执行租约",
+                "error": "active_lease",
+                "run_id": exc.run_id,
+                "expires_at": exc.expires_at,
+                "retryable": True,
+            },
+        )
+
+    @application.exception_handler(StaleLeaseError)
+    async def acquisition_stale_owner(_: Request, exc: StaleLeaseError):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "stale_owner",
+                "retryable": False,
+            },
+        )
+
+    @application.exception_handler(SourceReviewRequired)
+    async def source_review_required(_: Request, exc: SourceReviewRequired):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": str(exc),
+                "error": "source_review_required",
+                "candidate_id": exc.candidate_id,
+            },
+        )
+
+    @application.exception_handler(StorageBusyError)
+    async def acquisition_storage_busy(_: Request, exc: StorageBusyError):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": str(exc), "error": "storage_busy", "retryable": True},
+        )
+
+    @application.exception_handler(SourceRegistryError)
+    @application.exception_handler(AcquisitionPlanningError)
+    @application.exception_handler(StorageNamespaceMismatch)
+    @application.exception_handler(ValueError)
+    async def acquisition_validation(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": _safe_error_detail(exc), "error": "validation"},
+        )
+
+    @application.exception_handler(BootstrapLockTimeout)
+    async def acquisition_bootstrap_busy(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "storage_busy",
+                "retryable": True,
+            },
+        )
+
+    @application.exception_handler(StorageRepairRequired)
+    async def acquisition_storage_integrity(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "storage_integrity_error",
+                "retryable": False,
+            },
+        )
+
+    @application.exception_handler(SnapshotPipelineError)
+    async def acquisition_integrity(_: Request, exc: SnapshotPipelineError):
+        return JSONResponse(
+            status_code=500,
+            content={"detail": _safe_error_detail(exc), "error": "integrity_error"},
+        )
+
+    @application.exception_handler(AcquisitionStorageError)
+    async def acquisition_storage_error(_: Request, exc: AcquisitionStorageError):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "storage_integrity_error",
+            },
+        )
 
     @application.exception_handler(MethodRegistryError)
     async def registry_error(_: Request, exc: MethodRegistryError):
@@ -102,6 +276,324 @@ def create_app(service: AnalysisService | None = None) -> FastAPI:
             "content_hash": current.registry._method_hash(spec),
         }
 
+    @application.get("/api/source-definitions")
+    def list_source_definitions(
+        request: Request,
+        scope: str | None = None,
+        status: SourcePolicyStatus | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        runtime = _optional_acquisition_runtime(request)
+        definitions = (
+            runtime.loaded_registry.registry.definitions
+            if runtime is not None
+            else SourceRegistryLoader().load_registry().registry.definitions
+        )
+        rows = [
+            item
+            for item in definitions
+            if (scope is None or scope in item.scopes)
+            and (status is None or item.policy_status == status)
+        ]
+        rows = sorted(rows, key=lambda item: (item.source_definition_id, item.version))
+        return [
+            {
+                "source_definition_id": item.source_definition_id,
+                "version": item.version,
+                "display_name": item.display_name,
+                "upstream_identity": item.upstream_identity,
+                "authority_level": item.authority_level,
+                "policy_status": item.policy_status.value,
+                "enabled": item.enabled,
+                "scopes": list(item.scopes),
+                "scope_version": item.scope_version,
+                "topics": list(item.topics),
+                "refresh_frequency": item.refresh_frequency,
+                "llm_processing": item.license_policy.llm_processing.value,
+                "archive_original": item.license_policy.archive_original.value,
+                "query_count": len(item.queries),
+            }
+            for item in rows[offset : offset + limit]
+        ]
+
+    @application.get("/api/source-candidates")
+    def list_source_candidates(
+        request: Request,
+        status: SourceCandidateStatus | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        rows = _acquisition_runtime(request).repository.list_source_candidates(
+            status=None if status is None else status.value,
+            limit=limit,
+            offset=offset,
+        )
+        return [_redacted(item) for item in rows]
+
+    @application.post("/api/companies/{ticker}/acquisition-runs", status_code=201)
+    def create_acquisition_run(
+        ticker: str,
+        payload: AcquisitionRunCreateRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        if payload.start_at is not None or payload.question_ids is not None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "baseline/incremental/reconcile执行范围只能由锚点、checkpoint与"
+                    "registry决定；本端点不接受被静默忽略的时间或问题过滤"
+                ),
+            )
+        runtime = _acquisition_runtime(request)
+        plan = runtime.plan_company_run(
+            ticker,
+            mode=payload.mode,
+            as_of=payload.as_of,
+            company_name=payload.company_name,
+            market=payload.market,
+            listing_date=payload.listing_date,
+            prospectus_date=payload.prospectus_date,
+            run_kind=payload.run_kind,
+            parent_run_id=payload.parent_run_id,
+            persist=True,
+        )
+        return _plan_response(plan)
+
+    @application.post("/api/acquisition-runs/{run_id}/execute")
+    async def execute_acquisition_run(
+        run_id: str,
+        request: Request,
+        payload: AcquisitionExecuteRequest = Body(default_factory=AcquisitionExecuteRequest),
+    ) -> dict[str, Any]:
+        runtime = _acquisition_runtime(request)
+        if runtime.orchestrator is None:
+            raise HTTPException(status_code=503, detail="采集执行器尚不可用")
+        executor = getattr(runtime.orchestrator, "execute_run", None) or getattr(
+            runtime.orchestrator, "execute", None
+        )
+        if executor is None:
+            raise HTTPException(status_code=503, detail="采集执行器接口不可用")
+        result = await run_in_threadpool(
+            executor,
+            run_id,
+            lease_ttl_seconds=payload.lease_ttl_seconds,
+        )
+        return _redacted(result)
+
+    @application.get("/api/acquisition-runs")
+    def list_acquisition_runs(
+        request: Request,
+        ticker: str | None = None,
+        mode: AcquisitionMode | None = None,
+        run_kind: AcquisitionRunKind | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        rows = _acquisition_runtime(request).repository.list_runs(
+            ticker=ticker,
+            mode=None if mode is None else mode.value,
+            run_kind=None if run_kind is None else run_kind.value,
+            limit=limit,
+            offset=offset,
+        )
+        repository = _acquisition_runtime(request).repository
+        return [_run_summary(repository, item) for item in rows]
+
+    @application.get("/api/acquisition-runs/{run_id}")
+    def get_acquisition_run(run_id: str, request: Request) -> dict[str, Any]:
+        repository = _acquisition_runtime(request).repository
+        run = repository.get_run(run_id)
+        return {
+            "run": _redacted(run),
+            "events": [_redacted(item) for item in repository.list_run_events(run_id)],
+            "summary": _run_summary(repository, run),
+            "physical_query_plan_items": len(repository.list_plan_items(run_id)),
+            "coverage_entries": len(repository.list_coverage_entries(run_id)),
+        }
+
+    @application.get("/api/acquisition-runs/{run_id}/attempts")
+    def list_acquisition_attempts(
+        run_id: str,
+        request: Request,
+        source_definition_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=2000),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        repository = _acquisition_runtime(request).repository
+        repository.get_run(run_id)
+        attempts = repository.list_attempts(
+                run_id=run_id,
+                source_definition_id=source_definition_id,
+                limit=limit,
+                offset=offset,
+        )
+        return [_attempt_summary(repository, item) for item in attempts]
+
+    @application.get("/api/acquisition-runs/{run_id}/coverage")
+    def list_acquisition_coverage(
+        run_id: str,
+        request: Request,
+        source_definition_id: str | None = None,
+        question_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=2000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        repository = _acquisition_runtime(request).repository
+        repository.get_run(run_id)
+        entries = [
+            item
+            for item in repository.list_coverage_entries(run_id)
+            if (
+                source_definition_id is None
+                or item.source_definition_id == source_definition_id
+            )
+            and (question_id is None or item.question_id == question_id)
+        ]
+        page = entries[offset : offset + limit]
+        entry_ids = {item.coverage_entry_id for item in page}
+        return {
+            "entries": [_redacted(item) for item in page],
+            "links": [
+                _redacted(item)
+                for item in repository.list_plan_coverage_links(run_id=run_id)
+                if item.coverage_entry_id in entry_ids
+            ],
+            "resolutions": [
+                _redacted(item)
+                for item in repository.list_coverage_resolutions(run_id)
+                if item.coverage_entry_id in entry_ids
+            ],
+            "total": len(entries),
+            "limit": limit,
+            "offset": offset,
+        }
+
+    @application.get("/api/acquisition-runs/{run_id}/observations")
+    def list_acquisition_observations(
+        run_id: str,
+        request: Request,
+        observation_kind: str | None = Query(
+            default=None, pattern="^(discovery|resource)$"
+        ),
+        source_definition_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=2000),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        repository = _acquisition_runtime(request).repository
+        repository.get_run(run_id)
+        attempts = repository.list_attempts(
+            run_id=run_id,
+            source_definition_id=source_definition_id,
+            limit=100_000,
+        )
+        rows: list[dict[str, Any]] = []
+        for attempt in attempts:
+            if observation_kind in (None, "discovery"):
+                rows.extend(
+                    {
+                        "observation_kind": "discovery",
+                        **_redacted(item),
+                    }
+                    for item in repository.list_discovery_observations(
+                        attempt.attempt_id
+                    )
+                )
+            if observation_kind in (None, "resource"):
+                rows.extend(
+                    {
+                        "observation_kind": "resource",
+                        **_redacted(item),
+                    }
+                    for item in repository.list_resource_observations(
+                        attempt_id=attempt.attempt_id,
+                        limit=100_000,
+                    )
+                )
+        rows.sort(
+            key=lambda item: (
+                str(item.get("observed_at") or ""),
+                str(item.get("observation_id") or ""),
+                str(item.get("observation_kind") or ""),
+            )
+        )
+        return rows[offset : offset + limit]
+
+    @application.get("/api/companies/{ticker}/acquisition-checkpoints")
+    def list_acquisition_checkpoints(
+        ticker: str,
+        request: Request,
+        source_definition_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        runtime = _acquisition_runtime(request)
+        market = runtime.build_profile(ticker).market
+        rows = []
+        for definition in runtime.loaded_registry.registry.definitions:
+            if (
+                "business_model" not in definition.scopes
+                or not definition.applies_to(ticker, market)
+                or (
+                    source_definition_id is not None
+                    and definition.source_definition_id != source_definition_id
+                )
+            ):
+                continue
+            checkpoint = runtime.repository.latest_checkpoint(
+                ticker,
+                definition.source_definition_id,
+                definition.version,
+                runtime.loaded_questions.question_set.version,
+            )
+            if checkpoint is not None:
+                rows.append(_redacted(checkpoint))
+        rows.sort(
+            key=lambda item: (
+                str(item.get("source_definition_id") or ""),
+                int(item.get("checkpoint_version") or 0),
+            )
+        )
+        return rows[offset : offset + limit]
+
+    @application.get("/api/raw-resource-snapshots/{snapshot_id}")
+    def get_raw_resource_snapshot(snapshot_id: str, request: Request) -> dict[str, Any]:
+        return _redacted(
+            _acquisition_runtime(request).repository.get_raw_resource_snapshot(snapshot_id)
+        )
+
+    @application.get("/api/raw-resource-snapshots/{snapshot_id}/integrity-events")
+    def list_snapshot_integrity_events(
+        snapshot_id: str,
+        request: Request,
+    ) -> list[dict[str, Any]]:
+        repository = _acquisition_runtime(request).repository
+        repository.get_raw_resource_snapshot(snapshot_id)
+        return [
+            _redacted(item)
+            for item in repository.list_snapshot_integrity_events(snapshot_id)
+        ]
+
+    @application.get("/api/evidence-manifests/{manifest_id}")
+    def get_evidence_manifest(manifest_id: str, request: Request) -> dict[str, Any]:
+        return _redacted(
+            _acquisition_runtime(request).repository.get_evidence_manifest(manifest_id)
+        )
+
+    @application.get("/api/evidence-manifests")
+    def list_evidence_manifests(
+        request: Request,
+        run_id: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> list[dict[str, Any]]:
+        rows = _acquisition_runtime(request).repository.list_evidence_manifests(
+            run_id=run_id,
+            limit=limit,
+            offset=offset,
+        )
+        return [_redacted(item) for item in rows]
+
     @application.post("/api/companies/{ticker}/sync")
     async def sync_company(
         ticker: str,
@@ -109,6 +601,17 @@ def create_app(service: AnalysisService | None = None) -> FastAPI:
         options: SyncRequest = Body(default_factory=SyncRequest),
     ) -> dict:
         current = _service(request)
+        if (
+            "business_model" in options.scopes
+            and _optional_acquisition_runtime(request) is None
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "business_model采集必须启用并注入同一database/data_root的"
+                    "AcquisitionRuntime"
+                ),
+            )
         result = await run_in_threadpool(application.state.adapters.sync, ticker, options)
         current.storage.save_sync_result(result)
         current.timeseries.append_facts(result.facts)
@@ -364,11 +867,12 @@ def create_app(service: AnalysisService | None = None) -> FastAPI:
 
     @application.post("/api/documents", status_code=201)
     def add_document(payload: DocumentIngestRequest, request: Request) -> dict:
-        document = ingest_document(payload)
+        runtime = _acquisition_runtime(request)
+        document = ingest_registered_document(payload, runtime)
         storage = _service(request).storage
         storage.save_sources([document.source])
         storage.save_document(document)
-        return document.model_dump(mode="json")
+        return _redacted(document)
 
     @application.get("/api/documents/search")
     def search_documents(
@@ -405,4 +909,164 @@ def _service(request: Request) -> AnalysisService:
     return request.app.state.service
 
 
-app = create_app()
+def _optional_acquisition_runtime(request: Request) -> AcquisitionRuntime | None:
+    return getattr(request.app.state, "acquisition_runtime", None)
+
+
+def _acquisition_runtime(request: Request) -> AcquisitionRuntime:
+    runtime = _optional_acquisition_runtime(request)
+    if runtime is None:
+        raise HTTPException(
+            status_code=503,
+            detail="acquisition v1写入口未启用；旧报告与financial sync仍可用",
+        )
+    return runtime
+
+
+def _redacted(value: Any, *, field_name: str | None = None) -> Any:
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    elif is_dataclass(value) and not isinstance(value, type):
+        value = {item.name: getattr(value, item.name) for item in fields(value)}
+    elif hasattr(value, "__dict__") and not isinstance(value, type):
+        value = dict(value.__dict__)
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if (
+                lowered
+                in {"owner_token", "owner_token_hash", "database_path", "data_root"}
+                or is_sensitive_name(lowered)
+            ):
+                continue
+            if lowered.endswith("absolute_path"):
+                continue
+            result[str(key)] = _redacted(item, field_name=lowered)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_redacted(item) for item in value]
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return "[REDACTED_LOCAL_PATH]"
+    if isinstance(value, str):
+        if field_name and "url" in field_name and value.startswith(("http://", "https://")):
+            return redact_url(value)
+        if _looks_like_absolute_local_path(value):
+            return "[REDACTED_LOCAL_PATH]"
+    return value
+
+
+def _looks_like_absolute_local_path(value: str) -> bool:
+    return bool(re.match(r"^(?:[A-Za-z]:[\\/]|\\\\)", value.strip()))
+
+
+def _safe_error_detail(exc: Exception) -> str:
+    detail = str(exc)
+    detail = re.sub(
+        r"(?i)(?:[A-Z]:[\\/]|\\\\)[^\r\n,;]*",
+        "[REDACTED_LOCAL_PATH]",
+        detail,
+    )
+    return detail
+
+
+def _run_summary(repository: Any, run: Any) -> dict[str, Any]:
+    payload = _redacted(run)
+    events = repository.list_run_events(run.run_id)
+    latest = events[-1] if events else None
+    payload["status"] = (
+        "planned"
+        if latest is None
+        else (
+            latest.result.value
+            if latest.event_type == AcquisitionRunEventType.FINALIZED
+            and latest.result is not None
+            else latest.event_type.value
+        )
+    )
+    payload["coverage_accounted"] = (
+        None if latest is None else latest.coverage_accounted
+    )
+    payload["material_gap_count"] = (
+        None if latest is None else latest.material_gap_count
+    )
+    payload["default_consume_eligible"] = (
+        False if latest is None else bool(latest.default_consume_eligible)
+    )
+    return payload
+
+
+def _attempt_summary(repository: Any, attempt: Any) -> dict[str, Any]:
+    payload = _redacted(attempt)
+    events = repository.list_attempt_events(attempt.attempt_id)
+    payload["events"] = [_redacted(item) for item in events]
+    terminal = next(
+        (
+            item
+            for item in reversed(events)
+            if item.event_type.value in {"outcome_terminal", "abandoned"}
+        ),
+        None,
+    )
+    payload["status"] = (
+        "started"
+        if terminal is None
+        else (
+            terminal.outcome.value
+            if terminal.outcome is not None
+            else terminal.event_type.value
+        )
+    )
+    payload["reason_code"] = None if terminal is None else terminal.reason_code
+    return payload
+
+
+def _plan_response(plan: Any) -> dict[str, Any]:
+    return {
+        "run": _redacted(plan.run),
+        "run_id": plan.run.run_id,
+        "physical_query_count": len(plan.physical_query_plan_items),
+        "coverage_entry_count": len(plan.coverage_entries),
+        "coverage_link_count": len(plan.coverage_links),
+        "coverage_accounted": False,
+        "material_gap_count": None,
+        "checkpoint_advanced": False,
+    }
+
+
+class _LazyDefaultApplication:
+    """Delay the legacy default app until it is actually served.
+
+    Importing ``create_app`` for an explicitly bound acquisition server must
+    not first initialize the repository-wide default SQLite/DuckDB paths or a
+    second AdapterManager.  The proxy remains an ASGI application, so the
+    documented ``uvicorn analysis.api:app`` entrypoint stays compatible.
+    """
+
+    def __init__(self) -> None:
+        self._application: FastAPI | None = None
+        self._lock = threading.Lock()
+
+    def _resolve(self) -> FastAPI:
+        application = self._application
+        if application is not None:
+            return application
+        with self._lock:
+            if self._application is None:
+                self._application = create_app()
+            return self._application
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        await self._resolve()(scope, receive, send)
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self._resolve(), name)
+
+
+app = _LazyDefaultApplication()

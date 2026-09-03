@@ -407,7 +407,7 @@ def test_storage_persists_research_records_and_returns_lineage(tmp_path):
     ) == [announcement_v2]
 
     with sqlite3.connect(storage.db_path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
         assert (
             connection.execute(
                 "SELECT COUNT(*) FROM schema_migrations WHERE migration_id=?",
@@ -421,7 +421,7 @@ def test_storage_persists_research_records_and_returns_lineage(tmp_path):
         storage.save_dimensional_facts([changed])
 
 
-def test_schema_v4_migrates_dimensional_verification_status_to_v5(tmp_path):
+def test_schema_v4_migrates_dimensional_verification_status_to_v6(tmp_path):
     dimensional_fact = _records(tmp_path)[3]
     db_path = tmp_path / "legacy-v4.db"
     with sqlite3.connect(db_path) as connection:
@@ -477,10 +477,14 @@ def test_schema_v4_migrates_dimensional_verification_status_to_v5(tmp_path):
             "SELECT verification_status FROM dimensional_facts WHERE dimensional_fact_id=?",
             (dimensional_fact.dimensional_fact_id,),
         ).fetchone()[0] == dimensional_fact.verification_status.value
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
         assert connection.execute(
             "SELECT COUNT(*) FROM schema_migrations WHERE migration_id=?",
             ("0005_dimensional_verification_status",),
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM schema_migrations WHERE migration_id=?",
+            ("0006_business_model_acquisition_v1",),
         ).fetchone()[0] == 1
         indexes = {
             row[1] for row in connection.execute("PRAGMA index_list(dimensional_facts)")

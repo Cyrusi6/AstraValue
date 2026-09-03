@@ -21,6 +21,7 @@ from .models import (
     VerificationStatus,
 )
 from .registry import PROJECT_ROOT
+from .acquisition.migrations import MigrationCoordinator, MigrationError
 
 
 DEFAULT_DB_PATH = PROJECT_ROOT / "var" / "analysis.db"
@@ -40,19 +41,39 @@ def _utc_iso(value: datetime) -> str:
 
 
 class ReportStorage:
-    def __init__(self, db_path: Path | str = DEFAULT_DB_PATH) -> None:
+    def __init__(
+        self,
+        db_path: Path | str = DEFAULT_DB_PATH,
+        *,
+        migration_data_root: Path | str | None = None,
+        busy_timeout_ms: int = 5_000,
+    ) -> None:
         self.db_path = Path(db_path)
+        self.migration_data_root = Path(migration_data_root or self.db_path.parent)
+        self.busy_timeout_ms = int(busy_timeout_ms)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.db_path)
+        connection = sqlite3.connect(
+            self.db_path, timeout=max(self.busy_timeout_ms, 1) / 1000
+        )
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute(f"PRAGMA busy_timeout={self.busy_timeout_ms}")
         connection.execute("PRAGMA journal_mode=WAL")
         return connection
 
     def _initialize(self) -> None:
+        try:
+            MigrationCoordinator(
+                self.db_path, busy_timeout_ms=self.busy_timeout_ms
+            ).migrate(data_root=self.migration_data_root)
+        except MigrationError as exc:
+            raise StorageError(str(exc)) from exc
+
+    def _initialize_legacy_v5(self) -> None:
+        """Frozen reference for the pre-v6 schema; migrations.py is authoritative."""
         with self._connect() as connection:
             connection.executescript(
                 """
@@ -702,6 +723,10 @@ class ReportStorage:
                 (ticker,),
             ).fetchall()
         results = [SyncResult.model_validate_json(row["payload"]) for row in rows]
+        # Legacy payloads omit this field and retain the model's compatibility
+        # default. New acquisition-backed partial/failed runs set it false so an
+        # auditable but incomplete run never shadows an older consumable batch.
+        results = [item for item in results if item.default_consume_eligible]
         if as_of is not None:
             from datetime import timezone
 
