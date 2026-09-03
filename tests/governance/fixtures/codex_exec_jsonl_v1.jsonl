@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"fixture-thread"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"web_search","query":"site:example.invalid governance"}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\"fixture\":\"nested-item-text\",\"kind\":\"research_result_bundle\"}"}}
+{"type":"turn.completed","usage":{"cached_input_tokens":0,"input_tokens":1,"output_tokens":1}}

@@ -1,0 +1,72 @@
+{
+  "schema_version": "governance-golden.v1",
+  "change_id": "governance-management-data-foundation-v1",
+  "status": "pending_manual_validation",
+  "contains_raw_evidence": false,
+  "checks": [
+    {
+      "check_id": "field_evidence_spans",
+      "description_zh": "逐字段对照正式原文及 evidence span",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "eight_readable_traces",
+      "description_zh": "机器 JSON 与八份可读 trace 一致",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "people_roles_and_acting",
+      "description_zh": "多人、多职务、代理和同名样本",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "explicit_cross_company_links",
+      "description_zh": "跨公司身份仅由显式决定连接",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "ownership_control_chain",
+      "description_zh": "股权与控制链投影",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "pledge_partial_release",
+      "description_zh": "质押部分解除及数字不足边界",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "strict_reconstructed_comparison",
+      "description_zh": "同一 state_at 的 strict 与 reconstructed 对照",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    },
+    {
+      "check_id": "report_layering",
+      "description_zh": "正式事实、contextual evidence 与 Codex judgment 分层",
+      "status": "pending_manual_validation",
+      "reviewer": null,
+      "reviewed_at": null,
+      "object_refs": []
+    }
+  ]
+}

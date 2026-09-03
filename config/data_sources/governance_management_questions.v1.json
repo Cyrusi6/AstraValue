@@ -1,0 +1,140 @@
+{
+  "schema_version": "governance-questions.v1",
+  "acquisition_scope": "governance_management",
+  "question_set_id": "governance_management_questions",
+  "question_set_version": "1.0.0",
+  "negative_fact_policy": "never_infer_from_coverage",
+  "questions": [
+    {
+      "question_id": "GOV.Q01.OWNERSHIP_CONTROL",
+      "label_zh": "股权结构、控股股东与实际控制关系",
+      "target_record_kinds": ["ownership_snapshot", "ownership_position", "control_relation"],
+      "history_policy": {
+        "default": "since_listing",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["prospectus_ownership", "periodic_report_ownership"],
+      "allowed_delta_kinds": ["ownership_change", "controller_change", "capital_structure_change"]
+    },
+    {
+      "question_id": "GOV.Q02.PLEDGE_FREEZE",
+      "label_zh": "股份质押、解除质押与冻结",
+      "target_record_kinds": ["pledge_position_snapshot"],
+      "history_policy": {
+        "default": "overlapping_lifecycle",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["periodic_report_pledge", "complete_pledge_snapshot"],
+      "allowed_delta_kinds": ["pledge_created", "pledge_released", "freeze_created", "freeze_released"]
+    },
+    {
+      "question_id": "GOV.Q03.BOARD_COMMITTEES",
+      "label_zh": "董事会、监事会与专门委员会构成",
+      "target_record_kinds": ["roster_snapshot", "role_tenure"],
+      "history_policy": {
+        "default": "last_five_complete_fiscal_years",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["periodic_report_board_roster"],
+      "allowed_delta_kinds": ["appointment", "resignation", "dismissal", "acting", "renewal", "committee_change"]
+    },
+    {
+      "question_id": "GOV.Q04.EXECUTIVE_ROSTER_BACKGROUND",
+      "label_zh": "高级管理人员名册、任期与正式履历",
+      "target_record_kinds": ["governance_person", "biography_claim", "roster_snapshot", "role_tenure"],
+      "history_policy": {
+        "default": "since_listing",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["periodic_report_executive_roster"],
+      "allowed_delta_kinds": ["appointment", "resignation", "dismissal", "acting", "renewal", "biography_update"]
+    },
+    {
+      "question_id": "GOV.Q05.REMUNERATION_INCENTIVES",
+      "label_zh": "管理层薪酬与股权激励",
+      "target_record_kinds": ["compensation_record", "incentive_plan", "incentive_grant", "vesting_condition"],
+      "history_policy": {
+        "default": "last_five_complete_fiscal_years",
+        "record_overrides": {
+          "incentive_plan": "overlapping_lifecycle",
+          "incentive_grant": "overlapping_lifecycle",
+          "vesting_condition": "overlapping_lifecycle"
+        }
+      },
+      "anchor_kinds": ["annual_report_compensation", "incentive_plan_original"],
+      "allowed_delta_kinds": ["compensation_correction", "incentive_grant", "incentive_vesting", "incentive_adjustment", "incentive_termination"]
+    },
+    {
+      "question_id": "GOV.Q06.RELATED_PARTIES",
+      "label_zh": "关联方关系与关联交易",
+      "target_record_kinds": ["related_party_relation", "related_party_transaction"],
+      "history_policy": {
+        "default": "last_five_complete_fiscal_years",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["annual_report_related_parties"],
+      "allowed_delta_kinds": ["related_party_transaction", "related_party_change", "related_party_correction"]
+    },
+    {
+      "question_id": "GOV.Q07.EXTERNAL_AUDIT",
+      "label_zh": "外部审计聘任、签字人员与审计意见",
+      "target_record_kinds": ["auditor_engagement", "audit_opinion_record"],
+      "history_policy": {
+        "default": "since_listing",
+        "record_overrides": {
+          "audit_opinion_record": "last_five_complete_fiscal_years"
+        }
+      },
+      "anchor_kinds": ["annual_report_auditor", "annual_report_audit_opinion"],
+      "allowed_delta_kinds": ["auditor_appointment", "auditor_change", "signing_auditor_change", "audit_opinion_correction"]
+    },
+    {
+      "question_id": "GOV.Q08.INTERNAL_CONTROL_CORRECTIONS",
+      "label_zh": "内部控制意见、缺陷、整改与财务更正",
+      "target_record_kinds": ["internal_control_record", "correction_record"],
+      "history_policy": {
+        "default": "last_five_complete_fiscal_years",
+        "record_overrides": {
+          "correction_record": "since_listing"
+        }
+      },
+      "anchor_kinds": ["annual_internal_control_report"],
+      "allowed_delta_kinds": ["internal_control_defect", "internal_control_remediation", "financial_correction", "disclosure_correction"]
+    },
+    {
+      "question_id": "GOV.Q09.REGULATORY_DISCLOSURE",
+      "label_zh": "证监会与交易所监管、问询和信披事项",
+      "target_record_kinds": ["regulatory_matter", "inquiry_record"],
+      "history_policy": {
+        "default": "since_listing",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["listing_regulatory_baseline"],
+      "allowed_delta_kinds": ["regulatory_decision", "disciplinary_action", "inquiry_opened", "inquiry_response", "regulatory_correction"]
+    },
+    {
+      "question_id": "GOV.Q10.LITIGATION_COMMITMENTS",
+      "label_zh": "正式披露的重大诉讼、仲裁与承诺履行",
+      "target_record_kinds": ["litigation_matter", "commitment_record"],
+      "history_policy": {
+        "default": "since_listing",
+        "record_overrides": {
+          "commitment_record": "overlapping_lifecycle"
+        }
+      },
+      "anchor_kinds": ["periodic_report_litigation_commitment"],
+      "allowed_delta_kinds": ["litigation_opened", "litigation_progress", "litigation_closed", "commitment_created", "commitment_changed", "commitment_fulfilled", "commitment_breached"]
+    },
+    {
+      "question_id": "GOV.Q11.GOVERNANCE_RULES",
+      "label_zh": "公司章程与治理制度版本",
+      "target_record_kinds": ["governance_policy_version"],
+      "history_policy": {
+        "default": "first_proven_archive",
+        "record_overrides": {}
+      },
+      "anchor_kinds": ["prospectus_governance_rules", "complete_governance_policy_set"],
+      "allowed_delta_kinds": ["articles_amendment", "governance_policy_adopted", "governance_policy_revised", "governance_policy_repealed"]
+    }
+  ]
+}
