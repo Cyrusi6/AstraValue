@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "status": "pending_manual_validation",
+  "acceptance": {
+    "annual_reports": 3,
+    "quarters": 12,
+    "minimum_manually_checked_facts": 50
+  },
+  "samples": [
+    {"category": "普通制造", "ticker": "300750", "company": "宁德时代", "status": "pending_manual_validation"},
+    {"category": "消费", "ticker": "600519", "company": "贵州茅台", "status": "pending_manual_validation"},
+    {"category": "科技", "ticker": "688981", "company": "中芯国际", "status": "pending_manual_validation"},
+    {"category": "银行", "ticker": "600036", "company": "招商银行", "status": "pending_manual_validation"},
+    {"category": "保险", "ticker": "601318", "company": "中国平安", "status": "pending_manual_validation"},
+    {"category": "券商", "ticker": "600030", "company": "中信证券", "status": "pending_manual_validation"},
+    {"category": "地产", "ticker": "600048", "company": "保利发展", "status": "pending_manual_validation"},
+    {"category": "资源周期", "ticker": "601088", "company": "中国神华", "status": "pending_manual_validation"},
+    {"category": "公用事业", "ticker": "600900", "company": "长江电力", "status": "pending_manual_validation"},
+    {"category": "尚未盈利", "ticker": "688235", "company": "百济神州", "status": "pending_manual_validation"}
+  ]
+}

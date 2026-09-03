@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "priority": ["交易所或巨潮正式披露", "独立政府或行业协会", "免费结构化数据适配器", "媒体与二次转载"],
+  "statuses": ["双源一致", "权威单源", "待核验", "估算", "未披露", "暂无该数据", "不适用"],
+  "independence_rule": "两个记录的upstream_source_id不同才视为独立来源",
+  "conflict_rule": "先核对期间、披露日、重述、合并范围、单位和复权；重大冲突不得取平均",
+  "default_relative_tolerance": 0.001,
+  "critical_metrics": [
+    "revenue",
+    "net_income_parent",
+    "net_income_excl",
+    "operating_cash_flow",
+    "total_assets",
+    "total_liabilities",
+    "total_equity"
+  ],
+  "official_source_types": ["official-document"],
+  "independent_source_types": ["public", "public-adapter", "government", "industry-association"],
+  "critical_metric_rule": "关键字段只有在正式披露与非正式独立上游来源同口径且容差内一致时才标记双源一致；同一PDF跨平台转载不算独立第二来源",
+  "point_in_time_required": true,
+  "llm_may_fill_missing_values": false
+}

@@ -1,0 +1,432 @@
+{
+  "schema_version": "1.2.0",
+  "unknown_event_type": "other",
+  "event_types": {
+    "dividend": {
+      "label": "分红与权益分派",
+      "priority": 100,
+      "report_steps": [4, 6],
+      "title_patterns": ["权益分派", "利润分配", "现金分红", "分红派息"],
+      "subtype_rules": [
+        {"subtype": "cancellation", "patterns": ["取消", "终止"]},
+        {"subtype": "implementation", "patterns": ["实施公告", "实施结果", "股权登记日"]},
+        {"subtype": "supporting_disclosure", "patterns": ["法律意见书"]},
+        {"subtype": "approval", "patterns": ["股东大会.*通过", "股东大会决议"]},
+        {"subtype": "proposal", "patterns": ["预案", "方案"]}
+      ],
+      "states": ["proposal", "approved", "registration", "implemented", "canceled"],
+      "initial_states": ["proposal", "approved", "registration", "implemented"],
+      "default_state": "proposal",
+      "state_rules": [
+        {"state": "canceled", "patterns": ["取消", "终止"]},
+        {"state": "implemented", "patterns": ["实施完毕", "实施完成", "实施结果"]},
+        {"state": "registration", "patterns": ["股权登记日", "除权除息日", "权益分派实施公告", "法律意见书"]},
+        {"state": "approved", "patterns": ["股东大会.*通过", "股东大会决议"]},
+        {"state": "proposal", "patterns": ["预案", "方案"]}
+      ],
+      "transitions": {
+        "proposal": ["approved", "registration", "implemented", "canceled"],
+        "approved": ["registration", "implemented", "canceled"],
+        "registration": ["implemented", "canceled"],
+        "implemented": [],
+        "canceled": []
+      }
+    },
+    "repurchase": {
+      "label": "股份回购",
+      "priority": 110,
+      "report_steps": [4, 6],
+      "title_patterns": ["回购股份", "回购.*股份", "股份回购"],
+      "subtype_rules": [
+        {"subtype": "cancellation", "patterns": ["取消", "终止"]},
+        {"subtype": "completion", "patterns": ["回购完成", "实施结果"]},
+        {"subtype": "plan_document", "patterns": ["回购报告书"]},
+        {"subtype": "supporting_disclosure", "patterns": ["前十大股东", "通知债权人", "调整.*回购.*价格上限"]},
+        {"subtype": "progress", "patterns": ["回购进展", "实施进展", "首次回购", "回购股份比例", "调整.*回购.*价格上限"]},
+        {"subtype": "plan", "patterns": ["回购报告书", "回购方案", "回购.*方案", "回购预案"]}
+      ],
+      "states": ["plan", "in_progress", "completed", "expired", "canceled"],
+      "initial_states": ["plan", "in_progress", "completed"],
+      "default_state": "plan",
+      "state_rules": [
+        {"state": "canceled", "patterns": ["取消回购", "终止回购", "不再实施"]},
+        {"state": "expired", "patterns": ["回购期限届满", "期限届满"]},
+        {"state": "completed", "patterns": ["回购完成", "实施完成", "实施结果"]},
+        {"state": "in_progress", "patterns": ["回购报告书", "首次回购", "回购进展", "实施进展", "已累计回购", "实施回购", "调整.*回购.*价格上限", "前十大股东", "通知债权人"]},
+        {"state": "plan", "patterns": ["回购报告书", "回购方案", "回购预案"]}
+      ],
+      "transitions": {
+        "plan": ["in_progress", "completed", "expired", "canceled"],
+        "in_progress": ["in_progress", "completed", "expired", "canceled"],
+        "completed": [],
+        "expired": [],
+        "canceled": []
+      }
+    },
+    "pledge": {
+      "label": "股份质押",
+      "priority": 120,
+      "report_steps": [3, 6],
+      "title_patterns": ["股份质押", "股权质押", "质押股份", "补充质押", "解除质押", "解押"],
+      "subtype_rules": [
+        {"subtype": "release", "patterns": ["解除质押", "解除部分质押", "解押"]},
+        {"subtype": "supplementary", "patterns": ["补充质押"]},
+        {"subtype": "new_pledge", "patterns": ["办理质押", "股份质押", "质押股份"]}
+      ],
+      "states": ["pledged", "supplementary_pledge", "partially_released", "released"],
+      "initial_states": ["pledged", "supplementary_pledge", "partially_released", "released"],
+      "default_state": "pledged",
+      "state_rules": [
+        {"state": "released", "patterns": ["全部解除质押", "解除全部质押"]},
+        {"state": "partially_released", "patterns": ["部分解除质押", "解除部分质押", "解除质押", "解押"]},
+        {"state": "supplementary_pledge", "patterns": ["补充质押"]},
+        {"state": "pledged", "patterns": ["办理质押", "股份质押", "质押股份"]}
+      ],
+      "transitions": {
+        "pledged": ["supplementary_pledge", "partially_released", "released"],
+        "supplementary_pledge": ["supplementary_pledge", "partially_released", "released"],
+        "partially_released": ["supplementary_pledge", "partially_released", "released"],
+        "released": []
+      }
+    },
+    "holding_change": {
+      "label": "股东或管理层增减持",
+      "priority": 90,
+      "report_steps": [3, 4, 6],
+      "title_patterns": ["增持股份", "减持股份", "增持计划", "减持计划", "持股变动"],
+      "subtype_rules": [
+        {"subtype": "termination", "patterns": ["终止", "提前结束"]},
+        {"subtype": "completion", "patterns": ["实施完成", "完成减持", "完成增持", "增持股份结果", "减持股份结果", "增持结果", "减持结果"]},
+        {"subtype": "financing_support", "patterns": ["贷款承诺函", "专项贷款"]},
+        {"subtype": "progress", "patterns": ["进展", "实施情况", "减持时间过半"]},
+        {"subtype": "reduction", "patterns": ["减持"]},
+        {"subtype": "increase", "patterns": ["增持"]}
+      ],
+      "states": ["plan", "in_progress", "completed", "expired", "terminated"],
+      "initial_states": ["plan", "in_progress", "completed"],
+      "default_state": "plan",
+      "state_rules": [
+        {"state": "terminated", "patterns": ["终止", "提前结束"]},
+        {"state": "expired", "patterns": ["期限届满", "时间届满"]},
+        {"state": "completed", "patterns": ["实施完成", "完成减持", "完成增持", "增持股份结果", "减持股份结果", "增持结果", "减持结果"]},
+        {"state": "in_progress", "patterns": ["进展", "实施情况", "时间过半", "贷款承诺函", "专项贷款"]},
+        {"state": "plan", "patterns": ["计划", "预披露"]}
+      ],
+      "transitions": {
+        "plan": ["in_progress", "completed", "expired", "terminated"],
+        "in_progress": ["in_progress", "completed", "expired", "terminated"],
+        "completed": [],
+        "expired": [],
+        "terminated": []
+      }
+    },
+    "financing": {
+      "label": "再融资与可转债",
+      "priority": 80,
+      "report_steps": [4, 6],
+      "title_patterns": ["非公开发行", "向特定对象发行", "配股", "可转换公司债券", "可转债", "再融资"],
+      "subtype_rules": [
+        {"subtype": "termination", "patterns": ["终止", "撤回"]},
+        {"subtype": "issuance", "patterns": ["发行结果", "发行情况", "募集资金到账"]},
+        {"subtype": "regulatory", "patterns": ["受理", "审核", "注册", "批复", "同意发行"]},
+        {"subtype": "proposal", "patterns": ["预案", "方案"]}
+      ],
+      "states": ["proposal", "approved", "regulatory_review", "registered", "issued", "listed", "converted", "terminated"],
+      "initial_states": ["proposal", "regulatory_review", "registered", "issued"],
+      "default_state": "proposal",
+      "state_rules": [
+        {"state": "terminated", "patterns": ["终止", "撤回"]},
+        {"state": "converted", "patterns": ["转股完成", "摘牌"]},
+        {"state": "listed", "patterns": ["上市公告"]},
+        {"state": "issued", "patterns": ["发行结果", "发行情况", "募集资金到账"]},
+        {"state": "registered", "patterns": ["同意注册", "注册批复", "同意发行"]},
+        {"state": "regulatory_review", "patterns": ["受理", "审核", "问询"]},
+        {"state": "approved", "patterns": ["股东大会.*通过"]},
+        {"state": "proposal", "patterns": ["预案", "方案"]}
+      ],
+      "transitions": {
+        "proposal": ["approved", "regulatory_review", "registered", "issued", "terminated"],
+        "approved": ["regulatory_review", "registered", "issued", "terminated"],
+        "regulatory_review": ["registered", "issued", "terminated"],
+        "registered": ["issued", "terminated"],
+        "issued": ["listed", "converted"],
+        "listed": ["converted"],
+        "converted": [],
+        "terminated": []
+      }
+    },
+    "merger_acquisition": {
+      "label": "并购重组与资产出售",
+      "priority": 105,
+      "report_steps": [4, 6],
+      "title_patterns": ["重大资产重组", "购买资产", "出售资产", "收购股权", "吸收合并", "并购重组"],
+      "subtype_rules": [
+        {"subtype": "termination", "patterns": ["终止", "取消"]},
+        {"subtype": "closing", "patterns": ["完成交割", "过户完成", "交割完成"]},
+        {"subtype": "progress", "patterns": ["进展", "审计", "评估", "问询"]},
+        {"subtype": "proposal", "patterns": ["预案", "草案", "意向"]}
+      ],
+      "states": ["intention", "proposal", "audit_valuation", "approved", "closing", "consolidated", "performance_tracking", "terminated"],
+      "initial_states": ["intention", "proposal", "approved", "closing"],
+      "default_state": "proposal",
+      "state_rules": [
+        {"state": "terminated", "patterns": ["终止", "取消"]},
+        {"state": "performance_tracking", "patterns": ["业绩承诺", "业绩补偿"]},
+        {"state": "consolidated", "patterns": ["纳入合并报表", "完成并表"]},
+        {"state": "closing", "patterns": ["完成交割", "过户完成", "交割完成"]},
+        {"state": "approved", "patterns": ["审核通过", "同意注册", "股东大会.*通过"]},
+        {"state": "audit_valuation", "patterns": ["审计", "评估", "问询"]},
+        {"state": "intention", "patterns": ["意向协议", "框架协议"]},
+        {"state": "proposal", "patterns": ["预案", "草案"]}
+      ],
+      "transitions": {
+        "intention": ["proposal", "audit_valuation", "approved", "terminated"],
+        "proposal": ["audit_valuation", "approved", "closing", "terminated"],
+        "audit_valuation": ["approved", "closing", "terminated"],
+        "approved": ["closing", "terminated"],
+        "closing": ["consolidated", "performance_tracking"],
+        "consolidated": ["performance_tracking"],
+        "performance_tracking": ["performance_tracking"],
+        "terminated": []
+      }
+    },
+    "regulatory_penalty": {
+      "label": "监管调查与处罚",
+      "priority": 130,
+      "report_steps": [3, 6],
+      "title_patterns": ["立案告知", "立案调查", "行政处罚", "监管措施", "纪律处分", "公开谴责", "警示函"],
+      "subtype_rules": [
+        {"subtype": "rectification", "patterns": ["整改完成", "整改报告"]},
+        {"subtype": "decision", "patterns": ["处罚决定", "纪律处分", "公开谴责", "警示函"]},
+        {"subtype": "investigation", "patterns": ["立案告知", "立案调查"]}
+      ],
+      "states": ["investigation", "decision", "rectification", "closed"],
+      "initial_states": ["investigation", "decision"],
+      "default_state": "investigation",
+      "state_rules": [
+        {"state": "closed", "patterns": ["结案", "整改完成"]},
+        {"state": "rectification", "patterns": ["整改", "改正"]},
+        {"state": "decision", "patterns": ["处罚决定", "纪律处分", "公开谴责", "警示函", "监管措施"]},
+        {"state": "investigation", "patterns": ["立案告知", "立案调查"]}
+      ],
+      "transitions": {
+        "investigation": ["decision", "rectification", "closed"],
+        "decision": ["rectification", "closed"],
+        "rectification": ["rectification", "closed"],
+        "closed": []
+      }
+    },
+    "litigation": {
+      "label": "重大诉讼与仲裁",
+      "priority": 95,
+      "report_steps": [3, 6],
+      "title_patterns": ["重大诉讼", "诉讼事项", "重大仲裁", "仲裁事项", "收到判决", "收到裁定"],
+      "subtype_rules": [
+        {"subtype": "execution", "patterns": ["执行", "和解", "履行完毕"]},
+        {"subtype": "judgement", "patterns": ["判决", "裁定", "裁决"]},
+        {"subtype": "filing", "patterns": ["受理", "起诉", "仲裁申请"]}
+      ],
+      "states": ["filed", "hearing", "judgement", "execution", "closed"],
+      "initial_states": ["filed", "judgement"],
+      "default_state": "filed",
+      "state_rules": [
+        {"state": "closed", "patterns": ["结案", "履行完毕", "执行完毕"]},
+        {"state": "execution", "patterns": ["执行", "和解"]},
+        {"state": "judgement", "patterns": ["判决", "裁定", "裁决"]},
+        {"state": "hearing", "patterns": ["开庭", "审理"]},
+        {"state": "filed", "patterns": ["受理", "起诉", "仲裁申请"]}
+      ],
+      "transitions": {
+        "filed": ["hearing", "judgement", "execution", "closed"],
+        "hearing": ["judgement", "execution", "closed"],
+        "judgement": ["execution", "closed"],
+        "execution": ["execution", "closed"],
+        "closed": []
+      }
+    },
+    "management_change": {
+      "label": "管理层与审计机构变动",
+      "priority": 85,
+      "report_steps": [3, 6],
+      "title_patterns": ["董事长辞职", "董事辞职", "监事辞职", "高级管理人员辞职", "聘任.*董事会秘书", "聘任.*总经理", "聘任.*高级管理人员", "选举.*董事", "董事.*选举", "董事会换届", "独立董事候选人声明", "财务负责人变更", "变更会计师事务所", "审计机构变更"],
+      "subtype_rules": [
+        {"subtype": "auditor_change", "patterns": ["会计师事务所", "审计机构"]},
+        {"subtype": "appointment", "patterns": ["聘任", "选举"]},
+        {"subtype": "resignation", "patterns": ["辞职", "离任"]}
+      ],
+      "states": ["announced", "effective", "canceled"],
+      "initial_states": ["announced", "effective"],
+      "default_state": "announced",
+      "state_rules": [
+        {"state": "canceled", "patterns": ["取消", "不再聘任"]},
+        {"state": "effective", "patterns": ["正式履职", "即日起生效", "聘任"]},
+        {"state": "announced", "patterns": ["辞职", "离任", "变更"]}
+      ],
+      "transitions": {
+        "announced": ["effective", "canceled"],
+        "effective": [],
+        "canceled": []
+      }
+    },
+    "related_party_transaction": {
+      "label": "关联交易",
+      "priority": 75,
+      "report_steps": [3, 6],
+      "title_patterns": ["关联交易", "日常关联交易", "关联方交易", "财务有限公司.*风险评估", "财务公司.*风险评估", "与财务公司.*存贷款"],
+      "subtype_rules": [
+        {"subtype": "completion", "patterns": ["实施完成", "交易完成"]},
+        {"subtype": "approval", "patterns": ["审议通过", "股东大会决议"]},
+        {"subtype": "proposal", "patterns": ["预计", "议案", "公告", "风险评估"]}
+      ],
+      "states": ["proposal", "approved", "completed", "canceled"],
+      "initial_states": ["proposal", "approved", "completed"],
+      "default_state": "proposal",
+      "state_rules": [
+        {"state": "canceled", "patterns": ["取消", "终止"]},
+        {"state": "completed", "patterns": ["实施完成", "交易完成"]},
+        {"state": "approved", "patterns": ["审议通过", "股东大会决议"]},
+        {"state": "proposal", "patterns": ["预计", "议案", "公告"]}
+      ],
+      "transitions": {
+        "proposal": ["approved", "completed", "canceled"],
+        "approved": ["completed", "canceled"],
+        "completed": [],
+        "canceled": []
+      }
+    },
+    "accounting_governance": {
+      "label": "会计政策、审计与内控变化",
+      "priority": 100,
+      "report_steps": [2, 3, 6],
+      "title_patterns": ["会计政策变更", "会计估计变更", "前期会计差错", "会计差错更正", "审计意见", "内部控制.*报告", "内部控制缺陷", "变更会计师事务所"],
+      "subtype_rules": [
+        {"subtype": "correction", "patterns": ["差错", "更正"]},
+        {"subtype": "accounting_policy", "patterns": ["会计政策", "会计估计"]},
+        {"subtype": "internal_control", "patterns": ["内部控制"]},
+        {"subtype": "audit", "patterns": ["审计意见", "会计师事务所"]}
+      ],
+      "states": ["announced", "effective", "rectification", "closed"],
+      "initial_states": ["announced", "effective", "rectification"],
+      "default_state": "announced",
+      "state_rules": [
+        {"state": "closed", "patterns": ["整改完成", "更正完成"]},
+        {"state": "rectification", "patterns": ["整改", "差错更正"]},
+        {"state": "effective", "patterns": ["自.*起执行", "开始执行", "生效"]},
+        {"state": "announced", "patterns": ["变更", "意见", "报告", "缺陷"]}
+      ],
+      "transitions": {
+        "announced": ["effective", "rectification", "closed"],
+        "effective": ["rectification", "closed"],
+        "rectification": ["rectification", "closed"],
+        "closed": []
+      }
+    },
+    "governance_resolution": {
+      "label": "董事会、监事会与股东会决议",
+      "priority": 50,
+      "report_steps": [3, 4, 6],
+      "title_patterns": ["董事会.*会议决议", "监事会.*会议决议", "股东会决议", "股东大会决议", "股东会会议资料", "股东大会会议资料"],
+      "subtype_rules": [
+        {"subtype": "shareholder_resolution", "patterns": ["股东会", "股东大会"]},
+        {"subtype": "board_resolution", "patterns": ["董事会"]},
+        {"subtype": "supervisory_resolution", "patterns": ["监事会"]}
+      ],
+      "states": ["published", "approved", "corrected"],
+      "initial_states": ["published", "approved"],
+      "default_state": "published",
+      "state_rules": [
+        {"state": "corrected", "patterns": ["更正", "补充"]},
+        {"state": "approved", "patterns": ["决议", "审议通过"]},
+        {"state": "published", "patterns": ["会议资料"]}
+      ],
+      "transitions": {
+        "published": ["approved", "corrected"],
+        "approved": ["corrected"],
+        "corrected": ["corrected"]
+      }
+    },
+    "governance_policy": {
+      "label": "治理制度与薪酬考核",
+      "priority": 55,
+      "report_steps": [3, 6],
+      "title_patterns": ["公司章程", "治理制度", "管理办法", "薪酬管理", "考核办法", "独立董事制度", "董事会议事规则", "股东会议事规则"],
+      "subtype_rules": [
+        {"subtype": "remuneration", "patterns": ["薪酬", "考核"]},
+        {"subtype": "articles", "patterns": ["公司章程"]},
+        {"subtype": "procedure", "patterns": ["议事规则", "制度", "管理办法"]}
+      ],
+      "states": ["proposal", "approved", "effective", "superseded"],
+      "initial_states": ["proposal", "approved", "effective"],
+      "default_state": "effective",
+      "state_rules": [
+        {"state": "superseded", "patterns": ["废止", "失效"]},
+        {"state": "approved", "patterns": ["审议通过", "修订"]},
+        {"state": "proposal", "patterns": ["草案", "议案"]},
+        {"state": "effective", "patterns": ["办法", "制度", "规则", "章程"]}
+      ],
+      "transitions": {
+        "proposal": ["approved", "effective", "superseded"],
+        "approved": ["effective", "superseded"],
+        "effective": ["superseded"],
+        "superseded": []
+      }
+    },
+    "material_announcement": {
+      "label": "未细分重大事项",
+      "priority": 40,
+      "report_steps": [1, 3, 4, 6],
+      "title_patterns": ["重大事项公告", "重要事项公告", "重大事项进展"],
+      "subtype_rules": [
+        {"subtype": "progress", "patterns": ["进展"]},
+        {"subtype": "announcement", "patterns": ["事项公告"]}
+      ],
+      "states": ["announced", "in_progress", "completed", "terminated"],
+      "initial_states": ["announced", "in_progress", "completed"],
+      "default_state": "announced",
+      "state_rules": [
+        {"state": "terminated", "patterns": ["终止", "取消"]},
+        {"state": "completed", "patterns": ["完成", "完毕"]},
+        {"state": "in_progress", "patterns": ["进展", "推进"]},
+        {"state": "announced", "patterns": ["公告"]}
+      ],
+      "transitions": {
+        "announced": ["in_progress", "completed", "terminated"],
+        "in_progress": ["in_progress", "completed", "terminated"],
+        "completed": [],
+        "terminated": []
+      }
+    },
+    "operating_event": {
+      "label": "重大经营事件",
+      "priority": 60,
+      "report_steps": [1, 6],
+      "title_patterns": ["重大合同", "项目投产", "生产线投产", "停产检修", "恢复生产", "产品提价", "价格调整", "安全事故", "重大客户"],
+      "subtype_rules": [
+        {"subtype": "resume", "patterns": ["恢复生产", "复产"]},
+        {"subtype": "suspension", "patterns": ["停产", "停工"]},
+        {"subtype": "commissioning", "patterns": ["投产", "试生产"]},
+        {"subtype": "price_change", "patterns": ["提价", "价格调整"]},
+        {"subtype": "contract", "patterns": ["重大合同", "中标"]}
+      ],
+      "states": ["announced", "in_progress", "completed", "suspended", "resumed", "canceled"],
+      "initial_states": ["announced", "in_progress", "completed", "suspended", "resumed"],
+      "default_state": "announced",
+      "state_rules": [
+        {"state": "canceled", "patterns": ["取消", "终止"]},
+        {"state": "resumed", "patterns": ["恢复生产", "复产"]},
+        {"state": "suspended", "patterns": ["停产", "停工"]},
+        {"state": "completed", "patterns": ["投产完成", "履行完毕", "项目完成"]},
+        {"state": "in_progress", "patterns": ["进展", "正在履行", "试生产"]},
+        {"state": "announced", "patterns": ["公告", "合同", "提价", "价格调整"]}
+      ],
+      "transitions": {
+        "announced": ["in_progress", "completed", "suspended", "canceled"],
+        "in_progress": ["in_progress", "completed", "suspended", "canceled"],
+        "completed": [],
+        "suspended": ["resumed", "canceled"],
+        "resumed": ["in_progress", "completed", "suspended"],
+        "canceled": []
+      }
+    }
+  }
+}

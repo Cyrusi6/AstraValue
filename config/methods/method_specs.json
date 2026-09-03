@@ -1,0 +1,238 @@
+{
+  "schema_version": "1.0.0",
+  "methods": [
+    {
+      "method_id": "STEP.BUSINESS", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["segment_revenue", "segment_margin", "customer_concentration", "supplier_concentration", "capacity_utilization", "rd_ratio"],
+      "formulas": {}, "stop_conditions": ["核心竞争力没有可观察证据时只能标记为分析判断"], "missing_policy": "label",
+      "output_fields": ["business_mix", "profit_model", "moat_evidence", "capacity_and_chain", "strategy"],
+      "doc_path": "docs/methodology/steps/01_business_model.md", "implementation_ref": "analysis.reporting:ReportBuilder", "test_ref": "tests/test_method_registry.py::test_method_library_is_consistent",
+      "limitations": ["定性结论不能替代实地调研"]
+    },
+    {
+      "method_id": "STEP.FINANCIAL", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["revenue", "cost_of_revenue", "net_income", "operating_cash_flow", "capital_expenditure", "average_assets", "average_equity"],
+      "formulas": {"gross_margin": "(revenue-cost_of_revenue)/revenue", "fcf": "operating_cash_flow-abs(capital_expenditure)", "roe_dupont": "net_margin*asset_turnover*equity_multiplier"},
+      "stop_conditions": ["关键报表口径冲突时停止派生指标"], "missing_policy": "label",
+      "output_fields": ["income_statement", "balance_sheet", "cash_flow", "quality", "dupont", "roic_wacc"],
+      "doc_path": "docs/methodology/steps/02_financial_statements.md", "implementation_ref": "analysis.formulas:compute_financial_snapshot", "test_ref": "tests/test_formulas.py",
+      "limitations": ["免费摘要源不能代替正式财报"]
+    },
+    {
+      "method_id": "STEP.GOVERNANCE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["controller", "pledge_ratio", "audit_opinion", "related_transactions", "incentive_dilution"],
+      "formulas": {}, "stop_conditions": ["监管处罚或审计意见缺失时不得声称治理无风险"], "missing_policy": "label",
+      "output_fields": ["ownership", "management", "audit", "related_parties", "disclosure_quality"],
+      "doc_path": "docs/methodology/steps/03_governance.md", "implementation_ref": "analysis.reporting:ReportBuilder", "test_ref": "tests/test_reporting.py",
+      "limitations": ["管理层诚信无法仅靠公开资料完全验证"]
+    },
+    {
+      "method_id": "STEP.CAPITAL", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["dividend", "buyback", "holder_change", "financing", "m_and_a", "roic", "wacc"],
+      "formulas": {"payout_ratio": "cash_dividend/net_income_parent", "dividend_yield": "dividend_per_share/price"},
+      "stop_conditions": [], "missing_policy": "label", "output_fields": ["dividend", "buyback", "financing", "m_and_a", "capital_allocation"],
+      "doc_path": "docs/methodology/steps/04_capital_actions.md", "implementation_ref": "analysis.reporting:ReportBuilder", "test_ref": "tests/test_reporting.py",
+      "limitations": ["回购用途不同，不能统一视作股东回报"]
+    },
+    {
+      "method_id": "STEP.VALUATION", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["model_inputs"], "formulas": {},
+      "stop_conditions": ["行业模型不适用", "关键输入待核验", "权益价值非正", "方法间严重冲突"], "missing_policy": "block",
+      "output_fields": ["method_results", "fair_value_range", "sensitivity", "failure_reason"],
+      "doc_path": "docs/methodology/steps/05_valuation.md", "implementation_ref": "analysis.valuation:execute_valuation", "test_ref": "tests/test_valuation.py",
+      "limitations": ["估值是条件映射而非股价预测"]
+    },
+    {
+      "method_id": "STEP.DRIVERS_RISKS", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["driver_tree", "risk_register", "catalysts", "invalidation_conditions"], "formulas": {},
+      "stop_conditions": ["没有可跟踪指标时不得将叙事标记为已验证驱动"], "missing_policy": "label",
+      "output_fields": ["drivers", "risks", "catalysts", "invalidation"],
+      "doc_path": "docs/methodology/steps/06_drivers_risks.md", "implementation_ref": "analysis.reporting:ReportBuilder", "test_ref": "tests/test_reporting.py",
+      "limitations": ["公开信息不能穷尽尾部风险"]
+    },
+    {
+      "method_id": "STEP.INDUSTRY", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["market_size", "growth", "cr3", "cr5", "market_share", "capacity", "inventory"], "formulas": {},
+      "stop_conditions": ["CR3或CR5无可靠来源时必须标记暂无或估算"], "missing_policy": "label",
+      "output_fields": ["market_space", "supply_demand", "competition", "cycle", "bargaining_power"],
+      "doc_path": "docs/methodology/steps/07_industry.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py",
+      "limitations": ["行业分类不能代替业务可比性判断"]
+    },
+    {
+      "method_id": "STEP.SCENARIOS", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": ["bear", "base", "bull"], "optional_inputs": [],
+      "formulas": {"revenue_growth": "(1+volume_growth)*(1+price_growth)-1", "fcff": "nopat+depreciation-capex-change_in_working_capital"},
+      "stop_conditions": ["关键假设未确认时报告保持草稿", "WACC小于等于永续增长率"], "missing_policy": "block",
+      "output_fields": ["revenue", "net_income", "eps", "fcff", "fair_value", "tracking"],
+      "doc_path": "docs/methodology/steps/08_scenarios.md", "implementation_ref": "analysis.scenarios:build_scenario_projections", "test_ref": "tests/test_scenarios.py",
+      "limitations": ["系统不自动分配场景概率"]
+    },
+
+    {
+      "method_id": "FIN.NORMALIZATION", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["reported_facts", "restatement_version", "unit", "period_type", "scope"],
+      "formulas": {"single_quarter": "current_ytd-previous_ytd", "unit_normalization": "value*source_unit_factor/target_unit_factor"},
+      "stop_conditions": ["累计期次不连续", "合并范围无法对齐", "重述披露时间晚于分析截止日"], "missing_policy": "block",
+      "output_fields": ["normalized_facts", "single_quarter_facts", "restatement_selection"],
+      "doc_path": "docs/methodology/financial/normalization.md", "implementation_ref": "analysis.formulas:normalize_financial_facts", "test_ref": "tests/test_formulas.py::test_normalize_financial_facts_prefers_latest_restatement",
+      "limitations": ["自动转换依赖正确的原始标签和期间元数据"]
+    },
+    {
+      "method_id": "FIN.INCOME", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": ["revenue"], "optional_inputs": ["cost_of_revenue", "net_income", "net_income_parent", "net_income_excl", "selling_expense", "administrative_expense", "rd_expense", "finance_expense"],
+      "formulas": {"gross_margin": "(revenue-cost_of_revenue)/revenue", "expense_ratio": "expense/revenue", "net_margin": "net_income/revenue"},
+      "stop_conditions": ["营业收入为零", "利润表口径冲突"], "missing_policy": "label",
+      "output_fields": ["gross_margin", "expense_ratios", "net_margin", "adjusted_profit"],
+      "doc_path": "docs/methodology/financial/income_statement.md", "implementation_ref": "analysis.formulas:income_metrics", "test_ref": "tests/test_formulas.py::test_financial_metric_blocks",
+      "limitations": ["行业特有收入确认政策需单独解释"]
+    },
+    {
+      "method_id": "FIN.BALANCE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["cash", "accounts_receivable", "inventory", "goodwill", "interest_bearing_debt", "current_assets", "current_liabilities", "total_assets", "total_equity"],
+      "formulas": {"net_debt": "interest_bearing_debt-cash", "current_ratio": "current_assets/current_liabilities", "goodwill_to_equity": "goodwill/total_equity"},
+      "stop_conditions": ["资产负债表恒等式不平且无法解释"], "missing_policy": "label",
+      "output_fields": ["liquidity", "working_assets", "goodwill", "leverage", "reconciliation"],
+      "doc_path": "docs/methodology/financial/balance_sheet.md", "implementation_ref": "analysis.formulas:balance_metrics", "test_ref": "tests/test_formulas.py::test_financial_metric_blocks",
+      "limitations": ["表外负债依赖附注披露"]
+    },
+    {
+      "method_id": "FIN.CASHFLOW", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": ["operating_cash_flow"], "optional_inputs": ["investing_cash_flow", "financing_cash_flow", "capital_expenditure", "net_income", "revenue"],
+      "formulas": {"free_cash_flow": "operating_cash_flow-abs(capital_expenditure)", "cash_profit_ratio": "operating_cash_flow/net_income"},
+      "stop_conditions": ["现金及现金等价物衔接不一致"], "missing_policy": "label",
+      "output_fields": ["operating", "investing", "financing", "free_cash_flow", "cash_profit_ratio"],
+      "doc_path": "docs/methodology/financial/cash_flow.md", "implementation_ref": "analysis.formulas:cashflow_metrics", "test_ref": "tests/test_formulas.py::test_financial_metric_blocks",
+      "limitations": ["资本开支需要结合购建资产现金流和附注识别"]
+    },
+    {
+      "method_id": "FIN.DUPONT", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": ["net_income", "revenue", "average_assets", "average_equity"], "optional_inputs": [],
+      "formulas": {"roe": "net_margin*asset_turnover*equity_multiplier"},
+      "stop_conditions": ["平均资产或平均权益为零"], "missing_policy": "block",
+      "output_fields": ["net_margin", "asset_turnover", "equity_multiplier", "roe"],
+      "doc_path": "docs/methodology/financial/dupont.md", "implementation_ref": "analysis.formulas:dupont", "test_ref": "tests/test_formulas.py::test_dupont_and_roic_wacc",
+      "limitations": ["金融业需结合行业特有资本指标解释"]
+    },
+    {
+      "method_id": "FIN.ROIC_WACC", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general", "manufacturing", "consumer", "technology", "real_estate", "resources", "utility", "preprofit"],
+      "required_inputs": ["ebit", "tax_rate", "invested_capital"], "optional_inputs": ["equity_value", "debt_value", "cost_of_equity", "pre_tax_cost_of_debt"],
+      "formulas": {"roic": "ebit*(1-tax_rate)/invested_capital", "wacc": "E/(D+E)*Ke+D/(D+E)*Kd*(1-tax_rate)"},
+      "stop_conditions": ["投入资本非正", "资本成本输入待核验"], "missing_policy": "block",
+      "output_fields": ["roic", "wacc", "value_spread"],
+      "doc_path": "docs/methodology/financial/roic_wacc.md", "implementation_ref": "analysis.formulas:roic", "test_ref": "tests/test_formulas.py::test_dupont_and_roic_wacc",
+      "limitations": ["WACC是市场参数与判断的组合"]
+    },
+    {
+      "method_id": "FIN.FCF_WORKING_CAPITAL", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["current_assets", "current_liabilities", "accounts_receivable", "inventory", "accounts_payable", "operating_cash_flow", "capital_expenditure"],
+      "formulas": {"net_working_capital": "current_assets-current_liabilities", "operating_working_capital": "accounts_receivable+inventory-accounts_payable"},
+      "stop_conditions": ["营运资本科目口径跨期变化"], "missing_policy": "label",
+      "output_fields": ["working_capital", "working_capital_change", "free_cash_flow"],
+      "doc_path": "docs/methodology/financial/fcf_working_capital.md", "implementation_ref": "analysis.formulas:working_capital_metrics", "test_ref": "tests/test_formulas.py::test_financial_metric_blocks",
+      "limitations": ["预收、合同资产和票据需按行业调整"]
+    },
+    {
+      "method_id": "FIN.EARNINGS_QUALITY", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["all"],
+      "required_inputs": [], "optional_inputs": ["net_income", "operating_cash_flow", "average_assets", "net_income_excl", "net_income_parent", "asset_impairment_loss"],
+      "formulas": {"accrual_ratio": "(net_income-operating_cash_flow)/average_assets", "adjusted_profit_share": "net_income_excl/net_income_parent"},
+      "stop_conditions": ["现金流与利润期间不一致"], "missing_policy": "label",
+      "output_fields": ["accrual_ratio", "cash_conversion", "adjusted_profit_share", "impairment"],
+      "doc_path": "docs/methodology/financial/earnings_quality.md", "implementation_ref": "analysis.formulas:earnings_quality_metrics", "test_ref": "tests/test_formulas.py::test_financial_metric_blocks",
+      "limitations": ["单年应计指标不能独立判断造假"]
+    },
+
+    {
+      "method_id": "VAL.RELATIVE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general", "manufacturing", "consumer", "technology", "bank", "securities", "real_estate", "resources", "preprofit"],
+      "required_inputs": ["metric_per_share", "target_multiple"], "optional_inputs": ["low_multiple", "high_multiple"],
+      "formulas": {"fair_value": "metric_per_share*target_multiple"}, "stop_conditions": ["指标为负或同行不可比"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share", "range_low", "range_high"],
+      "doc_path": "docs/methodology/valuation/relative.md", "implementation_ref": "analysis.valuation:relative_valuation", "test_ref": "tests/test_valuation.py::test_relative_valuation",
+      "limitations": ["倍数选择仍需分析判断"]
+    },
+    {
+      "method_id": "VAL.DCF.FCFF", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general", "manufacturing", "consumer", "technology", "utility"],
+      "required_inputs": ["base_fcff", "wacc", "shares_outstanding"], "optional_inputs": ["growth_rates", "terminal_growth", "net_debt"],
+      "formulas": {"terminal_value": "fcff_n*(1+g)/(wacc-g)", "equity_value": "enterprise_value-net_debt"},
+      "stop_conditions": ["WACC小于等于永续增长率", "末期FCFF非正", "权益价值非正"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share", "sensitivity"],
+      "doc_path": "docs/methodology/valuation/dcf_fcff.md", "implementation_ref": "analysis.valuation:fcff_dcf", "test_ref": "tests/test_valuation.py::test_fcff_dcf",
+      "limitations": ["终值对结果高度敏感"]
+    },
+    {
+      "method_id": "VAL.DCF.FCFE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general"],
+      "required_inputs": ["base_fcfe", "cost_of_equity", "shares_outstanding"], "optional_inputs": ["growth_rates", "terminal_growth"],
+      "formulas": {"equity_value": "sum(fcfe_t/(1+ke)^t)+terminal_value"}, "stop_conditions": ["权益成本小于等于永续增长率", "FCFE不可解释"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/dcf_fcfe.md", "implementation_ref": "analysis.valuation:fcfe_dcf", "test_ref": "tests/test_valuation.py::test_fcfe_dcf",
+      "limitations": ["杠杆变化大时FCFE不稳定"]
+    },
+    {
+      "method_id": "VAL.DDM", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["bank", "insurance", "utility"],
+      "required_inputs": ["dividend_per_share", "cost_of_equity"], "optional_inputs": ["growth_rates", "terminal_growth"],
+      "formulas": {"value": "sum(dividend_t/(1+ke)^t)+terminal_value"}, "stop_conditions": ["分红不可持续", "权益成本小于等于永续增长率"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/ddm.md", "implementation_ref": "analysis.valuation:ddm", "test_ref": "tests/test_valuation.py::test_ddm",
+      "limitations": ["低分红公司结果缺乏代表性"]
+    },
+    {
+      "method_id": "VAL.RESIDUAL_INCOME", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["bank"],
+      "required_inputs": ["book_value_per_share", "roe", "cost_of_equity"], "optional_inputs": ["payout_ratio", "years", "terminal_growth"],
+      "formulas": {"residual_income": "net_income-opening_book_value*cost_of_equity"}, "stop_conditions": ["净资产口径不可靠", "权益成本小于等于永续增长率"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/residual_income.md", "implementation_ref": "analysis.valuation:residual_income", "test_ref": "tests/test_valuation.py::test_residual_income",
+      "limitations": ["依赖清洁盈余关系"]
+    },
+    {
+      "method_id": "VAL.SOTP", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general", "manufacturing", "technology"],
+      "required_inputs": ["segments", "shares_outstanding"], "optional_inputs": ["net_debt"],
+      "formulas": {"fair_value": "(sum(segment_value)-net_debt)/shares"}, "stop_conditions": ["分部边界或重复计价无法消除"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/sotp.md", "implementation_ref": "analysis.valuation:sotp", "test_ref": "tests/test_valuation.py::test_sotp",
+      "limitations": ["分部估值口径必须一致"]
+    },
+    {
+      "method_id": "VAL.NAV", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["real_estate", "resources"],
+      "required_inputs": ["assets", "shares_outstanding"], "optional_inputs": ["liabilities"],
+      "formulas": {"nav_per_share": "(sum(asset_value*adjustment)-liabilities)/shares"}, "stop_conditions": ["资产公允价值无可靠依据"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/nav.md", "implementation_ref": "analysis.valuation:nav", "test_ref": "tests/test_valuation.py::test_nav",
+      "limitations": ["资产折价参数具有主观性"]
+    },
+    {
+      "method_id": "VAL.REVERSE_DCF", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general", "technology", "preprofit"],
+      "required_inputs": ["base_fcff", "wacc", "shares_outstanding", "current_price"], "optional_inputs": ["terminal_growth", "years", "net_debt"],
+      "formulas": {"implied_growth": "solve(dcf_value(growth)=market_enterprise_value)"}, "stop_conditions": ["基准FCFF非正", "无有效根"], "missing_policy": "block",
+      "output_fields": ["implied_fcff_growth"],
+      "doc_path": "docs/methodology/valuation/reverse_dcf.md", "implementation_ref": "analysis.valuation:reverse_dcf", "test_ref": "tests/test_valuation.py::test_reverse_dcf",
+      "limitations": ["输出市场隐含假设，不是合理价值判断"]
+    },
+    {
+      "method_id": "VAL.CYCLE_NORMALIZED", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["resources", "securities"],
+      "required_inputs": ["normalized_eps", "target_pe"], "optional_inputs": ["low_eps", "high_eps", "low_pe", "high_pe"],
+      "formulas": {"fair_value": "normalized_eps*target_pe"}, "stop_conditions": ["中周期价格或盈利无可靠依据"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share", "range_low", "range_high"],
+      "doc_path": "docs/methodology/valuation/cycle_normalized.md", "implementation_ref": "analysis.valuation:cycle_normalized", "test_ref": "tests/test_valuation.py::test_cycle_normalized",
+      "limitations": ["周期中枢可能发生结构变化"]
+    },
+    {
+      "method_id": "VAL.PEV", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["insurance"],
+      "required_inputs": ["embedded_value_per_share", "target_pev"], "optional_inputs": [],
+      "formulas": {"fair_value": "embedded_value_per_share*target_pev"}, "stop_conditions": ["内含价值口径不可比"], "missing_policy": "block",
+      "output_fields": ["fair_value_per_share"],
+      "doc_path": "docs/methodology/valuation/pev.md", "implementation_ref": "analysis.valuation:embedded_value", "test_ref": "tests/test_valuation.py::test_embedded_value",
+      "limitations": ["新业务价值假设对结果影响显著"]
+    },
+
+    {"method_id": "IND.GENERAL", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["general"], "required_inputs": [], "optional_inputs": ["market_size", "cr3", "cr5"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["industry_context"], "doc_path": "docs/methodology/industries/general.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.MANUFACTURING", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["manufacturing"], "required_inputs": [], "optional_inputs": ["capacity", "utilization", "orders"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["capacity_cycle", "cost_curve"], "doc_path": "docs/methodology/industries/manufacturing.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.CONSUMER", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["consumer"], "required_inputs": [], "optional_inputs": ["channel_inventory", "same_store_sales", "price_volume"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["brand", "channel", "price_volume"], "doc_path": "docs/methodology/industries/consumer.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.TECHNOLOGY", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["technology"], "required_inputs": [], "optional_inputs": ["rd_ratio", "retention", "unit_economics"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["technology_cycle", "product_pipeline"], "doc_path": "docs/methodology/industries/technology.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.BANK", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["bank"], "required_inputs": ["book_value_per_share", "roe"], "optional_inputs": ["nim", "npl", "provision_coverage", "capital_adequacy"], "formulas": {}, "stop_conditions": ["不使用通用企业EV/EBITDA"], "missing_policy": "label", "output_fields": ["asset_quality", "capital", "profitability"], "doc_path": "docs/methodology/industries/bank.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.INSURANCE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["insurance"], "required_inputs": ["embedded_value_per_share"], "optional_inputs": ["nbv", "solvency"], "formulas": {}, "stop_conditions": ["不使用通用企业EV/EBITDA"], "missing_policy": "label", "output_fields": ["embedded_value", "new_business_value", "solvency"], "doc_path": "docs/methodology/industries/insurance.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.SECURITIES", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["securities"], "required_inputs": [], "optional_inputs": ["net_capital", "brokerage_share", "proprietary_exposure"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["capital", "business_mix", "cycle"], "doc_path": "docs/methodology/industries/securities.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.REAL_ESTATE", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["real_estate"], "required_inputs": [], "optional_inputs": ["saleable_resources", "net_debt", "contracted_sales"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["nav", "liquidity", "sales"], "doc_path": "docs/methodology/industries/real_estate.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.RESOURCES", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["resources"], "required_inputs": [], "optional_inputs": ["reserves", "unit_cost", "commodity_price"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["cost_curve", "reserves", "cycle"], "doc_path": "docs/methodology/industries/resources.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.UTILITY", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["utility"], "required_inputs": [], "optional_inputs": ["tariff", "utilization_hours", "fuel_cost"], "formulas": {}, "stop_conditions": [], "missing_policy": "label", "output_fields": ["tariff", "cost_pass_through", "cash_flow"], "doc_path": "docs/methodology/industries/utility.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []},
+    {"method_id": "IND.PREPROFIT", "version": "1.0.0", "effective_from": "2026-09-02", "applies_to": ["preprofit"], "required_inputs": [], "optional_inputs": ["cash_runway", "unit_economics", "milestones"], "formulas": {}, "stop_conditions": ["现金流不可解释时不强行DCF"], "missing_policy": "label", "output_fields": ["runway", "unit_economics", "milestones"], "doc_path": "docs/methodology/industries/preprofit.md", "implementation_ref": "analysis.industry:route_industry", "test_ref": "tests/test_industry.py", "limitations": []}
+  ]
+}

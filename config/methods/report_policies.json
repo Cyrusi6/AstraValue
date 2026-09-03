@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "rating_labels": ["积极关注", "中性观察", "谨慎", "暂不评级"],
+  "suggestion_thresholds": {"positive_upside": 0.2, "cautious_downside": -0.1, "minimum_confidence": 0.5},
+  "method_spread_block_ratio": 1.4,
+  "rating_requires_user_confirmation": true,
+  "scenario_probability_automatic": false,
+  "report_section_count": 8
+}

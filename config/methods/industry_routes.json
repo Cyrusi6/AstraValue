@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "default_route": "general",
+  "aliases": {
+    "综合": "general", "普通工商": "general", "general": "general",
+    "制造": "manufacturing", "制造业": "manufacturing", "工业": "manufacturing", "manufacturing": "manufacturing",
+    "消费": "consumer", "食品饮料": "consumer", "家电": "consumer", "零售": "consumer", "consumer": "consumer",
+    "科技": "technology", "软件": "technology", "半导体": "technology", "电子": "technology", "technology": "technology",
+    "银行": "bank", "银行业": "bank", "bank": "bank",
+    "保险": "insurance", "保险业": "insurance", "insurance": "insurance",
+    "券商": "securities", "证券": "securities", "证券业": "securities", "securities": "securities",
+    "地产": "real_estate", "房地产": "real_estate", "real_estate": "real_estate",
+    "资源": "resources", "煤炭": "resources", "有色": "resources", "石油石化": "resources", "resources": "resources",
+    "公用事业": "utility", "电力": "utility", "水务": "utility", "utility": "utility",
+    "尚未盈利": "preprofit", "生物科技": "preprofit", "preprofit": "preprofit"
+  },
+  "routes": {
+    "general": {"label": "普通工商", "industry_method_id": "IND.GENERAL", "valuation_method_ids": ["VAL.RELATIVE", "VAL.DCF.FCFF", "VAL.SOTP", "VAL.REVERSE_DCF"], "required_metrics": [], "warnings": []},
+    "manufacturing": {"label": "制造", "industry_method_id": "IND.MANUFACTURING", "valuation_method_ids": ["VAL.DCF.FCFF", "VAL.RELATIVE", "VAL.SOTP"], "required_metrics": ["revenue", "operating_cash_flow"], "warnings": ["检查产能利用率与资本开支周期"]},
+    "consumer": {"label": "消费", "industry_method_id": "IND.CONSUMER", "valuation_method_ids": ["VAL.DCF.FCFF", "VAL.RELATIVE"], "required_metrics": ["revenue", "gross_margin"], "warnings": ["拆分量价、渠道库存和品牌投入"]},
+    "technology": {"label": "科技", "industry_method_id": "IND.TECHNOLOGY", "valuation_method_ids": ["VAL.DCF.FCFF", "VAL.RELATIVE", "VAL.SOTP", "VAL.REVERSE_DCF"], "required_metrics": ["revenue", "rd_ratio"], "warnings": ["研发费用与资本化口径需统一"]},
+    "bank": {"label": "银行", "industry_method_id": "IND.BANK", "valuation_method_ids": ["VAL.RESIDUAL_INCOME", "VAL.DDM", "VAL.RELATIVE"], "required_metrics": ["book_value_per_share", "roe"], "warnings": ["禁止使用通用企业EV/EBITDA或FCFF DCF"]},
+    "insurance": {"label": "保险", "industry_method_id": "IND.INSURANCE", "valuation_method_ids": ["VAL.PEV", "VAL.DDM"], "required_metrics": ["embedded_value_per_share"], "warnings": ["内含价值与新业务价值口径必须可比"]},
+    "securities": {"label": "券商", "industry_method_id": "IND.SECURITIES", "valuation_method_ids": ["VAL.RELATIVE", "VAL.CYCLE_NORMALIZED"], "required_metrics": ["book_value_per_share"], "warnings": ["盈利应做周期标准化"]},
+    "real_estate": {"label": "地产", "industry_method_id": "IND.REAL_ESTATE", "valuation_method_ids": ["VAL.NAV", "VAL.RELATIVE"], "required_metrics": ["net_debt"], "warnings": ["先评估流动性、受限资产和项目折价"]},
+    "resources": {"label": "资源周期", "industry_method_id": "IND.RESOURCES", "valuation_method_ids": ["VAL.CYCLE_NORMALIZED", "VAL.NAV", "VAL.RELATIVE"], "required_metrics": ["unit_cost"], "warnings": ["不能外推景气高点利润"]},
+    "utility": {"label": "公用事业", "industry_method_id": "IND.UTILITY", "valuation_method_ids": ["VAL.DCF.FCFF", "VAL.DDM"], "required_metrics": ["operating_cash_flow"], "warnings": ["关注价格机制、资本开支和负债期限"]},
+    "preprofit": {"label": "尚未盈利", "industry_method_id": "IND.PREPROFIT", "valuation_method_ids": ["VAL.RELATIVE", "VAL.REVERSE_DCF"], "required_metrics": ["cash_runway"], "warnings": ["现金流不可解释时不输出常规DCF目标价"]}
+  }
+}
