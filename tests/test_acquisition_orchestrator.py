@@ -7,7 +7,12 @@ import httpx
 import pytest
 
 from analysis.acquisition.adapters.base import DiscoveryResult, QueryWork
-from analysis.acquisition.models import AcquisitionMode, AcquisitionRunEventType
+from analysis.acquisition.models import (
+    AcquisitionAttemptEventType,
+    AcquisitionMode,
+    AcquisitionOutcome,
+    AcquisitionRunEventType,
+)
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
 from analysis.acquisition.repository import AcquisitionRepository
 
@@ -73,6 +78,21 @@ class RegistryProtocolAdapter:
     def fetch_resource(self, work):
         self.fetch_calls.append(work)
         raise AssertionError("metadata-only smoke must not fetch attachments")
+
+
+class BootstrapTimeoutRegistryProtocolAdapter(RegistryProtocolAdapter):
+    def execute_query(self, work):
+        self.query_calls.append(work)
+        if work.query_family == "company_bootstrap":
+            return envelope(
+                url=work.url,
+                status=504,
+                content_type="text/html",
+                body=b"<html>gateway timeout</html>",
+            )
+        raise AssertionError(
+            "a query with an unresolved bootstrap binding must perform zero HTTP"
+        )
 
 
 def test_persist_before_io_coverage_matrix_ten_topic_traceability_shared_execution_no_duplicate_io(
@@ -277,6 +297,69 @@ def test_cninfo_v1_2_smoke_resolves_bootstrap_binding_into_form_body(tmp_path) -
         }
         assert adapter.fetch_calls == []
         assert result.material_gap_count == 0
+        assert result.checkpoint_advanced is False
+    finally:
+        runtime.close()
+
+
+def test_cninfo_bootstrap_timeout_terminates_dependent_attempt_without_http(
+    tmp_path,
+) -> None:
+    adapter = BootstrapTimeoutRegistryProtocolAdapter()
+    runtime = make_runtime(
+        tmp_path / "cninfo-bootstrap-timeout",
+        adapter,
+        registry_path=DEFAULT_REGISTRY_PATH,
+    )
+    as_of = max(
+        definition.effective_at
+        for definition in runtime.loaded_registry.registry.definitions
+    ) + timedelta(seconds=1)
+    try:
+        result = runtime.orchestrator.smoke_sources(
+            ticker="600519",
+            source_ids=["cninfo.disclosures"],
+            as_of=as_of,
+        )
+
+        assert [work.query_id for work in adapter.query_calls] == [
+            "cninfo.company_bootstrap"
+        ]
+        plans = {
+            item.plan_item_id: item
+            for item in runtime.repository.list_physical_query_plan_items(result.run_id)
+        }
+        attempts = runtime.repository.list_attempts(run_id=result.run_id)
+        assert {plans[item.physical_query_plan_item_id].query_id for item in attempts} == {
+            "cninfo.company_bootstrap",
+            "cninfo.periodic_report",
+        }
+        terminal_by_query = {}
+        for attempt in attempts:
+            events = runtime.repository.list_attempt_events(attempt.attempt_id)
+            terminal = [
+                event
+                for event in events
+                if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL
+            ]
+            assert len(terminal) == 1
+            terminal_by_query[plans[attempt.physical_query_plan_item_id].query_id] = (
+                terminal[0].outcome,
+                terminal[0].reason_code,
+            )
+
+        assert terminal_by_query["cninfo.company_bootstrap"] == (
+            AcquisitionOutcome.TIMEOUT,
+            "http_504",
+        )
+        assert terminal_by_query["cninfo.periodic_report"] == (
+            AcquisitionOutcome.PARSE_FAILED,
+            "parameter_binding_missing",
+        )
+        assert result.result.value == "partial"
+        assert result.coverage_accounted is True
+        assert result.material_gap_count == 2
+        assert result.default_consume_eligible is False
         assert result.checkpoint_advanced is False
     finally:
         runtime.close()

@@ -996,19 +996,24 @@ class AcquisitionOrchestrator:
         attempt_snapshots: list[str] = []
         while True:
             heartbeat.renew()
-            work = self._query_work(
-                definition,
-                query,
-                plan_item,
-                run=run,
-                attempt=attempt,
-                heartbeat=heartbeat,
-                page=page,
-                cursor=cursor,
-                deadline=deadline,
-            )
             position = _work_position("discovery", page=page, cursor=cursor)
             try:
+                # Building the wire request can depend on an earlier persisted
+                # discovery proof (for example CNINFO's company bootstrap
+                # ``orgId`` binding).  A missing or ambiguous binding is a
+                # classified discovery failure for this already-started
+                # attempt, not an executor crash that leaves it unterminated.
+                work = self._query_work(
+                    definition,
+                    query,
+                    plan_item,
+                    run=run,
+                    attempt=attempt,
+                    heartbeat=heartbeat,
+                    page=page,
+                    cursor=cursor,
+                    deadline=deadline,
+                )
                 envelope = adapter.execute_query(work)
                 # Source-gate waits and the request itself can consume most of
                 # a short TTL.  Refresh before any response-derived evidence is
