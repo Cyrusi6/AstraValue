@@ -85,7 +85,7 @@
 - [x] 8.4 运行现有黄金样本结构门 `python scripts/validate_golden_samples.py` 并如实保留 pending 状态；不得用该命令的结构通过代替本 change 的人工采集黄金验收。
 - [x] 8.5 运行后端全量门 `python -m pytest`，进程退出码必须为 0，不能以相对基线或部分测试替代全量通过；任何需要网络的测试 MUST 保持从默认 pytest 隔离。
 - [x] 8.6 运行前端契约与构建门：`python -m pytest tests/test_frontend_acquisition_contract.py -q`、`npm.cmd ci --prefix frontend`、`npm.cmd run build --prefix frontend` 三条命令退出码均须为 0；记录静态/契约测试与 build 的边界，不把编译成功描述为完整交互行为验证。
-- [ ] 8.7 将 source registry validator 和离线 acquisition tests 接入 `.github/workflows/ci.yml`，但不接入真实网络；通过一次干净 CI 可观察当前默认 v1.2 registry、只读 v1.1/v1.0 兼容 registry、pytest 与 frontend build 各自成功。v1.1 的提交 `72d446f739a221457262177fc561a65bb4d4b9ad` 与 GitHub Actions `verify` run `33845864024` 仅为历史证据；v1.2 必须取得新的干净 CI 后才能重新勾选本项。
+- [x] 8.7 将 source registry validator 和离线 acquisition tests 接入 `.github/workflows/ci.yml`，但不接入真实网络；提交 `9e44599f56bfb4e409bb98f0d79e3e122520c43e` 对应的 GitHub Actions `verify` run `33855359625` 已观察当前默认 v1.2 registry、只读 v1.1/v1.0 兼容 registry、离线 acquisition tests、全量 pytest、`npm ci` 与 frontend build 各自成功，且未执行真实网络。v1.1 的提交与 CI 仅保留为历史证据。
 - [x] 8.8 运行规格门 `openspec validate business-model-acquisition-v1 --type change --strict --no-interactive`，必须返回 valid；OpenSpec verify 若执行只作为额外审查，不替代本节其他命令。
 
 ## 9. 真实联网样本门（独立门 2）
