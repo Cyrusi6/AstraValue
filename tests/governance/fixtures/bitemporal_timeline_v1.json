@@ -1,0 +1,235 @@
+{
+  "schema_version": "1.0.0",
+  "timeline": {
+    "complete_roster_reference_at": "2022-12-31",
+    "complete_roster_available_at": "2023-04-20",
+    "appointment_and_acting_effective_at": "2023-06-01",
+    "ambiguous_resignation_effective_at": "2023-08-01",
+    "retrospective_correction_available_at": "2024-02-01"
+  },
+  "queries": {
+    "pre_correction_strict": {
+      "state_at": "2023-12-31",
+      "known_at": "2023-12-31",
+      "perspective": "strict"
+    },
+    "post_correction_strict": {
+      "state_at": "2024-02-01",
+      "known_at": "2024-02-01",
+      "perspective": "strict"
+    },
+    "same_state_reconstructed": {
+      "state_at": "2023-12-31",
+      "known_at": "2024-02-01",
+      "perspective": "reconstructed"
+    },
+    "no_anchor_incomplete": {
+      "state_at": "2023-12-31",
+      "known_at": "2023-12-31",
+      "perspective": "strict"
+    }
+  },
+  "golden_results": {
+    "pre_correction_strict": {
+      "query": {
+        "state_cutoff": "2023-12-31T16:00:00Z",
+        "known_cutoff": "2023-12-31T16:00:00Z",
+        "perspective": "strict",
+        "future_knowledge_used": false
+      },
+      "anchor_id": "anchor:2022-complete-roster",
+      "ordered_delta_ids": [
+        "delta:acting-carol-original",
+        "delta:appoint-bob",
+        "delta:ambiguous-resign-alice"
+      ],
+      "applied_delta_ids": [
+        "delta:acting-carol-original",
+        "delta:appoint-bob"
+      ],
+      "excluded": {
+        "delta:acting-dana-correction": "available_after_known_at",
+        "delta:ambiguous-resign-alice": "reducer_excluded:ambiguous_role_termination"
+      },
+      "tenures": [
+        {
+          "record_id": "govrec:timeline-alice-director",
+          "person_id": "govp:cn-600519:alice",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2020-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-bob-director",
+          "person_id": "govp:cn-600519:bob",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-carol-acting-cfo",
+          "person_id": "govp:cn-600519:carol",
+          "role_code": "chief_financial_officer",
+          "acting": true,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "issue_codes": [
+        "ambiguous_role_termination"
+      ],
+      "completeness_status": "incomplete"
+    },
+    "post_correction_strict": {
+      "query": {
+        "state_cutoff": "2024-02-01T16:00:00Z",
+        "known_cutoff": "2024-02-01T16:00:00Z",
+        "perspective": "strict",
+        "future_knowledge_used": false
+      },
+      "anchor_id": "anchor:2022-complete-roster",
+      "ordered_delta_ids": [
+        "delta:appoint-bob",
+        "delta:acting-dana-correction",
+        "delta:ambiguous-resign-alice"
+      ],
+      "applied_delta_ids": [
+        "delta:appoint-bob",
+        "delta:acting-dana-correction"
+      ],
+      "excluded": {
+        "delta:acting-carol-original": "superseded_by_visible_version:delta:acting-dana-correction",
+        "delta:ambiguous-resign-alice": "reducer_excluded:ambiguous_role_termination"
+      },
+      "tenures": [
+        {
+          "record_id": "govrec:timeline-alice-director",
+          "person_id": "govp:cn-600519:alice",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2020-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-bob-director",
+          "person_id": "govp:cn-600519:bob",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-dana-acting-cfo",
+          "person_id": "govp:cn-600519:dana",
+          "role_code": "chief_financial_officer",
+          "acting": true,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "issue_codes": [
+        "ambiguous_role_termination"
+      ],
+      "completeness_status": "incomplete"
+    },
+    "same_state_reconstructed": {
+      "query": {
+        "state_cutoff": "2023-12-31T16:00:00Z",
+        "known_cutoff": "2024-02-01T16:00:00Z",
+        "perspective": "reconstructed",
+        "future_knowledge_used": true
+      },
+      "anchor_id": "anchor:2022-complete-roster",
+      "ordered_delta_ids": [
+        "delta:appoint-bob",
+        "delta:acting-dana-correction",
+        "delta:ambiguous-resign-alice"
+      ],
+      "applied_delta_ids": [
+        "delta:appoint-bob",
+        "delta:acting-dana-correction"
+      ],
+      "excluded": {
+        "delta:acting-carol-original": "superseded_by_visible_version:delta:acting-dana-correction",
+        "delta:ambiguous-resign-alice": "reducer_excluded:ambiguous_role_termination"
+      },
+      "tenures": [
+        {
+          "record_id": "govrec:timeline-alice-director",
+          "person_id": "govp:cn-600519:alice",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2020-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-bob-director",
+          "person_id": "govp:cn-600519:bob",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-dana-acting-cfo",
+          "person_id": "govp:cn-600519:dana",
+          "role_code": "chief_financial_officer",
+          "acting": true,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "issue_codes": [
+        "ambiguous_role_termination"
+      ],
+      "completeness_status": "incomplete"
+    },
+    "no_anchor_incomplete": {
+      "query": {
+        "state_cutoff": "2023-12-31T16:00:00Z",
+        "known_cutoff": "2023-12-31T16:00:00Z",
+        "perspective": "strict",
+        "future_knowledge_used": false
+      },
+      "anchor_id": null,
+      "ordered_delta_ids": [
+        "delta:acting-carol-original",
+        "delta:appoint-bob",
+        "delta:ambiguous-resign-alice"
+      ],
+      "applied_delta_ids": [
+        "delta:acting-carol-original",
+        "delta:appoint-bob"
+      ],
+      "excluded": {
+        "delta:acting-dana-correction": "available_after_known_at",
+        "delta:ambiguous-resign-alice": "reducer_excluded:ambiguous_role_termination"
+      },
+      "tenures": [
+        {
+          "record_id": "govrec:timeline-bob-director",
+          "person_id": "govp:cn-600519:bob",
+          "role_code": "director",
+          "acting": false,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        },
+        {
+          "record_id": "govrec:timeline-carol-acting-cfo",
+          "person_id": "govp:cn-600519:carol",
+          "role_code": "chief_financial_officer",
+          "acting": true,
+          "valid_from": "2023-06-01T00:00:00Z",
+          "valid_to": null
+        }
+      ],
+      "issue_codes": [
+        "ambiguous_role_termination",
+        "anchor_missing"
+      ],
+      "completeness_status": "incomplete"
+    }
+  }
+}

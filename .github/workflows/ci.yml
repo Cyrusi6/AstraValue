@@ -31,6 +31,8 @@ jobs:
           "acquisition or raw_resource or evidence_manifest or source_candidate or
           snapshot_integrity or discovery_snapshot or cross_process_source_gate or
           legacy_snapshot"
+      - run: python scripts/validate_governance_registry.py --questions config/data_sources/governance_management_questions.v1.json --query-pack config/data_sources/governance_management_query_pack.v1.json --require-plan-traceability
+      - run: python -m pytest tests/governance -q
       - run: python -m pytest
       - uses: actions/setup-node@v4
         with:

@@ -1,0 +1,155 @@
+{
+  "schema_version": "governance-query-pack.v1",
+  "query_pack_id": "governance_management_queries",
+  "query_pack_version": "1.0.0",
+  "acquisition_scope": "governance_management",
+  "question_set_id": "governance_management_questions",
+  "question_set_version": "1.0.0",
+  "source_registry_version": "business_model_sources:1.0.0+governance-pending.1",
+  "source_references": [
+    {
+      "source_definition_id": "cninfo.disclosures",
+      "source_definition_version": "1.0.0",
+      "source_role": "official_disclosure",
+      "enabled": true,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "sse.disclosures",
+      "source_definition_version": "1.0.0",
+      "source_role": "official_disclosure",
+      "enabled": true,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "szse.disclosures",
+      "source_definition_version": "1.0.0",
+      "source_role": "official_disclosure",
+      "enabled": true,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "csrc.regulatory",
+      "source_definition_version": "1.0.0-pending-policy",
+      "source_role": "regulator_exchange",
+      "enabled": false,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "sse.regulatory",
+      "source_definition_version": "1.0.0-pending-policy",
+      "source_role": "regulator_exchange",
+      "enabled": false,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "szse.regulatory",
+      "source_definition_version": "1.0.0-pending-policy",
+      "source_role": "regulator_exchange",
+      "enabled": false,
+      "stage": "fetch"
+    },
+    {
+      "source_definition_id": "akshare.discovery",
+      "source_definition_version": "1.0.0",
+      "source_role": "discovery_only",
+      "enabled": true,
+      "stage": "discovery"
+    },
+    {
+      "source_definition_id": "court.records",
+      "source_definition_version": "deferred-v1",
+      "source_role": "deferred",
+      "enabled": false,
+      "stage": "deferred"
+    },
+    {
+      "source_definition_id": "samr.corporate_registry",
+      "source_definition_version": "deferred-v1",
+      "source_role": "deferred",
+      "enabled": false,
+      "stage": "deferred"
+    },
+    {
+      "source_definition_id": "chinaclear.registrations",
+      "source_definition_version": "deferred-v1",
+      "source_role": "deferred",
+      "enabled": false,
+      "stage": "deferred"
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "GOV.QRY.CNINFO.PERIODIC_REPORTS",
+      "source_definition_id": "cninfo.disclosures",
+      "source_definition_version": "1.0.0",
+      "question_ids": ["GOV.Q01.OWNERSHIP_CONTROL", "GOV.Q02.PLEDGE_FREEZE", "GOV.Q03.BOARD_COMMITTEES", "GOV.Q04.EXECUTIVE_ROSTER_BACKGROUND", "GOV.Q05.REMUNERATION_INCENTIVES", "GOV.Q06.RELATED_PARTIES", "GOV.Q07.EXTERNAL_AUDIT", "GOV.Q08.INTERNAL_CONTROL_CORRECTIONS", "GOV.Q10.LITIGATION_COMMITMENTS", "GOV.Q11.GOVERNANCE_RULES"],
+      "execution_key": "cninfo:periodic-reports:{ticker}:{start}:{end}:{page}",
+      "query_family": "periodic_reports",
+      "market_applicability": ["sse", "szse"],
+      "time_semantics": "historical_event_stream",
+      "stage": "fetch",
+      "required_attachment": true,
+      "physical_query": {
+        "date_semantics": "half_open_interval",
+        "page_semantics": "total_count_complete",
+        "canonical_semantics": "announcement_id",
+        "dedup_fields": ["source_definition_id", "ticker", "report_category", "start", "end", "page"]
+      }
+    },
+    {
+      "query_id": "GOV.QRY.SSE.DISCLOSURES",
+      "source_definition_id": "sse.disclosures",
+      "source_definition_version": "1.0.0",
+      "question_ids": ["GOV.Q01.OWNERSHIP_CONTROL", "GOV.Q02.PLEDGE_FREEZE", "GOV.Q03.BOARD_COMMITTEES", "GOV.Q04.EXECUTIVE_ROSTER_BACKGROUND", "GOV.Q05.REMUNERATION_INCENTIVES", "GOV.Q06.RELATED_PARTIES", "GOV.Q07.EXTERNAL_AUDIT", "GOV.Q08.INTERNAL_CONTROL_CORRECTIONS", "GOV.Q09.REGULATORY_DISCLOSURE", "GOV.Q10.LITIGATION_COMMITMENTS", "GOV.Q11.GOVERNANCE_RULES"],
+      "execution_key": "sse:disclosures:{ticker}:{start}:{end}:{page}",
+      "query_family": "exchange_disclosures",
+      "market_applicability": ["sse"],
+      "time_semantics": "historical_event_stream",
+      "stage": "fetch",
+      "required_attachment": true,
+      "physical_query": {
+        "date_semantics": "half_open_interval",
+        "page_semantics": "page_count_complete",
+        "canonical_semantics": "announcement_id",
+        "dedup_fields": ["source_definition_id", "ticker", "start", "end", "page"]
+      }
+    },
+    {
+      "query_id": "GOV.QRY.SZSE.DISCLOSURES",
+      "source_definition_id": "szse.disclosures",
+      "source_definition_version": "1.0.0",
+      "question_ids": ["GOV.Q01.OWNERSHIP_CONTROL", "GOV.Q02.PLEDGE_FREEZE", "GOV.Q03.BOARD_COMMITTEES", "GOV.Q04.EXECUTIVE_ROSTER_BACKGROUND", "GOV.Q05.REMUNERATION_INCENTIVES", "GOV.Q06.RELATED_PARTIES", "GOV.Q07.EXTERNAL_AUDIT", "GOV.Q08.INTERNAL_CONTROL_CORRECTIONS", "GOV.Q09.REGULATORY_DISCLOSURE", "GOV.Q10.LITIGATION_COMMITMENTS", "GOV.Q11.GOVERNANCE_RULES"],
+      "execution_key": "szse:disclosures:{ticker}:{start}:{end}:{page}",
+      "query_family": "exchange_disclosures",
+      "market_applicability": ["szse"],
+      "time_semantics": "historical_event_stream",
+      "stage": "fetch",
+      "required_attachment": true,
+      "physical_query": {
+        "date_semantics": "half_open_interval",
+        "page_semantics": "announcement_count_complete",
+        "canonical_semantics": "announcement_id",
+        "dedup_fields": ["source_definition_id", "ticker", "start", "end", "page"]
+      }
+    },
+    {
+      "query_id": "GOV.QRY.AKSHARE.DISCOVERY",
+      "source_definition_id": "akshare.discovery",
+      "source_definition_version": "1.0.0",
+      "question_ids": ["GOV.Q01.OWNERSHIP_CONTROL", "GOV.Q02.PLEDGE_FREEZE", "GOV.Q03.BOARD_COMMITTEES", "GOV.Q04.EXECUTIVE_ROSTER_BACKGROUND", "GOV.Q05.REMUNERATION_INCENTIVES", "GOV.Q06.RELATED_PARTIES", "GOV.Q07.EXTERNAL_AUDIT", "GOV.Q08.INTERNAL_CONTROL_CORRECTIONS", "GOV.Q09.REGULATORY_DISCLOSURE", "GOV.Q10.LITIGATION_COMMITMENTS", "GOV.Q11.GOVERNANCE_RULES"],
+      "execution_key": "akshare:governance-discovery:{ticker}:{as_of}",
+      "query_family": "discovery_leads",
+      "market_applicability": ["sse", "szse", "bse"],
+      "time_semantics": "current_observation_only",
+      "stage": "discovery",
+      "required_attachment": false,
+      "physical_query": {
+        "date_semantics": "retrieved_at_only",
+        "page_semantics": "provider_defined_non_authoritative",
+        "canonical_semantics": "discovery_lead_only",
+        "dedup_fields": ["source_definition_id", "ticker", "retrieved_at"]
+      }
+    }
+  ]
+}
