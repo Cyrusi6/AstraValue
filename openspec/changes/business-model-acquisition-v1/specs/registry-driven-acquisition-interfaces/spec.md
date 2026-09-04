@@ -87,6 +87,8 @@
 
 `acquisition-db backup` 同样 MUST 要求显式 `--db` 与 `--data-root`，但 data root 只作为显式备份输出根；该命令不得创建/修改 binding intent、namespace、migration 或 run。
 
+reconcile 的 `--from-run` 与 `--from-latest-run` MUST 调用 acquisition-checkpoints 规格定义的同一权威 selector。显式父 run 未 finalized 时必须拒绝；`--from-latest-run` 只能选择同 ticker/scope 的最新 finalized 非 reconcile production run，并 MUST 在输出中明确列出被排除的更新但未 finalized run，不得把它们当父项或静默恢复。CLI JSON SHALL 回显 resolved parent、selection strategy、精确 barrier/work position、source/query/partition、父时间片和 effective overlap range；API 与 CLI 对同一父 run/`as_of` 必须得到相同目标。`incremental` 在任一 enabled 且适用来源缺少兼容安全 checkpoint 时 MUST 在创建 run/attempt 与外部 I/O 前拒绝，不能为了完成验收而生成无安全起点的增量运行。
+
 #### Scenario: CLI 重复 incremental
 - **WHEN** 用户在 baseline 后连续两次运行 `600519` incremental
 - **THEN** CLI SHALL 分别输出独立 run ID，并让用户观察第二次运行的 `unchanged`、新增/变化、缺口和 checkpoint 结果
@@ -106,6 +108,18 @@
 #### Scenario: CLI 遇到可重试执行冲突
 - **WHEN** execute 遇到同 run 活跃租约或 SQLite 在有限 busy timeout 内仍繁忙
 - **THEN** CLI SHALL 退出 5，并在 JSON 中分别输出 `active_lease|storage_busy`；不得误报为参数错误、材料缺口或内部失败
+
+#### Scenario: CLI reconcile 选择精确 barrier 而非父运行最早 coverage
+- **WHEN** `--from-run` 指向一个 finalized partial run，父覆盖起点早于其最早未解决 barrier
+- **THEN** CLI SHALL 使用权威 selector 创建只覆盖目标、必要 dependency 与 overlap 的 reconcile plan，并在 JSON 中回显 barrier ID、opening attempt、work position 和 effective range；不得把父 coverage 的全局最早时间直接用作 reconcile 起点
+
+#### Scenario: CLI 拒绝未 finalized reconcile 父项
+- **WHEN** `--from-run` 指向人工中止且没有 final event 的运行
+- **THEN** CLI SHALL 在创建子 run、attempt 或联网前以参数/状态错误退出，保留旧运行不变，并不得把 execute/resume 作为隐式替代
+
+#### Scenario: CLI 在安全 checkpoint 不齐时拒绝 incremental
+- **WHEN** baseline 因 CNINFO prerequisite timeout 或 SSE challenge 没有为所有 enabled 且适用来源形成安全 checkpoint
+- **THEN** 后续 incremental 命令 SHALL 在创建 run 和联网前拒绝，列出缺少安全 checkpoint 的来源，并保持真实联网门 pending
 
 ### Requirement: 在线 smoke 与正式状态同源
 在线 smoke SHALL 从注册表枚举 `smoke_enabled` 且适用的来源/探针查询，复用同一 adapter 解析和规范 attempt 状态，并持久化独立的 smoke run 与 attempts。smoke MUST 使用安全、最小请求，不得推进生产 checkpoint；某来源失败不得被其他来源成功掩盖，也不得通过中文消息子串推断状态。
@@ -163,7 +177,7 @@
 - **THEN** 审计查询 SHALL 显示新运行，但下游默认最新批次 SHALL 继续选择旧 baseline，除非调用方显式请求审阅部分运行
 
 ### Requirement: 三类验收门独立呈现
-系统和项目验收记录 MUST 分别呈现自动化测试门、真实联网样本门和人工黄金样本门；任何一门通过不得自动设置另一门通过。v1 真实联网试点 MUST 使用 `600519 贵州茅台` 执行一次 baseline 和至少两次重复 incremental，逐一观察四个 v1 来源的适用/跳过/失败状态；人工黄金样本 MUST 独立核对覆盖、状态语义、版本链和抽样原文。单公司结果不得命名为“全部 A 股验证完成”。
+系统和项目验收记录 MUST 分别呈现自动化测试门、真实联网样本门和人工黄金样本门；任何一门通过不得自动设置另一门通过。v1 真实联网试点若要标记 passed，MUST 使用全新隔离 namespace 对 `600519 贵州茅台` 执行一次自动 finalized 的 baseline，并仅在所有 enabled 且适用来源均形成兼容安全 checkpoint 后执行至少两次重复 incremental，再对 finalized 父运行执行一次精确目标 reconcile；逐一观察四个 v1 来源的适用/跳过/失败状态。旧的未 finalized run 只能作为不可变诊断证据保留，不得 resume、修改或用作 reconcile 父项。若外部许可、网络或来源侧 challenge 在系统遵守分类、零绕过、来源熔断、完整 coverage accounting 和 checkpoint barrier 合同的前提下阻止安全 checkpoint，incremental SHALL 按前置条件拒绝，真实联网门保持 `pending`；不得用无效 incremental 补齐次数，也不得把正确受控的外部不可达自动记为 `failed` 或 `passed`。只有状态误分类、挑战后继续 I/O、依赖失败被伪装为解析错误、未解释 coverage、越过 barrier、证据门禁失效或其他软件合同违规才使该次真实联网门为 `failed`。人工黄金样本 MUST 独立核对覆盖、状态语义、版本链和抽样原文。单公司结果不得命名为“全部 A 股验证完成”。
 
 #### Scenario: 自动化全绿但未联网
 - **WHEN** 所有离线测试通过而真实联网与人工黄金检查尚未执行
@@ -172,6 +186,14 @@
 #### Scenario: 贵州茅台试点通过
 - **WHEN** `600519` baseline、重复 incremental 和人工抽样均达到各自门槛
 - **THEN** 系统 SHALL 仅记录“贵州茅台采集试点通过”及其时间点/来源限制，不得外推为全部 A 股或完整商业模式分析通过
+
+#### Scenario: 外部挑战被正确控制时在线门保持 pending
+- **WHEN** 新 baseline 遇到 SSE 明确 challenge，系统将 opening attempt 记为 restricted、对该来源后续工作零 I/O 熔断、完整写入 barriers 并自动 finalize 为不可消费的 partial run
+- **THEN** 自动化门可独立通过，但真实联网门 SHALL 记录外部阻断及 run/attempt/checkpoint 证据并保持 pending；不得把该结果称为在线通过，也不得仅因来源拒绝访问把软件合同判为 failed
+
+#### Scenario: 挑战后继续请求构成在线门失败
+- **WHEN** 真实运行把明确 challenge 误记为普通 MIME 解析失败、继续请求该来源后续附件或推进越过该位置的 checkpoint
+- **THEN** 真实联网门 SHALL 标记 failed 并保留诊断证据；其他来源成功、离线测试全绿或人工终止进程均不得掩盖该合同违规
 
 ### Requirement: additive 迁移与可恢复回滚
 采集存储初始化 MUST 显式支持以下迁移矩阵：经检查确为空且 `user_version=0` 的 fresh 数据库在单一事务中 bootstrap 到完整 v6；v4 先生成并验证 v4 备份、事务化执行既有 0005，确认 v5 后生成经 SHA-256、integrity_check 和外键检查验证的 v5 recovery point，再以独立事务执行 0006；v5 必须先生成上述已验证备份再事务化执行 0006；v6 重开 MUST 严格 no-op。`user_version=0` 但已有未知用户表、低于受支持版本、迁移记录与版本冲突或高于 v6 的数据库 MUST 在任何 DDL/DML 前失败关闭。0005/0006 每项只能成功记录一次，旧表、旧 payload、旧报告和旧快照必须逐字节不变；任一阶段失败 MUST 回滚当前事务并保留最近已验证恢复点。版本/备份检查不得通过构造会自动迁移的存储对象完成。功能回滚 SHALL 优先关闭新入口而保留 v6 数据；若必须运行旧版本程序，MUST 先停止服务并把匹配版本的已验证备份恢复到独立路径，禁止旧程序直接打开 v6 工作库。

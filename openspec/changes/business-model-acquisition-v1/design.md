@@ -13,6 +13,19 @@
 - 原始 PDF 较稳定，但同一 `.pdf.txt`、FTS 和部分 Parquet 输出可以被重建或覆盖，不能充当不可变证据快照；旧 `data_snapshot_id` 也不包含原始字节。
 - 第一阶段方法文件仍为 `content_status: skeleton`。本设计只把 [计划.md](../../../计划.md) 已列出的第一步主题转成“采集覆盖问题”，不把它们提升为分析方法或结论。
 
+### 真实联网反馈的因果边界
+
+本次 planning-only 补强以 [阶段日志.md](../../../阶段日志.md) 已冻结的 v1.3 真实运行观察为诊断输入；不在本设计中改写该运行、注册表或验收记录。问题必须分成“外部触发”与“软件合同缺陷”，否则修复后仍可能把正常的来源拒绝误报成代码失败，或反过来用“网站不可用”掩盖系统继续请求和错误推进：
+
+| 观察 | 外部触发 | 当前实现缺陷 | 修复后的合同 |
+| --- | --- | --- | --- |
+| SSE 返回 HTTP 200 HTML 和 `x-tengine-error: denied by bot` | 来源侧 bot challenge | 分类器只看有限正文特征后检查 MIME，没有识别精确挑战头，误记 `parse_failed: unexpected_mime` | 按固定优先级识别为 `restricted: upstream_bot_challenge`，不归档挑战正文 |
+| SSE challenge 后仍继续附件和后续查询 | 同一挑战持续存在 | orchestrator 逐 plan/fetch 独立执行，没有当前 run 的来源级停止投影 | opening attempt 后，同来源版本剩余工作逐项写无 I/O `policy_skipped: source_access_halted` 并自动 partial finalize |
+| CNINFO bootstrap 返回 504 | 上游网关超时 | 217 个依赖查询各自尝试解析缺失 binding，制造 `parse_failed: parameter_binding_missing` 噪声 | prerequisite 失败只发生一次；下游逐 plan 写 `policy_skipped: dependency_unavailable`，零 downstream transport 并共享因果链 |
+| CLI reconcile 从父 run 最早 coverage 开始 | 无外部触发 | runtime 没有调用已有缺口选择逻辑，只取 `min(coverage.time_start)` | API/CLI/runtime 共用一个 selector，优先精确未解决 barrier 并回显有效 overlap range |
+
+人工停止的 v1.3 run 没有 final event、coverage resolutions、checkpoint 或 manifest，只能作为不可变诊断记录保留；本补强明确禁止 resume、补写或把它选作 reconcile 父运行。后续真实样本必须使用全新隔离 namespace 创建新 run。
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -149,7 +162,9 @@ incremental 计划从 `safe_through - overlap_window` 至 run.as_of。判断顺�
 
 reconcile 读取原覆盖缺口、完整性异常或不兼容 registry 变化，生成新的关联 run。迟到资源可以新增版本和覆盖修正，但不修改旧 run，也不会简单回退 checkpoint；若证明当前安全性不足，则写新 checkpoint 版本并设置 barrier。对于允许历史 URL 静默替换的来源，注册表另行定义周期性历史资源复核/reconcile cadence；有限 overlap 只承诺检查窗口内变化，不能宣称持续检查全部历史。
 
-**替代方案：**每家公司一个最大发布时间水位线，或只信 ETag。未采用，因为多 query 进度不同、公告可能迟到，而且上游 validator 可能错误。
+reconcile target 由一个无 I/O 的 `ReconcileTargetSelector`（或等价唯一领域服务）权威计算，`AcquisitionRuntime.plan_company_run()`、CLI 与 API 只能消费该结果，不得复制选择算法。父 run 必须已有不可变 final event；显式指定未 finalized 父项时在子 run 创建前拒绝，`--from-latest-run` 只在同 ticker/scope 的 finalized 非 reconcile production runs 中选择并明确报告被排除的更新未终结 run。优先级固定为：最早未解决 barrier 的精确 source/query/partition/work position；没有 barrier 的未解决 required coverage；quarantined snapshot 所属 coverage；前三者都不存在时最早已完成 required slice 的周期性复核。每类按父计划时间片/ordinal 与规范 work-position 排序，再以稳定 ID 打破平局。选择结果携带 barrier/opening attempt/retry group/canonical、父时间片和按该来源固定 overlap 计算的 effective range；planner 只加入该目标、必要 overlap 与 parameter-binding prerequisites，不从父 run 全局最早 coverage 重跑所有来源。explicit incremental 仍保持更保守的前置条件：任一 enabled 且适用来源没有兼容 `source_safe_through` 时，在创建 run/I/O 前拒绝。
+
+**替代方案：**每家公司一个最大发布时间水位线、只信 ETag，或把父 run 全局最早 coverage 当 reconcile 起点。未采用，因为多 query 进度不同、公告可能迟到、上游 validator 可能错误，而全局最早起点会掩盖真正 barrier 并产生无意义全历史重跑。
 
 ### 6. 原始字节、派生物和 manifest 分层冻结
 
@@ -163,7 +178,9 @@ discovery response 与正文资源共用 blob/snapshot 原子发布机制但以 
 
 完整性复核不修改不可变 snapshot：每次读取检查都追加 `SnapshotIntegrityEvent`。最新有效事件为 `quarantined` 时，新 manifest 与默认消费查询必须拒绝该 snapshot 并生成 reconcile 候选；历史报告和旧 manifest 引用仍保持原样。
 
-传输层禁用自动重定向并在每一跳请求前校验 allowlist、HTTPS 不降级、无 URL 凭据且目标不是未批准的 private/loopback/link-local 地址；响应按可信 Content-Length 及流式压缩/解压硬上限读取，越限时不发布 blob、不得自动重试。越界 redirect、HTTPS downgrade、未批准 private target 或响应超限在尚无成功 segment 时固定为 `policy_skipped: redirect_not_allowlisted|transport_target_forbidden|response_size_exceeded`，已有成功页的 discovery 则聚合为 `partial_success` 并保留具体 reason。首个 discovery page 的 schema/proof 失败为 `parse_failed`，已有成功 page segment 后为 `partial_success`；`restricted` 只表示来源侧限制、验证码或挑战。挑战页识别结合 HTTP 状态、Content-Type、有界 prefix/magic bytes、已批准 schema 和有限特征；401/登录表单、402/付费标记、403/许可限制、429、验证码/JS challenge 分别映射规范状态。逐跳 redirect chain 和 validator anchor 仅以脱敏元数据保存。不得启动浏览器、提交凭据、解验证码或切换未批准镜像。
+传输层禁用自动重定向并在每一跳请求前校验 allowlist、HTTPS 不降级、无 URL 凭据且目标不是未批准的 private/loopback/link-local 地址；响应按可信 Content-Length 及流式压缩/解压硬上限读取，越限时不发布 blob、不得自动重试。越界 redirect、HTTPS downgrade、未批准 private target 或响应超限在尚无成功 segment 时固定为 `policy_skipped: redirect_not_allowlisted|transport_target_forbidden|response_size_exceeded`，已有成功页的 discovery 则聚合为 `partial_success` 并保留具体 reason。首个 discovery page 的 schema/proof 失败为 `parse_failed`，已有成功 page segment 后为 `partial_success`；`restricted` 只表示来源侧限制、验证码或挑战。
+
+响应分类优先级固定为：HTTP status → 精确且窄化的 challenge header/value allowlist → 最多固定字节数的登录/付费/challenge body markers → expected MIME → schema。v1 代码 allowlist 只新增规范化后的 `x-tengine-error=denied by bot`，映射 `restricted: upstream_bot_challenge`；该顺序保证 HTTP 429 等协议状态优先，同时不会先被 HTML MIME 吞掉。没有精确信号的普通 HTML 仍为 `parse_failed: unexpected_mime`，不能为了减少 parse_failed 把所有 HTML 泛化为 restricted。逐跳 redirect chain、允许的挑战头摘要和 validator anchor 仅以脱敏元数据保存；不得启动浏览器、提交凭据、解验证码、伪造浏览器指纹或切换未批准镜像。
 
 **替代方案：**继续把 `DocumentRecord` 和可变 `.pdf.txt` 当原始快照。未采用，因为它没有 exact-version available_at、validator、父版本和不可变派生物语义。
 
@@ -179,7 +196,19 @@ discovery response 与正文资源共用 blob/snapshot 原子发布机制但以 
 
 API 与独立 CLI 是不同进程，不能依赖共享 Python limiter。v1 将四个来源的最大并发固定为 1，并使用按 workspace identity + source/host 派生的 `CrossProcessSourceGate`（Windows named mutex/等价跨进程锁）包围每次请求；取得门禁后仍等待一个完整注册表最小间隔再发请求，进程崩溃释放锁后下一执行者也先等待，因此不同 DB/data-root namespace 不能绕过本机工作区的并发与最小间隔。deadline 内无法取得门禁时写 `rate_limited: local_source_gate_timeout` barrier。更高来源并发或多主机共享配额留给后续带持久协调器的 change。query POST 只有在注册表声明传输语义幂等时才允许自动重试。`Retry-After` 无论为秒数或 HTTP-date 都受单次上限和 run deadline 约束，超过 deadline 时终结为 `rate_limited` 并形成 barrier，不能无限 sleep。adapter 不接收 `data_root`、不自行写文件，也不能启用客户端自动 follow_redirects。
 
-**替代方案：**保留一个聚合 `official` adapter。未采用，因为它会掩盖巨潮与交易所各自的尝试/失败位置和 checkpoint。
+#### 7.1 当前 run 的来源级访问熔断
+
+orchestrator 在每个 source work boundary 前，从 durable terminal attempt events 计算 `(run_id, source_definition_id, source_definition_version)` 的 `SourceAccessHaltProjection`；内存集合只能作为加速缓存，不能成为权威。精确 challenge 先正常完成 opening attempt、observation 和 barrier，再使该来源版本在本 run 内进入 halted。所有尚未执行的 discovery plan 和已经发现的 required resource 都先物化其既有 physical/fetch plan，再分别创建 attempt，并在任何 adapter/transport 调用前写 `policy_skipped: source_access_halted`。terminal event 现有 `protocol_summary` JSON 保存 `halt_opening_attempt_id`、`halt_opening_reason_code`、source/version 和 causal group，不新增可变“source disabled”表；租约接管重新扫描事件即可得到同一结果。finalize 仍逐 coverage 解释这些 skips，因而可自动得到 `partial + coverage_accounted=true + default_consume_eligible=false`，但每个 skip 和 opening challenge 都保留未解决 barrier，checkpoint 不会前进。
+
+halt 只约束当前 run/source definition version。它不修改 registry、不写永久全局断路器，也不阻止新 run 按原定义再次进行一次合规尝试；持续挑战由后续真实门记录为外部阻塞，并可由 operator 决定何时再次运行。已在 challenge 前提交的 proofs/snapshots 继续保留，但另一来源镜像不能解除本来源 barriers。
+
+#### 7.2 显式 prerequisite 图与失败扇出
+
+planner 从每个 `parameter_bindings[].source_query_id` 建立 plan-level prerequisite edge，并验证图无环、依赖在同一 source definition version 且排序早于消费者。执行消费者前先读取 prerequisite 的 durable terminal fact/proof：失败、受限、partial、runtime skip、abandoned、合法 no_data 或尚无 terminal proof 时，不构造 wire request，而为每个 downstream physical plan 写 `policy_skipped: dependency_unavailable`；terminal `protocol_summary` 保存 prerequisite plan/attempt/proof、原 outcome/reason 和共享 causal group。prerequisite 成功/有效 unchanged 且 proof 存在，但 binding 为零值、多值或格式不合法时才写 `parse_failed: parameter_binding_invalid`。旧 `parameter_binding_missing` 记录不回写，新执行路径不再用它混淆上游不可用与 binding schema 缺陷。
+
+217 个 downstream plan 仍各有独立 attempt/coverage/barrier，以兑现“来源 × 问题 × 时间范围均有明确状态”；读取接口另按 causal group 压缩展示，避免用户面对 217 条无上下文噪声。不能省略 downstream coverage，也不能用一个 aggregate attempt 替代逐计划审计。504 是否重试仍只服从固定 registry retry policy；依赖传播本身不得临时增加重试、改变速率或绕过 deadline。
+
+**替代方案：**保留一个聚合 `official` adapter、把所有 HTML 都判为 restricted、永久全局禁用受挑战来源、挑战后直接省略剩余 coverage、或用一个 aggregate dependency attempt 代替逐 plan 结果。均未采用：这些方案分别会掩盖来源位置、制造误报、把瞬时状态变成未审核政策、破坏完整覆盖或丢失精确 barrier。
 
 ### 8. SQLite v6 为控制面权威，finalize 单事务提交
 
@@ -196,6 +225,8 @@ API 与独立 CLI 是不同进程，不能依赖共享 Python limiter。v1 将�
 正常 `AcquisitionRuntime` 之前增加不调用 `ReportStorage._initialize()` 的 `StorageBootstrapper/MigrationCoordinator`。它以只读 SQLite 连接检查版本/表/迁移记录和源 DB 指纹，并按稳定排序同时取得基于 database identity 与 data-root identity 的跨进程 bootstrap locks；相同 DB/不同 root 或相同 root/不同 DB 均必须互斥，不能只锁二者组合出的 pair key。首次绑定先在 DB 邻接位置原子发布持久 `StorageBindingIntent` sidecar，保存 namespace ID、nonce、layout、数据库/根的不可逆 identity hash、初始源指纹/版本、当前 `bootstrap_stage` 及已验证 backup/migration manifest 哈希，但不保存绝对路径；再在目标 data root 原子发布 matching `pending` marker。若在二者之间崩溃，只有 identity hash 匹配的原 root 可用同 nonce 补齐并恢复，其他空 root 必须失败关闭。DB-side intent 是绑定完成前的权威 journal，root pending marker 镜像身份并确认阶段；完成适用备份和迁移后，在 v6 事务中写 matching bound namespace row，再原子把 root marker 发布为 `bound`，最后把 sidecar 标记完成或安全退役。v4 链固定为 `preflight -> backup_v4_verified -> migrated_v5 -> backup_v5_verified -> committed_v6 -> marker_bound`；每个文件阶段用原子 replace，每个 DB migration 用独立事务。若崩溃发生在 DB commit、intent 更新或 root 确认之间，coordinator 只有在同 nonce、双方身份匹配，且数据库恰为 journal 允许的本阶段或唯一下一版本、migration row/schema/旧 payload 及已有备份均验证通过时才可前滚，不能重跑 0005 或跳过 v5 recovery point。matching intent/root pending + 原阶段 DB/无 row 可恢复；matching intent/root pending + bound DB row 只 finalize；pending intent 指向其他 root、DB bound 但 root marker 缺失、root bound 但 DB row 缺失、非预期中间版本或身份冲突一律要求显式 repair，绝不自动把任意空 root 绑定到已有 DB。独立 `acquisition-db backup` 复用只读 preflight/备份逻辑但不创建 binding intent、不构造正常 runtime、不触发迁移；只有 bound pairing 完成后才创建 run 或联网。
 
 所有表使用稳定主键、外键和按 ticker/run/source/status/canonical/hash 的索引；attempt outcome terminal 与 abandoned closure 互斥，supersedes 链无环；`BarrierResolution` 只能引用尚未解决且位置/语义兼容的 barrier 与后继证据；终态事件、snapshot、manifest、barrier resolution 和 checkpoint 版本以唯一约束及现有“同 ID 不同 payload 拒绝”模式保护。`storage_namespaces` 保存 DB 与 data root 共享 ID/nonce/layout version；DB-side binding intent 与 data root marker 只保存不可逆 identity hash 和绑定元数据，不保存绝对路径。完成绑定后不匹配即在 I/O 前拒绝，未完成状态只按上述 intent/pending journal 恢复协议处理。初始化逻辑改为显式支持 `0(empty)->6`、`4->5->6`、`5->6`、`6 no-op`，dirty v0、不支持版本与 `>6` 失败关闭，不能再无条件写 5。
+
+本次联网补强不增加表或修改 v6 schema：挑战/依赖原因和 causal references 写入既有 attempt terminal event 的结构化 `protocol_summary`，来源 halt 由 durable events 投影，reconcile target 继续使用 run 已有 JSON 字段。`business_model_sources.v1.3.json` 及其 definition payload 保持不可变；精确挑战分类、执行器停止和 selector 接线属于运行时代码修复，不为制造“新版本”而创建 registry v1.4。只有端点、schema、分页/时间语义、速率/重试边界或许可/LLM 策略实际变化时，才按来源注册表合同创建新版本。
 
 SQLite 设置有限 `busy_timeout`。claim/renew/reclaim、attempt start、每个 segment/discovery proof/snapshot 提交都使用短事务，网络 I/O 期间绝不持有写事务；run/plan 在首个请求前提交。最终 coverage resolutions、run final event 与 checkpoint 新版本在同一个 `BEGIN IMMEDIATE` 事务中重新校验父 checkpoint version 与当前 lease epoch；raw snapshot 已提交后即使 finalize 失败也保留，后续 reconcile 引用，绝不靠回滚删除证据。旧 epoch 的 segment、终态、snapshot linkage 与 finalize 一律 fencing 拒绝。
 
@@ -225,7 +256,7 @@ API 使用显式注入的 `AcquisitionRuntime`，不在 `create_app()` 内额外
 
 ### 10. CLI、smoke 与 frontend 共用同一服务
 
-每个 API 服务进程或 CLI invocation 各自只构建一个组合根 `AcquisitionRuntime`，一次绑定 `ReportStorage(db_path)`/采集 repository、`SnapshotStore(data_root)`、storage namespace、registry loader、adapter factory、cross-process source gate、clock/http client 与 orchestrator；同一进程内的 API、smoke、兼容 sync 和手工 ingest 复用该实例，不得分别解析根或构造 Manager，跨进程则以 namespace/SQLite/run lease/source gate 协调而非假设共享对象。CLI 增加 `acquire start/list/show/execute`（start 默认创建并执行，可 `--plan-only`）和 `smoke-sources`；reconcile 接受明确 `--from-run`，并提供在同 ticker/scope/隔离库内解析父运行且回显 resolved run ID 的 `--from-latest-run`，其默认目标为该父运行的最早未解决缺口，若无缺口则为最早已完成时间片的重检。所有写入型 acquisition/smoke 命令统一接受必需的 `--db` 与 `--data-root`，完成 bootstrap/bound 后只构建一次 runtime 并先校验 namespace，其 blob、derived、manifest 与 quarantine 均从 data root 解析，避免试点污染默认库；`acquisition-db backup` 是例外，只构建 non-migrating bootstrapper/preflight 并把备份写入所选根的 `backups/`。`serve` 启用采集写接口时也在进程启动固定一组 db/root，不能按请求切换。输出 JSON 时固定字段与 API 相同。退出码约定：0 为运行成功且默认可消费，2 为参数/注册表/namespace 错误，3 为运行终结但有材料缺口或不具默认消费资格，4 为执行器 integrity/internal 失败，5 为可重试的 active lease conflict 或 storage busy，JSON subtype 固定为 `active_lease|storage_busy`；逐来源真实状态仍在 JSON 中，不能只看退出码。
+每个 API 服务进程或 CLI invocation 各自只构建一个组合根 `AcquisitionRuntime`，一次绑定 `ReportStorage(db_path)`/采集 repository、`SnapshotStore(data_root)`、storage namespace、registry loader、adapter factory、cross-process source gate、clock/http client 与 orchestrator；同一进程内的 API、smoke、兼容 sync 和手工 ingest 复用该实例，不得分别解析根或构造 Manager，跨进程则以 namespace/SQLite/run lease/source gate 协调而非假设共享对象。CLI 增加 `acquire start/list/show/execute`（start 默认创建并执行，可 `--plan-only`）和 `smoke-sources`；reconcile 接受明确 `--from-run` 和 `--from-latest-run`，两条路径都调用第 5 节的唯一 selector。显式未 finalized 父项直接拒绝；latest 只选择同 ticker/scope 的 finalized 非 reconcile production run，并在存在更新未终结 run 时显式报告排除原因。输出除 resolved parent 外还包含 strategy、source/query/partition、barrier/opening attempt、work position、父时间片和 effective overlap range，禁止 CLI/runtime 再用 `min(coverage.time_start)` 重新推导。所有写入型 acquisition/smoke 命令统一接受必需的 `--db` 与 `--data-root`，完成 bootstrap/bound 后只构建一次 runtime 并先校验 namespace，其 blob、derived、manifest 与 quarantine 均从 data root 解析，避免试点污染默认库；`acquisition-db backup` 是例外，只构建 non-migrating bootstrapper/preflight 并把备份写入所选根的 `backups/`。`serve` 启用采集写接口时也在进程启动固定一组 db/root，不能按请求切换。输出 JSON 时固定字段与 API 相同。退出码约定：0 为运行成功且默认可消费，2 为参数/注册表/namespace/非法父运行或不安全 incremental 错误，3 为运行终结但有材料缺口或不具默认消费资格，4 为执行器 integrity/internal 失败，5 为可重试的 active lease conflict 或 storage busy，JSON subtype 固定为 `active_lease|storage_busy`；逐来源真实状态仍在 JSON 中，不能只看退出码。
 
 `online_smoke.py` 不再维护 PROVIDERS 或 if/elif 工厂；它创建 `run_kind=smoke` 的持久运行并执行 registry 中 `smoke_enabled` 的最小探针。smoke 不读写 production checkpoint，默认非阻塞 CI，`--strict` 只控制该次命令退出码。
 
@@ -241,8 +272,8 @@ API 使用显式注入的 `AcquisitionRuntime`，不在 `create_app()` 内额外
 
 ### 12. 三个验收门分别存证与判定
 
-1. **自动化门**：冻结响应/MockTransport 覆盖 registry schema、M:N shared execution、两条 discovery-before-parse/proof 路径、required attachment barrier/resolution、所有 12 状态、abandoned closure 与 supersedes 关系、lease race/expired reclaim/stale-owner fencing、baseline 分片、no_data、分页/重试/barrier、日期精度、有效锚点 304/hash、同 URL 新版本、乱序/周期性 reconcile、逐跳 redirect/大小、双进程来源门禁、snapshot 篡改、namespace 首次绑定与中间崩溃、候选隔离、fresh/v4/v5/v6 迁移矩阵、旧 JSON/API、并发 checkpoint、latest 可消费批次、Git ignore/敏感头清洗；运行全量 pytest、方法库、黄金清单结构、前端测试/构建和严格 OpenSpec 校验。
-2. **真实联网门**：人工先核对四个 v1 definition 的当日许可/路径。使用显式隔离且 namespace 绑定的 `--db`/`--data-root`，以 `600519` 执行完整 baseline、至少两次 incremental 和一次定向 reconcile；逐来源记录真实状态、运行/registry/checkpoint/manifest ID、discovery proof/snapshot、required fetch、起止时间与缺口。SSE/巨潮为适用来源；茅台 IR 只有已批准定义版本才执行，否则保留 pending policy 处置；SZSE 对 600519 必须显示不适用静态处置。另以一个已记录的深市样本（优先 `300750`）执行只读 metadata smoke，避免把 SZSE 的“未调用”误称联网通过。该门独立取 `passed|pending|failed`：全部必需探针已按合同完成才 passed，许可/环境阻塞但无合同违规为 pending，出现绕过、证据/水位线不变量破坏或未解释状态为 failed。不得提交原文或数据库。
+1. **自动化门**：冻结响应/MockTransport 覆盖 registry schema、M:N shared execution、两条 discovery-before-parse/proof 路径、required attachment barrier/resolution、所有 12 状态、abandoned closure 与 supersedes 关系、lease race/expired reclaim/stale-owner fencing、baseline 分片、no_data、分页/重试/barrier、日期精度、有效锚点 304/hash、同 URL 新版本、乱序/周期性 reconcile、逐跳 redirect/大小、双进程来源门禁、snapshot 篡改、namespace 首次绑定与中间崩溃、候选隔离、fresh/v4/v5/v6 迁移矩阵、旧 JSON/API、并发 checkpoint、latest 可消费批次、Git ignore/敏感头清洗；本轮再增加精确 Tengine challenge header 与 generic HTML 反例、challenge 后同来源零 I/O/自动 partial finalize、lease takeover 后 durable halt、bootstrap 504 的 per-plan dependency fan-out/zero downstream I/O、成功 proof 的 invalid binding，以及 API/CLI/runtime 一致的 exact reconcile selector/finalized-parent 拒绝夹具。运行聚焦测试后仍需全量 pytest、方法库、黄金清单结构、前端测试/构建、严格 OpenSpec 校验和一次当前提交的干净 CI；这些均不替代联网门。
+2. **真实联网门**：人工先核对四个 v1 definition 的当日许可/路径。代码补强后必须使用全新显式隔离且 namespace 绑定的 `--db`/`--data-root`，不得 resume 或修改旧 v1.3 未 finalized run。以 `600519` 执行一次无需人工终止且自动产生 final event 的 baseline；只有所有 enabled 且适用来源都形成安全 checkpoint 时，才原样执行至少两次 incremental，否则命令须在 I/O 前拒绝并保持该门 pending。随后只以 finalized run 为父执行一次由权威 selector 给出精确 barrier/work position 和 effective overlap 的 reconcile。逐来源记录真实状态、运行/registry/checkpoint/manifest ID、discovery proof/snapshot、required fetch、起止时间与缺口。SSE/巨潮为适用来源；茅台 IR 只有已批准定义版本才执行，否则保留 pending policy 处置；SZSE 对 600519 必须显示不适用静态处置。另以一个已记录的深市样本（优先 `300750`）执行只读 metadata smoke，避免把 SZSE 的“未调用”误称联网通过。该门独立取 `passed|pending|failed`：全部必需探针已按合同完成才 passed；来源持续 challenge、许可或网络环境阻塞，但分类/熔断/coverage/barrier 均符合合同时为 pending；误分类、挑战后继续 I/O、错误依赖状态、越过 barrier、证据门禁破坏或未解释状态才为 failed。不得提交原文或数据库。
 3. **人工黄金门**：对 600519 锚点、每个适用来源 × 十项追踪主题 × 早/中/近期至少一项覆盖、共享物理查询与 coverage links、discovery proof、试点中实际观察到的全部非成功条目、至少 20 个成功/unchanged 快照以及全部发现的同 URL 版本链，人工核对 URL、canonical/upstream 身份、原始发布时间/精度/available_at、磁盘哈希和覆盖解释；单独签署 `pending|passed|failed` 与复核人/时间。它不复用当前 0/10 的财务黄金验收结论，也不声称全 A 股。
 
 实际命令与观察结果只在实现期写入 [阶段日志.md](../../../阶段日志.md)；本设计和 tasks 只定义门槛。
@@ -263,6 +294,10 @@ API 使用显式注入的 `AcquisitionRuntime`，不在 `create_app()` 内额外
 - **[600519 无法联网覆盖 SZSE]** → 将“不适用”保留在主试点覆盖中，并用独立深市 metadata smoke 只验证适配器可访问性；两者都不能外推为全市场验证。
 - **[partial run 中的新材料有价值但不宜成为默认最新批次]** → 允许审计者显式冻结带完整缺口清单的部分 manifest，默认消费仍保留上一可用批次。
 - **[逐跳重定向、超大/压缩响应或多进程并发伤害来源与本机]** → 禁用自动 follow、每跳 allowlist、流式压缩/解压硬上限与 workspace + source/host 的 `CrossProcessSourceGate`；越界停止且不重试，v1 同源最大并发固定为 1。
+- **[挑战头规则过宽会把普通错误页误判为受限]** → 只接受精确 header/value allowlist，并以 generic HTML 负例锁定 MIME/schema fallback；新信号需代码审查和冻结夹具。
+- **[run-local 熔断可能跳过该来源稍后可恢复的工作]** → 以保护来源和“不绕过 challenge”为优先；只限制当前 run，保留逐项 barrier，后续新 run/reconcile 可按策略重新尝试。
+- **[dependency fan-out 产生大量无 I/O attempts]** → 保留逐计划审计和 checkpoint 精度，读取层按 causal group 汇总；不以压缩展示删除原始状态。
+- **[未 finalized run 无法直接 reconcile]** → 保留其所有已提交诊断证据但拒绝补写；使用全新 baseline 获取自洽终态，避免把人工中止位置伪装成完整父覆盖。
 
 ## Migration Plan
 
@@ -270,8 +305,8 @@ API 使用显式注入的 `AcquisitionRuntime`，不在 `create_app()` 内额外
 2. **部署禁用态代码**：先加入模型、registry loader、snapshot service、API/CLI 查询与 feature flag，默认 `acquisition_v1_enabled=false`；旧报告和同步路径保持可运行。
 3. **显式事务迁移阶梯**：空且 `user_version=0` 的 fresh 库在单事务 bootstrap 完整 v6；v4 先在显式事务执行现有 0005，确认 v5 并生成已验证 v5 recovery point，再在独立显式事务执行 0006；v5 先验证备份再执行 0006；v6 严格 no-op。每项 migration 只记录一次，0006 不依赖 `executescript` 隐含事务并使用 fault injection 验证中途回滚；每个成功阶段原子前滚同 nonce pending journal，崩溃恢复只接受 journal 所允许且经 migration/schema/payload/backup 证明的唯一下一状态。dirty v0、迁移记录冲突、不支持版本与 `>6` 在 DDL/DML 前失败关闭。
 4. **兼容字段与历史处理**：新 Pydantic 字段均有默认值；不扫描 `provider_results` 推断状态。现有 raw 文件只在显式 legacy reconcile 中重算完整哈希且匹配旧 `DocumentRecord.sha256` 后才可建立 `legacy_snapshot` 引用，否则保持 unresolved；不改旧 payload。
-5. **shadow 与自动化门**：启用 registry 计划/fixture 执行但不推进 production checkpoint，对比旧 financial sync 的 facts、SourceRecord、报告读取及 SQLite/DuckDB/Parquet 数量/ID；完成安全/迁移/前端回归。
-6. **试点启用**：人工确认实际来源许可和贵州茅台 IR allowlist 后，只对 business_model v1 与指定试点开启；完成独立的真实联网和人工黄金门并将实际状态写入阶段日志。
+5. **shadow 与自动化门**：保持 v6 schema 与 v1.3 registry 不变，先实现 classifier/source halt/dependency graph/shared selector 的聚焦冻结夹具，再启用 registry 计划/fixture 执行但不推进 production checkpoint；对比旧 financial sync 的 facts、SourceRecord、报告读取及 SQLite/DuckDB/Parquet 数量/ID，完成安全/迁移/前端全量回归和当前提交的干净 CI。若实现发现必须改变 endpoint/schema/rate/retry/license policy，停止本代码补丁并先规划新的 registry/definition 版本，不原地编辑 v1.3。
+6. **试点启用**：人工确认实际来源许可后，只对 business_model v1 与指定试点开启；使用全新隔离 namespace 创建新 600519 baseline，确认它即使受限也能自行 finalize。旧未 finalized v1.3 run 不 resume、不修改、不作 reconcile 父项。安全 checkpoint 齐全才执行两次 incremental；否则在 I/O 前拒绝并保持在线门 pending。随后对新 finalized 父 run 执行精确目标 reconcile，完成独立的真实联网和人工黄金门并将实际状态写入阶段日志。
 7. **兼容切换**：让 `/sync`、smoke 和前端改读 registry；保留 deprecated 字段至少一个发布周期。只有默认可消费 run 才进入 latest 选择。
 
 **回滚：**

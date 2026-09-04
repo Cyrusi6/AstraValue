@@ -68,6 +68,14 @@ checkpoint 仅可在对应查询区间的 discovery attempt、发现证明、全
 - **WHEN** 一个原本 enabled 的适用查询在执行前发现当前许可状态无法确认
 - **THEN** 系统 SHALL 创建 `policy_skipped` attempt 与 runtime policy reason，该位置 MUST 形成 barrier，直到新 registry 版本或 reconcile 明确处理
 
+#### Scenario: 来源挑战后的熔断跳过仍阻塞 checkpoint
+- **WHEN** 一个来源 attempt 以 `restricted: upstream_bot_challenge` 打开 barrier，且当前 run 中该来源的后续工作均以 `policy_skipped: source_access_halted` 无 I/O 终结
+- **THEN** 每个跳过位置 SHALL 保留独立 barrier 和 opening challenge 因果引用，来源级安全水位线不得越过其中最早位置；运行可完成 coverage accounting，但不得获得默认消费资格或把熔断当作静态不适用
+
+#### Scenario: 前置查询不可用后的依赖跳过仍阻塞 checkpoint
+- **WHEN** prerequisite bootstrap 以 504 timeout 终结，所有依赖计划以 `policy_skipped: dependency_unavailable` 无 I/O 终结
+- **THEN** prerequisite 与 downstream barriers SHALL 保留共同 causal group 和各自精确 work position，checkpoint 不得因下游没有实际发出请求而越过这些位置
+
 ### Requirement: 屏障只能由同一工作位置的后继证据解决
 每个 barrier MUST 固定来源定义版本、物理查询分区、时间/页/游标位置、可选 canonical resource/required fetch work、retry group 和 opening attempt。只有显式后继 attempt 精确覆盖同一工作位置、持有兼容来源/查询语义，并提交该位置要求的完整 discovery proof 或有效 snapshot/observation 后，系统才可追加不可变 `BarrierResolution`；原失败/受限/abandoned attempt 必须保留。其他来源镜像、不同时间片、较宽但无法证明包含该位置的查询或仅有自由文本成功均不得解除 barrier。
 
@@ -82,6 +90,29 @@ checkpoint 仅可在对应查询区间的 discovery attempt、发现证明、全
 #### Scenario: 无效 304 后无条件重取
 - **WHEN** 缺少有效 snapshot anchor 的 304 先建立 `parse_failed` barrier，后继无条件 fetch 对同位置返回 200 且快照提交成功
 - **THEN** 系统 SHALL 追加 BarrierResolution 并使用 200 的快照；旧 invalid-304 attempt 仍可审计且不得被改成 unchanged
+
+### Requirement: reconcile 使用单一确定性目标选择
+所有 production API、CLI 与内部运行时 SHALL 使用同一个权威 reconcile target selector，不得各自从父 run 最早 coverage 起点推导范围。selector 只接受已有不可变 final event 的父 run；未 finalized、仍持有活跃租约或缺少可解释 coverage graph 的 run MUST 在创建子 run 和外部 I/O 前被拒绝，不能被隐式恢复、补写 final event 或当作合法 reconcile 父项。finalized 的 partial run 可以作为父项，但其历史 run、attempt、coverage、snapshot 和 checkpoint 不得被修改。
+
+selector MUST 按下列优先级返回一个最早且可精确定位的目标：第一，未解决 barrier 对应的 source definition、query partition 和 work position；第二，没有 opening barrier 的未解决 required coverage；第三，最新完整性状态为 quarantined 的 snapshot 所属 coverage；第四，在前三类均不存在时用于周期性复核的最早已完成 required slice。每类内部 SHALL 先按父计划的时间片/ordinal 和规范 work-position 顺序排序，再以来源定义 ID/版本、partition key、coverage/barrier ID 作稳定 tie-break，不得使用数据库偶然返回顺序或仅按 coverage 全局最小 `time_start`。
+
+返回目标 MUST 至少包含 strategy、resolved parent run ID、source definition ID/版本、query/partition、plan/coverage ID、父时间片、精确 work position，以及适用时的 barrier ID、opening attempt、retry group、canonical resource 或 quarantined snapshot；同时 MUST 回显按固定 registry overlap 计算并受 query 最早可得日、父时间片与新 run `as_of` 约束的 effective reconcile range。reconcile planner SHALL 只安排该目标、为重放该位置必需的 overlap 和 prerequisite 工作；不得因为父 run 更早存在其他已完成 coverage 而退回全历史重跑。
+
+#### Scenario: 最早 coverage 早于最早未解决 barrier
+- **WHEN** 父 run 的最早 coverage 从 2001 年开始，但最早未解决 barrier 位于 2024 年某查询分区的第三页
+- **THEN** selector SHALL 返回该 barrier ID、query partition、第三页 work position 和相应 effective overlap range；CLI/API 创建的 reconcile 不得把 2001 年作为默认 start 或重跑无关来源/分区
+
+#### Scenario: 未解决 coverage 没有 opening barrier
+- **WHEN** finalized 父 run 存在一个 required coverage 尚无 resolution，但没有可关联的 opening barrier
+- **THEN** selector SHALL 使用第二优先级返回该 coverage 的精确 source/query/time slice，并明确 strategy 为 unresolved coverage，而不是跳到完整性异常或周期性复核
+
+#### Scenario: 只有隔离快照需要修复
+- **WHEN** 父 run 没有未解决 barrier/coverage，但某已完成 coverage 引用的 snapshot 最新完整性事件为 quarantined
+- **THEN** selector SHALL 返回该 snapshot 及其 coverage/time slice 作为第三优先级目标，并保留原 snapshot 与父 run 不变
+
+#### Scenario: 未 finalized 父运行被拒绝
+- **WHEN** 调用方把一个没有 final event 的人工中止 baseline 指定为 reconcile 父运行
+- **THEN** 系统 SHALL 在创建 reconcile run、attempt 或发起 I/O 前拒绝，并提示先使用新的运行取得可审计终态；不得修改或继续该旧运行
 
 ### Requirement: 乱序、迟到与修订资料处理
 在重叠窗口或 reconcile 中发现发布时间早于当前水位线的新 canonical ID、晚到更正或新内容哈希时，系统 SHALL 保存为新增/变化版本并关联原始资源。迟到资料本身不得让水位线倒退；若它证明既有区间覆盖不完整，系统 MUST 建立待 reconcile 缺口并在修复前阻止相应消费资格。

@@ -76,6 +76,47 @@ discovery attempt 完整验证全部分页并返回非空规范资源集合时�
 - **WHEN** 执行进程在 attempt 已 started 但尚未取得可分类协议结果时退出
 - **THEN** 租约过期后的恢复者 SHALL 追加 `abandoned` 生命周期事件并创建同 retry group 的新 attempt；旧记录不得被改写为 12 个结果状态之一，也不得计为覆盖完成
 
+### Requirement: 挑战响应按确定性优先级分类
+响应分类器 MUST 依次检查 HTTP 状态、窄化且逐一测试的挑战响应头名/值组合、有界响应正文特征、预期 MIME 与 schema；前一层已经给出规范结果时，后一层不得覆盖该结果。对于 v1 已观察且明确的 `x-tengine-error: denied by bot`，头名和值在大小写及首尾空白规范化后 SHALL 唯一映射为 `restricted: upstream_bot_challenge`。只有精确 allowlist 中的挑战信号才可绕过 MIME 检查；普通 HTML、未知响应头或相似但不匹配的值在没有登录、付费或挑战正文证据时 MUST 保持 `parse_failed: unexpected_mime`。分类只可保存许可范围内的脱敏响应摘要，不得把挑战正文冻结为正式 content snapshot。
+
+#### Scenario: SSE 以 HTTP 200 返回明确机器人挑战头
+- **WHEN** 一个预期 PDF 的 SSE fetch 返回 HTTP 200、`Content-Type: text/html` 和 `x-tengine-error: denied by bot`
+- **THEN** fetch attempt SHALL 终结为 `restricted: upstream_bot_challenge`，不得误记 `parse_failed: unexpected_mime`、不得创建正式 content snapshot，也不得尝试规避挑战
+
+#### Scenario: 普通 HTML MIME 不匹配不冒充挑战
+- **WHEN** 一个预期 PDF 的请求返回 HTTP 200 HTML，但没有精确命中的挑战响应头、正文特征、登录或付费信号
+- **THEN** attempt SHALL 保持 `parse_failed: unexpected_mime`，不得仅因 HTML MIME 将其泛化为 `restricted`
+
+### Requirement: 明确挑战触发当前运行的来源级熔断
+任一 attempt 被确定性分类为来源侧挑战后，系统 MUST 为 `(run_id, source_definition_id, source_definition_version)` 建立来源访问停止投影，并在当前运行内禁止该来源版本的后续外部 I/O。opening challenge attempt SHALL 保留其实际 `restricted` 终态；所有尚未执行的现有 discovery plan item 和已发现 required resource 的 fetch plan item 仍 MUST 各自创建一个无 I/O attempt，终结为 `policy_skipped: source_access_halted`，并以机器可读字段关联 opening attempt ID、opening reason 和来源定义版本。已经完成的 attempts、proofs 和 snapshots 保持不变；这些 runtime skips 均为材料缺口和 checkpoint barrier，不能成为成功或 `no_data`。
+
+熔断状态 MUST 从已持久化的 terminal attempt/event 确定性投影，执行器内存只可缓存该投影；租约过期接管、进程重启或同一 run 的恢复执行不得再次探测已熔断来源。熔断范围仅限当前 run 的该来源定义版本，不得永久禁用来源或阻止显式创建的新 run 按固定 registry 策略重新尝试。当剩余计划均已由实际终态或上述无 I/O 终态解释时，运行 SHALL 自动 finalize 为 `partial` 且可有 `coverage_accounted=true`，同时 MUST 有材料缺口、`default_consume_eligible=false` 且不得推进越过 opening challenge 或任一后续跳过位置的 checkpoint。
+
+#### Scenario: 首个附件挑战后不再请求同来源
+- **WHEN** 一个来源的首个 required fetch 以 `restricted: upstream_bot_challenge` 终结，且该来源仍有十个附件和十一个 discovery plan item 尚未执行
+- **THEN** opening attempt SHALL 保留 restricted；剩余每个已知物理工作项 SHALL 得到关联 opening attempt 的 `policy_skipped: source_access_halted` 终态，后续 transport 调用数 SHALL 为零，运行自动以有缺口的 partial 状态完成且 checkpoint 不越过最早 barrier
+
+#### Scenario: 租约接管后仍保持来源熔断
+- **WHEN** 来源挑战终态已持久化后执行器退出，另一个执行器以更高 lease epoch 接管同一 run
+- **THEN** 新执行器 SHALL 从 durable attempts 重建来源停止投影，为仍未解释的同来源工作创建无 I/O skips，并且不得再次访问该来源
+
+#### Scenario: 新运行不继承旧运行的临时熔断
+- **WHEN** 一个 run 因来源挑战熔断后，操作员随后按仍有效的 registry 定义创建新的 baseline 或 reconcile run
+- **THEN** 新 run SHALL 保留与旧 run 的审计关系但不自动继承旧 run 的内存/运行级停止状态；是否访问仍由新 run 固定的策略和当次响应决定
+
+### Requirement: 前置查询失败按显式依赖传播
+具有 parameter binding 的物理查询 MUST 在计划中保留其 prerequisite query ID，并在创建任何下游 wire request 前读取同一 run、同一来源定义版本的持久化 prerequisite 结果。若 prerequisite 以失败、受限、部分成功、运行时策略跳过、abandoned 或合法 `no_data` 终结，或尚无可用 terminal proof，所有依赖它的下游物理计划项 SHALL 各自创建无 I/O `policy_skipped: dependency_unavailable` attempt，并以机器可读字段关联 prerequisite plan/attempt/proof、原始 outcome/reason 和同一 causal group；不得调用 adapter/transport，也不得将它们误记为 response parse failure。若 prerequisite 已有成功或有效 unchanged proof，但所需 binding 字段缺失、格式非法或无法唯一确定，下游 attempt SHALL 为 `parse_failed: parameter_binding_invalid`，以区分上游不可用与成功证明违反 binding 合同。
+
+每个 downstream physical plan item MUST 保留独立 terminal attempt 和 coverage 关联，不能用一条聚合错误省略 217 个计划位置；查询/API 可按 causal group 汇总显示，但原始逐项审计不得丢失。`dependency_unavailable` 与 `parameter_binding_invalid` 均 SHALL 形成精确 barrier、阻止相关 checkpoint 推进并使默认消费资格为 false；旧运行中既有 `parameter_binding_missing` attempt 保持不可变，新运行不得在 prerequisite 已失败时继续产生该误导性 reason。
+
+#### Scenario: CNINFO bootstrap 504 阻断全部依赖查询
+- **WHEN** `cninfo.company_bootstrap` 以 `timeout: http_504` 终结，且 217 个后续物理计划都依赖其 `orgId` binding
+- **THEN** 系统 SHALL 对 217 个计划分别写入零 transport 的 `policy_skipped: dependency_unavailable` attempt，全部关联同一 bootstrap causal proof/attempt，checkpoint 停在相关最早位置，且不得生成 217 个 `parse_failed: parameter_binding_missing`
+
+#### Scenario: 成功 bootstrap 缺少唯一 binding
+- **WHEN** bootstrap discovery 已成功且 proof 可用，但匹配目标 ticker 的 `orgId` 缺失或出现两个不同值
+- **THEN** 对应下游 attempt SHALL 在联网前终结为 `parse_failed: parameter_binding_invalid`，关联该成功 proof 并形成 barrier，不得误报 prerequisite 网络不可用
+
 ### Requirement: no_data 的严格语义边界
 `no_data` MUST 只用于来源成功执行了完整、合法且可解析的 discovery 查询，分页终止条件得到证明，并以允许保留的原始 discovery snapshot 或响应哈希/长度/schema/总数/分页摘要确认结果集合为空。HTTP 错误、缺少必需 schema/总数、空白挑战页、登录/付费/许可限制、限流、超时、网络错误、解析错误、提前截断或未知响应不得转换为 `no_data`，也不得由 `no_data` 自动生成事实层的“未披露”或“暂无该数据”。
 
