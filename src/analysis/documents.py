@@ -558,8 +558,10 @@ def _resolve_registered_source_definition(
         matching = [
             item
             for item in candidates
-            if item.enabled
-            and (item.allows_url(source_url) or item.allows_url(source_url, redirect=True))
+            if SourceRegistryLoader.is_formal_evidence_definition_for_url(
+                item,
+                source_url,
+            )
         ]
         if len(matching) == 1:
             selected = matching[0]
@@ -599,8 +601,11 @@ def _resolve_registered_source_definition(
 
     now = datetime.now(timezone.utc)
     SourceRegistryLoader.assert_effective(selected, now)
-    if not selected.enabled or "business_model" not in selected.scopes:
-        raise SourceRegistryError("来源不是当前启用的 business_model v1 正式来源")
+    if (
+        not SourceRegistryLoader.is_approved_for_formal_evidence(selected)
+        or "business_model" not in selected.scopes
+    ):
+        raise SourceRegistryError("来源不是当前启用且已批准的 business_model v1 正式来源")
     try:
         market = infer_a_share_market(request.ticker)
     except ValueError as exc:

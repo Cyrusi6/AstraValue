@@ -14,7 +14,7 @@ from analysis.acquisition.models import (
     PhysicalQueryPlanItem,
     SourceDefinitionRef,
 )
-from analysis.acquisition.registry import SourceRegistryLoader
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH, SourceRegistryLoader
 from analysis.acquisition.repository import AcquisitionRepository
 from analysis.demo import build_demo_request
 from analysis.service import AnalysisService
@@ -51,7 +51,10 @@ def acquisition_store(tmp_path):
 
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
-    loaded_registry = loader.load_registry(question_set=questions)
+    loaded_registry = loader.load_registry(
+        INITIAL_REGISTRY_PATH,
+        question_set=questions,
+    )
     registry = loaded_registry.registry
     repository.save_source_registry_version(registry)
     definition = registry.definition("cninfo.disclosures")

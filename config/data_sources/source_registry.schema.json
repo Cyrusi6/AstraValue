@@ -197,7 +197,25 @@
         "reviewed_at": {"type": ["string", "null"], "format": "date-time"},
         "reviewed_by": {"type": ["string", "null"], "minLength": 1},
         "evidence_reference": {"type": ["string", "null"], "minLength": 1}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["approved", "rejected"]}
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "completed_checks": {"minItems": 10},
+              "reviewed_at": {"type": "string", "format": "date-time"},
+              "reviewed_by": {"type": "string", "minLength": 1},
+              "evidence_reference": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
     },
     "pagination": {
       "type": "object",
@@ -352,7 +370,63 @@
         "queries": {"type": "array", "items": {"$ref": "#/$defs/query"}},
         "aliases": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "legacy": {"type": "boolean"}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "live_access_review": {
+                "properties": {
+                  "status": {"const": "rejected"}
+                },
+                "required": ["status"]
+              }
+            },
+            "required": ["live_access_review"]
+          },
+          "then": {
+            "properties": {
+              "policy_status": {"enum": ["pending_policy", "disabled"]},
+              "enabled": {"const": false},
+              "access_method": {"const": "disabled"},
+              "initial_request_allowlist": {"maxItems": 0},
+              "redirect_allowlist": {"maxItems": 0},
+              "queries": {
+                "items": {
+                  "properties": {
+                    "endpoint": {"type": "null"}
+                  },
+                  "required": ["endpoint"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "policy_status": {"const": "pending_policy"}
+            },
+            "required": ["policy_status"]
+          },
+          "then": {
+            "properties": {
+              "enabled": {"const": false},
+              "access_method": {"const": "disabled"},
+              "initial_request_allowlist": {"maxItems": 0},
+              "redirect_allowlist": {"maxItems": 0},
+              "queries": {
+                "items": {
+                  "properties": {
+                    "endpoint": {"type": "null"}
+                  },
+                  "required": ["endpoint"]
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "source_alias": {
       "type": "object",

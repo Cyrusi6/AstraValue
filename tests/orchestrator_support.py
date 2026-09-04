@@ -20,6 +20,7 @@ from analysis.acquisition.models import (
     AcquisitionRunKind,
 )
 from analysis.acquisition.orchestrator import AcquisitionOrchestrator
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.runtime import AcquisitionRuntime
 
 
@@ -169,8 +170,7 @@ def make_runtime(
         "workspace_root": root / "workspace",
         "orchestrator_factory": lambda _runtime: None,
     }
-    if registry_path is not None:
-        runtime_kwargs["registry_path"] = registry_path
+    runtime_kwargs["registry_path"] = registry_path or INITIAL_REGISTRY_PATH
     runtime = AcquisitionRuntime.create(
         root / "analysis.db",
         root / "data",

@@ -26,7 +26,8 @@ from .models import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SOURCE_CONFIG_DIR = PROJECT_ROOT / "config" / "data_sources"
-DEFAULT_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.json"
+INITIAL_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.json"
+DEFAULT_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.1.json"
 DEFAULT_QUESTIONS_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_questions.v1.json"
 
 SUPPORTED_REGISTRY_SCHEMA_VERSION = "1.0.0"
@@ -198,6 +199,24 @@ class SourceRegistryLoader:
 
     @staticmethod
     def _validate_definition(definition: SourceDefinition) -> None:
+        if definition.live_access_review.status == LiveAccessReviewStatus.REJECTED:
+            if definition.policy_status not in {
+                SourcePolicyStatus.PENDING_POLICY,
+                SourcePolicyStatus.DISABLED,
+            }:
+                raise SourceRegistryError(
+                    "live access拒绝来源必须保持pending_policy或disabled"
+                )
+            if definition.enabled or definition.access_method != "disabled":
+                raise SourceRegistryError("live access拒绝来源必须disabled且零I/O")
+            if definition.initial_request_allowlist or definition.redirect_allowlist:
+                raise SourceRegistryError(
+                    "live access拒绝来源不得保留可联网allowlist"
+                )
+            if any(query.endpoint is not None for query in definition.queries):
+                raise SourceRegistryError(
+                    "live access拒绝来源query不得具有可请求endpoint"
+                )
         if definition.policy_status == SourcePolicyStatus.ENABLED:
             for query in definition.queries:
                 if query.endpoint is None:
@@ -211,6 +230,10 @@ class SourceRegistryLoader:
         if definition.policy_status == SourcePolicyStatus.PENDING_POLICY:
             if definition.enabled or definition.access_method != "disabled":
                 raise SourceRegistryError("pending_policy来源必须disabled且零I/O")
+            if definition.initial_request_allowlist or definition.redirect_allowlist:
+                raise SourceRegistryError("pending_policy来源不得预置可联网allowlist")
+            if any(query.endpoint is not None for query in definition.queries):
+                raise SourceRegistryError("pending_policy来源query不得具有可请求endpoint")
         if definition.expires_at is not None and definition.expires_at <= definition.effective_at:
             raise SourceRegistryError("来源定义有效期非法")
 
@@ -393,6 +416,12 @@ class SourceRegistryLoader:
     ) -> None:
         if not definition.enabled:
             raise SourceRegistryError("来源未启用，禁止联网")
+        if (
+            definition.access_method in {"https_api", "https_document"}
+            and definition.live_access_review.status
+            != LiveAccessReviewStatus.APPROVED
+        ):
+            raise SourceRegistryError("来源未获live access人工批准，禁止联网")
         if not definition.allows_url(url, redirect=redirect):
             stage = "redirect" if redirect else "initial request"
             raise SourceRegistryError(f"{stage} URL不在固定allowlist")
@@ -415,11 +444,36 @@ class SourceRegistryLoader:
         url: str,
     ) -> SourceDefinition | None:
         for definition in registry.definitions:
-            if definition.enabled and (
-                definition.allows_url(url) or definition.allows_url(url, redirect=True)
+            if SourceRegistryLoader.is_formal_evidence_definition_for_url(
+                definition,
+                url,
             ):
                 return definition
         return None
+
+    @staticmethod
+    def is_approved_for_formal_evidence(definition: SourceDefinition) -> bool:
+        """Keep historical definitions readable without granting evidence authority."""
+
+        return (
+            definition.enabled
+            and definition.policy_status == SourcePolicyStatus.ENABLED
+            and definition.access_method in {"https_api", "https_document"}
+            and definition.live_access_review.status
+            == LiveAccessReviewStatus.APPROVED
+        )
+
+    @staticmethod
+    def is_formal_evidence_definition_for_url(
+        definition: SourceDefinition,
+        url: str,
+    ) -> bool:
+        return SourceRegistryLoader.is_approved_for_formal_evidence(
+            definition
+        ) and (
+            definition.allows_url(url)
+            or definition.allows_url(url, redirect=True)
+        )
 
 
 def create_source_candidate(
@@ -491,6 +545,7 @@ __all__ = [
     "BUSINESS_MODEL_V1_SOURCE_IDS",
     "DEFAULT_QUESTIONS_PATH",
     "DEFAULT_REGISTRY_PATH",
+    "INITIAL_REGISTRY_PATH",
     "KNOWN_ADAPTER_KEYS",
     "LoadedQuestionSet",
     "LoadedSourceRegistry",

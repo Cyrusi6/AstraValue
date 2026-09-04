@@ -6,6 +6,7 @@ import pytest
 
 from analysis.acquisition.manifests import EvidenceGateError, EvidenceManifestService
 from analysis.acquisition.models import SnapshotIntegrityEvent, SnapshotIntegrityStatus
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH, SourceRegistryLoader
 from analysis.acquisition.snapshots import (
     ContentAddressedBlobStore,
     ContentSnapshotRequest,
@@ -82,19 +83,25 @@ def _request(**overrides):
     return ContentSnapshotRequest(**values)
 
 
-def _policy(llm="allowed"):
+def _policy(llm="allowed", *, live_review="approved"):
     return {
+        "policy_status": "enabled",
+        "enabled": True,
+        "access_method": "https_api",
+        "live_access_review": {"status": live_review},
         "license_policy": {"llm_processing": llm, "archive_original": "allowed"},
         "retention_policy": {"content_body": "allowed"},
     }
 
 
-def _services(tmp_path, policy="allowed"):
+def _services(tmp_path, policy="allowed", *, live_review="approved"):
     repository = Repository()
     store = ContentAddressedBlobStore(tmp_path / "data", "namespace-test")
     snapshots = SnapshotService(store, repository)
     manifests = EvidenceManifestService(
-        store, repository, lambda source_id, version: _policy(policy)
+        store,
+        repository,
+        lambda source_id, version: _policy(policy, live_review=live_review),
     )
     return repository, store, snapshots, manifests
 
@@ -185,3 +192,44 @@ def test_quarantined_snapshot_cannot_enter_new_manifest(tmp_path):
     with pytest.raises(EvidenceGateError) as error:
         _build(manifests, [frozen.snapshot.snapshot_id])
     assert error.value.exclusions[0].reason_code == "snapshot_quarantined"
+
+
+def test_historical_pending_live_review_snapshot_cannot_enter_new_manifest(tmp_path):
+    repository = Repository()
+    store = ContentAddressedBlobStore(tmp_path / "data", "namespace-test")
+    snapshots = SnapshotService(store, repository)
+    registry = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
+    manifests = EvidenceManifestService(
+        store,
+        repository,
+        lambda source_id, version: registry.definition(source_id),
+    )
+    frozen = snapshots.freeze_content(b"%PDF-content", _request())
+
+    with pytest.raises(EvidenceGateError) as error:
+        _build(manifests, [frozen.snapshot.snapshot_id])
+
+    assert error.value.exclusions[0].reason_code == (
+        "source_live_access_not_approved"
+    )
+    assert repository.manifests == {}
+
+
+def test_existing_manifest_revalidates_live_review_authority(tmp_path):
+    repository = Repository()
+    store = ContentAddressedBlobStore(tmp_path / "data", "namespace-test")
+    snapshots = SnapshotService(store, repository)
+    policy = _policy()
+    manifests = EvidenceManifestService(
+        store,
+        repository,
+        lambda source_id, version: policy,
+    )
+    frozen = snapshots.freeze_content(b"%PDF-content", _request())
+    manifest = _build(manifests, [frozen.snapshot.snapshot_id])
+
+    policy["live_access_review"]["status"] = "pending"
+    with pytest.raises(EvidenceGateError) as error:
+        manifests.validate_evidence_manifest(manifest)
+
+    assert error.value.reason_code == "source_live_access_not_approved"

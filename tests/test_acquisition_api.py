@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from analysis.acquisition.models import AcquisitionRunEvent, AcquisitionRunEventType
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.repository import (
     AcquisitionStorageError,
     LeaseConflictError,
@@ -44,6 +45,7 @@ def _runtime(tmp_path, executor: FakeExecutor) -> AcquisitionRuntime:
     return AcquisitionRuntime.create(
         tmp_path / "acquisition.db",
         tmp_path / "evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _runtime: executor,
     )
 
@@ -359,6 +361,7 @@ def test_expired_reclaim_resume_and_stale_owner_are_visible_through_api(tmp_path
     runtime = AcquisitionRuntime.create(
         tmp_path / "acquisition.db",
         tmp_path / "evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=RepositoryLeaseExecutor,
     )
     client = TestClient(create_app(acquisition_runtime=runtime))

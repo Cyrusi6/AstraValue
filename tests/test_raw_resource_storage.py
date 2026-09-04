@@ -312,12 +312,16 @@ def test_derived_artifact_and_manifest_use_real_repository_field_contracts(
         artifact
     ]
     manifest_service = EvidenceManifestService(
-        lineage["blob_store"],
-        store.repository,
-        lambda source_id, version: {
-            "license_policy": {
-                "llm_processing": "allowed",
-                "archive_original": "allowed",
+            lineage["blob_store"],
+            store.repository,
+            lambda source_id, version: {
+                "policy_status": "enabled",
+                "enabled": True,
+                "access_method": "https_api",
+                "live_access_review": {"status": "approved"},
+                "license_policy": {
+                    "llm_processing": "allowed",
+                    "archive_original": "allowed",
             },
             "retention_policy": {"content_body": "allowed"},
         },

@@ -14,7 +14,7 @@ from analysis.acquisition.orchestrator import (
     AcquisitionExecutionError,
     AcquisitionOrchestrator,
 )
-from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.repository import AcquisitionNotFoundError
 from analysis.acquisition.runtime import AcquisitionRuntime
 
@@ -41,7 +41,7 @@ def test_old_run_recovers_repository_frozen_definition_after_registry_upgrade(
     old_reference = old_plan.run.source_definition_refs[0]
     old_runtime.close()
 
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
     payload["registry_version"] = "2.0.0"
     upgraded_definition = next(
         item

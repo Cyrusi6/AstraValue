@@ -338,7 +338,7 @@ class SourceLicensePolicy(FrozenAcquisitionModel):
 
 
 class SourceLiveAccessReview(FrozenAcquisitionModel):
-    """Human sign-off required before a frozen definition may touch the network."""
+    """Versioned review decision; human sign-off is required before approval."""
 
     status: LiveAccessReviewStatus
     checklist_version: str = Field(min_length=1)
@@ -357,16 +357,26 @@ class SourceLiveAccessReview(FrozenAcquisitionModel):
         return values
 
     @model_validator(mode="after")
-    def validate_approval(self) -> "SourceLiveAccessReview":
-        if self.status == LiveAccessReviewStatus.APPROVED:
+    def validate_review_decision(self) -> "SourceLiveAccessReview":
+        if self.status in {
+            LiveAccessReviewStatus.APPROVED,
+            LiveAccessReviewStatus.REJECTED,
+        }:
+            decision_label = (
+                "批准"
+                if self.status == LiveAccessReviewStatus.APPROVED
+                else "拒绝"
+            )
             missing = set(LiveAccessReviewCheck) - set(self.completed_checks)
             if missing:
                 raise ValueError(
-                    "live access批准缺少人工审核检查项: "
+                    f"live access{decision_label}缺少人工审核检查项: "
                     + ", ".join(sorted(item.value for item in missing))
                 )
             if not (self.reviewed_at and self.reviewed_by and self.evidence_reference):
-                raise ValueError("live access批准必须记录复核人、时间和证据引用")
+                raise ValueError(
+                    f"live access{decision_label}必须记录复核人、时间和证据引用"
+                )
         return self
 
 
@@ -619,6 +629,18 @@ class SourceDefinition(FrozenAcquisitionModel):
     def validate_definition(self) -> "SourceDefinition":
         if self.expires_at is not None and self.expires_at <= self.effective_at:
             raise ValueError("来源定义expires_at必须晚于effective_at")
+        if self.live_access_review.status == LiveAccessReviewStatus.REJECTED:
+            if self.policy_status not in {
+                SourcePolicyStatus.PENDING_POLICY,
+                SourcePolicyStatus.DISABLED,
+            }:
+                raise ValueError("live access拒绝来源必须保持pending_policy或disabled")
+            if self.enabled or self.access_method != "disabled":
+                raise ValueError("live access拒绝来源必须disabled且零I/O")
+            if self.initial_request_allowlist or self.redirect_allowlist:
+                raise ValueError("live access拒绝来源不得保留可联网allowlist")
+            if any(query.endpoint is not None for query in self.queries):
+                raise ValueError("live access拒绝来源query不得具有可请求endpoint")
         if self.enabled != (self.policy_status in {SourcePolicyStatus.ENABLED, SourcePolicyStatus.LEGACY}):
             raise ValueError("enabled必须与policy_status一致")
         if self.policy_status == SourcePolicyStatus.PENDING_POLICY and self.enabled:

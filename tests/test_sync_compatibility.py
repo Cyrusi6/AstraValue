@@ -15,6 +15,7 @@ from analysis.acquisition.models import (
     AcquisitionRunEventType,
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.adapters.manager import AdapterManager
 from analysis.models import SyncResult
 from analysis.storage import ReportStorage
@@ -90,6 +91,7 @@ def test_failed_baseline_without_safe_checkpoints_cannot_select_incremental(tmp_
     runtime = AcquisitionRuntime.create(
         tmp_path / "analysis.db",
         tmp_path / "evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _runtime: None,
     )
     plan = runtime.plan_company_run(
@@ -125,6 +127,7 @@ def test_provider_summary_is_deterministically_derived_from_attempt_events(tmp_p
     runtime = AcquisitionRuntime.create(
         tmp_path / "analysis.db",
         tmp_path / "evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _runtime: None,
     )
     plan = runtime.plan_company_run(

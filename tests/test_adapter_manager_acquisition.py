@@ -12,6 +12,7 @@ from analysis.acquisition.models import (
     AcquisitionOutcome,
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.adapters.manager import AdapterManager
 from analysis.models import SyncRequest
 
@@ -49,6 +50,7 @@ def _runtime(tmp_path):
     runtime = AcquisitionRuntime.create(
         tmp_path / "analysis.db",
         tmp_path / "data",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _runtime: orchestrator,
     )
     return runtime, orchestrator

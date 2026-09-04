@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -11,10 +11,15 @@ from analysis.acquisition.models import (
     AnchorEvidence,
     CompanyAcquisitionProfile,
     CoveragePlanDisposition,
+    LiveAccessReviewCheck,
     PhysicalQueryCoverageLink,
 )
 from analysis.acquisition.planner import AcquisitionPlanner, AcquisitionPlanningError
-from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH, SourceRegistryLoader
+from analysis.acquisition.registry import (
+    DEFAULT_REGISTRY_PATH,
+    INITIAL_REGISTRY_PATH,
+    SourceRegistryLoader,
+)
 
 
 AS_OF = datetime(2026, 9, 3, tzinfo=timezone.utc)
@@ -32,8 +37,40 @@ def _profile() -> CompanyAcquisitionProfile:
 def _planner() -> AcquisitionPlanner:
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
-    registry = loader.load_registry(question_set=questions)
+    registry = loader.load_registry(INITIAL_REGISTRY_PATH, question_set=questions)
     return AcquisitionPlanner(registry, questions)
+
+
+def test_default_reviewed_registry_fails_closed_with_static_coverage_only():
+    loader = SourceRegistryLoader()
+    questions = loader.load_questions()
+    registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
+    as_of = max(
+        definition.effective_at for definition in registry.registry.definitions
+    ) + timedelta(seconds=1)
+
+    plan = AcquisitionPlanner(registry, questions).plan(
+        _profile(),
+        mode=AcquisitionMode.BASELINE,
+        as_of=as_of,
+        run_id="run-reviewed-policy-rejected",
+    )
+
+    assert plan.physical_query_plan_items == ()
+    assert plan.coverage_links == ()
+    assert plan.coverage_entries
+    assert all(
+        item.plan_disposition == CoveragePlanDisposition.STATIC_POLICY_SKIPPED
+        for item in plan.coverage_entries
+    )
+    reasons = {
+        (item.source_definition_id, item.static_reason_code)
+        for item in plan.coverage_entries
+    }
+    assert ("cninfo.disclosures", "pending_policy") in reasons
+    assert ("sse.disclosures", "pending_policy") in reasons
+    assert ("szse.disclosures", "market_not_applicable") in reasons
+    assert ("moutai.ir", "pending_policy") in reasons
 
 
 def test_plan_traceability_has_all_ten_questions_and_static_dispositions():
@@ -105,7 +142,7 @@ def test_no_duplicate_io_for_identical_execution_key():
 
 
 def test_enabled_ir_is_applicable_only_after_new_registry_version(tmp_path):
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
     payload["registry_version"] = "1.1.0"
     ir = next(
         item for item in payload["definitions"] if item["source_definition_id"] == "moutai.ir"
@@ -118,8 +155,25 @@ def test_enabled_ir_is_applicable_only_after_new_registry_version(tmp_path):
         {"scheme": "https", "host": "ir.example.test", "port": 443, "path_prefix": "/public/"}
     ]
     ir["redirect_allowlist"] = list(ir["initial_request_allowlist"])
-    ir["license_policy"]["automated_access"] = "allowed"
-    ir["license_policy"]["checked_at"] = "2026-09-03T01:00:00Z"
+    ir["retention_policy"]["content_body"] = "allowed"
+    ir["license_policy"].update(
+        {
+            "automated_access": "allowed",
+            "archive_original": "allowed",
+            "save_derived_text": "allowed",
+            "llm_processing": "allowed",
+            "checked_at": "2026-09-03T01:00:00Z",
+        }
+    )
+    ir["live_access_review"].update(
+        {
+            "status": "approved",
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
     ir["queries"][0]["endpoint"] = "https://ir.example.test/public/list"
     path = tmp_path / "registry.json"
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -270,7 +324,7 @@ def test_baseline_records_source_not_available_before_earliest_boundary():
 def test_planner_rejects_source_definition_outside_run_as_of_window(
     tmp_path, effective_at, expires_at, message
 ):
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
     definition = payload["definitions"][0]
     definition["effective_at"] = effective_at
     definition["expires_at"] = expires_at

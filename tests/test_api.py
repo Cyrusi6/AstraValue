@@ -3,7 +3,8 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
+from analysis.acquisition.models import LiveAccessReviewCheck
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.api import create_app
 from analysis.models import DocumentRecord, SourceRecord, SyncResult
@@ -50,16 +51,25 @@ def test_document_ingest_without_bound_runtime_is_rejected(service, tmp_path):
 
 
 def _approved_manual_runtime(tmp_path):
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
-    payload["registry_version"] = "1.1.0"
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload["registry_version"] = "1.2.0"
     definition = next(
         item
         for item in payload["definitions"]
         if item["source_definition_id"] == "cninfo.disclosures"
     )
-    definition["version"] = "1.1.0"
+    definition["version"] = "1.2.0"
     definition["license_policy"]["save_derived_text"] = "allowed"
     definition["license_policy"]["llm_processing"] = "allowed"
+    definition["live_access_review"].update(
+        {
+            "status": "approved",
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
     registry_path = tmp_path / "approved-registry.json"
     registry_path.write_text(
         json.dumps(payload, ensure_ascii=False),

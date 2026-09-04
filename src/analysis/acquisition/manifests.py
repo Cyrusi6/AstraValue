@@ -12,8 +12,10 @@ from .models import (
     EvidenceManifestExclusion,
     EvidenceManifestItem,
     EvidenceSnapshotManifest,
+    LiveAccessReviewStatus,
     PolicyDecision,
     ResourceRole,
+    SourcePolicyStatus,
     stable_acquisition_id,
 )
 from .snapshots import (
@@ -280,7 +282,15 @@ class EvidenceManifestService:
             policy = self.source_policy_resolver(source_id, source_version)
         except Exception:
             return "source_policy_missing", None
-        decision = f"{source_id}@{source_version}:llm={_llm_policy_value(policy)}"
+        review_status = _live_access_review_value(policy)
+        decision = (
+            f"{source_id}@{source_version}:review={review_status};"
+            f"llm={_llm_policy_value(policy)}"
+        )
+        if review_status != LiveAccessReviewStatus.APPROVED.value:
+            return "source_live_access_not_approved", decision
+        if not _formal_evidence_authority_enabled(policy):
+            return "source_not_formal_evidence_authority", decision
         if not _llm_allowed(policy):
             return "llm_processing_denied", decision
         if not _archive_allowed(policy):
@@ -521,6 +531,21 @@ def _retention_policy(policy: Any) -> Any:
 
 def _llm_policy_value(policy: Any) -> str:
     return _enum_value(_get(_license_policy(policy), "llm_processing"))
+
+
+def _live_access_review_value(policy: Any) -> str:
+    review = _get(policy, "live_access_review", {})
+    return _enum_value(_get(review, "status"))
+
+
+def _formal_evidence_authority_enabled(policy: Any) -> bool:
+    return (
+        _get(policy, "enabled") is True
+        and _enum_value(_get(policy, "policy_status"))
+        == SourcePolicyStatus.ENABLED.value
+        and _enum_value(_get(policy, "access_method"))
+        in {"https_api", "https_document"}
+    )
 
 
 def _llm_allowed(policy: Any) -> bool:

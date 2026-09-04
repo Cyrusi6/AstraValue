@@ -11,14 +11,24 @@ from analysis.acquisition.models import LiveAccessReviewCheck, SourceRegistry
 from analysis.acquisition.registry import (
     DEFAULT_QUESTIONS_PATH,
     DEFAULT_REGISTRY_PATH,
+    INITIAL_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
 
 
+INITIAL_REGISTRY_CANONICAL_SHA256 = (
+    "51e8af5e394b8ca82a073bf7fdf4de19ee03fcf07c47dbd0f813e3a74856c084"
+)
+
+
 def _payload() -> dict:
     return json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+
+
+def _initial_payload() -> dict:
+    return json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
 
 
 def _write(tmp_path: Path, payload: dict) -> Path:
@@ -27,15 +37,27 @@ def _write(tmp_path: Path, payload: dict) -> Path:
     return path
 
 
+def _complete_live_review(definition: dict, *, status: str) -> None:
+    definition["live_access_review"].update(
+        {
+            "status": status,
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
+
+
 def _approved_moutai_ir_payload() -> dict:
     payload = _payload()
-    payload["registry_version"] = "1.1.0"
+    payload["registry_version"] = "1.2.0"
     ir = next(
         item
         for item in payload["definitions"]
         if item["source_definition_id"] == "moutai.ir"
     )
-    ir["version"] = "1.1.0"
+    ir["version"] = "1.2.0"
     ir["policy_status"] = "enabled"
     ir["enabled"] = True
     ir["access_method"] = "https_api"
@@ -58,15 +80,7 @@ def _approved_moutai_ir_payload() -> dict:
             "checked_at": "2026-09-03T01:00:00Z",
         }
     )
-    ir["live_access_review"].update(
-        {
-            "status": "approved",
-            "completed_checks": [item.value for item in LiveAccessReviewCheck],
-            "reviewed_at": "2026-09-03T01:00:00Z",
-            "reviewed_by": "fixture-reviewer",
-            "evidence_reference": "fixture:policy-review",
-        }
-    )
+    _complete_live_review(ir, status="approved")
     ir["queries"][0]["endpoint"] = "https://ir.example.test/public/list"
     return payload
 
@@ -114,8 +128,13 @@ def test_registry_schema_validator_script_rejects_missing_topic_mapping(tmp_path
     assert "SOURCE_REGISTRY_INVALID" in completed.stderr
 
 
-def test_registry_redirect_and_initial_allowlist_are_checked_per_hop():
-    loaded = SourceRegistryLoader().load_registry()
+def test_registry_redirect_and_initial_allowlist_are_checked_per_hop(tmp_path):
+    payload = _initial_payload()
+    payload["registry_version"] = "1.0.1"
+    cninfo_payload = payload["definitions"][0]
+    cninfo_payload["version"] = "1.0.1"
+    _complete_live_review(cninfo_payload, status="approved")
+    loaded = SourceRegistryLoader().load_registry(_write(tmp_path, payload))
     cninfo = loaded.definition("cninfo.disclosures")
     SourceRegistryLoader.validate_request_url(
         cninfo,
@@ -131,6 +150,17 @@ def test_registry_redirect_and_initial_allowlist_are_checked_per_hop():
             cninfo,
             "https://evil.example/report.pdf",
             redirect=True,
+        )
+
+
+def test_registry_request_url_requires_approved_live_review():
+    cninfo = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH).definition(
+        "cninfo.disclosures"
+    )
+    with pytest.raises(SourceRegistryError, match="未获live access人工批准"):
+        SourceRegistryLoader.validate_request_url(
+            cninfo,
+            "https://www.cninfo.com.cn/new/hisAnnouncement/query",
         )
 
 
@@ -156,13 +186,37 @@ def test_registry_rate_limit_business_model_concurrency_is_fixed_to_one(tmp_path
 
 
 def test_registry_license_policy_fails_closed_for_enabled_source(tmp_path):
-    payload = _payload()
+    payload = _initial_payload()
     payload["definitions"][0]["license_policy"]["automated_access"] = "pending"
     with pytest.raises(SourceRegistryError, match="允许自动访问"):
         SourceRegistryLoader().load_registry(_write(tmp_path, payload))
 
 
-def test_v1_live_access_review_is_machine_readable_and_pending_before_task_9_1():
+def test_pending_policy_source_cannot_retain_network_authority(tmp_path):
+    payload = _payload()
+    definition = payload["definitions"][0]
+    definition["live_access_review"].update(
+        {
+            "status": "pending",
+            "completed_checks": [],
+            "reviewed_at": None,
+            "reviewed_by": None,
+            "evidence_reference": None,
+        }
+    )
+    definition["initial_request_allowlist"] = [
+        {
+            "scheme": "https",
+            "host": "www.cninfo.com.cn",
+            "port": 443,
+            "path_prefix": "/new/hisAnnouncement/query",
+        }
+    ]
+    with pytest.raises(SourceRegistryError, match="不得预置可联网allowlist"):
+        SourceRegistryLoader().load_registry(_write(tmp_path, payload))
+
+
+def test_v1_live_access_review_records_rejected_9_1_decisions_in_new_versions():
     loaded = SourceRegistryLoader().load_registry()
     statuses = {
         source_id: loaded.definition(source_id).live_access_review.status.value
@@ -173,7 +227,57 @@ def test_v1_live_access_review_is_machine_readable_and_pending_before_task_9_1()
             "moutai.ir",
         )
     }
-    assert statuses == {source_id: "pending" for source_id in statuses}
+    assert statuses == {source_id: "rejected" for source_id in statuses}
+    assert loaded.registry.registry_version == "1.1.0"
+    assert {
+        loaded.definition(source_id).version for source_id in statuses
+    } == {"1.1.0"}
+    assert all(
+        loaded.definition(source_id).policy_status.value == "pending_policy"
+        and loaded.definition(source_id).enabled is False
+        and loaded.definition(source_id).access_method == "disabled"
+        for source_id in statuses
+    )
+    for source_id in statuses:
+        definition = loaded.definition(source_id)
+        assert definition.initial_request_allowlist == ()
+        assert definition.redirect_allowlist == ()
+        assert all(query.endpoint is None for query in definition.queries)
+        assert set(definition.live_access_review.completed_checks) == set(
+            LiveAccessReviewCheck
+        )
+        assert definition.live_access_review.reviewed_at is not None
+        assert definition.live_access_review.reviewed_by
+        assert definition.live_access_review.evidence_reference
+
+
+def test_review_registry_preserves_unchanged_legacy_definition_versions():
+    initial = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
+    reviewed = SourceRegistryLoader().load_registry(DEFAULT_REGISTRY_PATH)
+    initial_legacy = {
+        definition.source_definition_id: definition.model_dump(mode="json")
+        for definition in initial.registry.legacy_definitions
+    }
+    reviewed_legacy = {
+        definition.source_definition_id: definition.model_dump(mode="json")
+        for definition in reviewed.registry.legacy_definitions
+    }
+    assert reviewed_legacy == initial_legacy
+
+
+def test_initial_registry_and_definitions_remain_immutable_pending_versions():
+    loaded = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
+    assert loaded.registry.registry_version == "1.0.0"
+    assert loaded.content_hash == INITIAL_REGISTRY_CANONICAL_SHA256
+    for source_id in (
+        "cninfo.disclosures",
+        "sse.disclosures",
+        "szse.disclosures",
+        "moutai.ir",
+    ):
+        definition = loaded.definition(source_id)
+        assert definition.version == "1.0.0"
+        assert definition.live_access_review.status.value == "pending"
 
 
 def test_live_access_approval_requires_complete_9_1_checklist_and_signoff(tmp_path):
@@ -182,6 +286,7 @@ def test_live_access_approval_requires_complete_9_1_checklist_and_signoff(tmp_pa
     review.update(
         {
             "status": "approved",
+            "completed_checks": [],
             "reviewed_at": "2026-09-03T01:00:00Z",
             "reviewed_by": "fixture-reviewer",
             "evidence_reference": "fixture:policy-review",
@@ -195,6 +300,22 @@ def test_live_access_approval_requires_complete_9_1_checklist_and_signoff(tmp_pa
     assert loaded.definition("cninfo.disclosures").live_access_review.status.value == (
         "approved"
     )
+
+
+def test_live_access_rejection_requires_complete_checklist_and_signoff(tmp_path):
+    payload = _payload()
+    review = payload["definitions"][0]["live_access_review"]
+    review["reviewed_by"] = None
+    with pytest.raises(SourceRegistryError, match="拒绝必须记录复核人"):
+        SourceRegistryLoader().load_registry(_write(tmp_path, payload))
+
+
+def test_live_access_rejection_cannot_retain_network_authority(tmp_path):
+    payload = _initial_payload()
+    definition = payload["definitions"][0]
+    _complete_live_review(definition, status="rejected")
+    with pytest.raises(SourceRegistryError, match="live access拒绝来源"):
+        SourceRegistryLoader().load_registry(_write(tmp_path, payload))
 
 
 @pytest.mark.parametrize("initial_identity", ["registry", "definition"])
@@ -309,7 +430,7 @@ def test_formal_runtime_loads_approved_ir_from_new_registry_version(tmp_path):
         orchestrator_factory=lambda _runtime: None,
     ) as runtime:
         ir = runtime.source_definition("moutai.ir")
-        assert ir.version == "1.1.0"
+        assert ir.version == "1.2.0"
         assert ir.enabled is True
         assert ir.live_access_review.status.value == "approved"
 

@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from analysis.acquisition.bootstrap import StorageNamespaceMismatch
-from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
+from analysis.acquisition.models import LiveAccessReviewCheck
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.api import app as default_app
 from analysis.api import create_app
@@ -21,16 +22,25 @@ NOW = datetime(2026, 9, 3, 8, tzinfo=timezone.utc)
 
 
 def _manual_ingest_registry(tmp_path: Path) -> Path:
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
-    payload["registry_version"] = "1.1.0"
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload["registry_version"] = "1.2.0"
     definition = next(
         item
         for item in payload["definitions"]
         if item["source_definition_id"] == "cninfo.disclosures"
     )
-    definition["version"] = "1.1.0"
+    definition["version"] = "1.2.0"
     definition["license_policy"]["save_derived_text"] = "allowed"
     definition["license_policy"]["llm_processing"] = "allowed"
+    definition["live_access_review"].update(
+        {
+            "status": "approved",
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
     path = tmp_path / "manual-ingest-registry.json"
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     return path
@@ -60,6 +70,7 @@ def test_one_composition_root_binds_report_storage_clock_and_http_client(tmp_pat
     runtime = AcquisitionRuntime.create(
         tmp_path / "analysis.db",
         tmp_path / "evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         clock=fixed_clock,
     )
     try:
@@ -129,12 +140,14 @@ def test_isolated_runtime_namespaces_share_only_the_workspace_source_gate(tmp_pa
     first = AcquisitionRuntime.create(
         tmp_path / "first.db",
         tmp_path / "first-evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         workspace_root=workspace,
         orchestrator_factory=lambda _runtime: None,
     )
     second = AcquisitionRuntime.create(
         tmp_path / "second.db",
         tmp_path / "second-evidence",
+        registry_path=INITIAL_REGISTRY_PATH,
         workspace_root=workspace,
         orchestrator_factory=lambda _runtime: None,
     )
@@ -247,6 +260,7 @@ def test_api_cli_same_store_can_read_the_same_durable_run(tmp_path, capsys):
     runtime = AcquisitionRuntime.create(
         database,
         data_root,
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _runtime: None,
     )
     client = TestClient(create_app(acquisition_runtime=runtime))

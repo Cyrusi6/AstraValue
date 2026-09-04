@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from analysis.acquisition.models import SourceCandidate, SourceCandidateStatus
+from analysis.acquisition.models import (
+    LiveAccessReviewCheck,
+    SourceCandidate,
+    SourceCandidateStatus,
+)
 from analysis.acquisition.registry import (
+    INITIAL_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
     create_source_candidate,
@@ -27,12 +33,55 @@ def test_unregistered_domain_only_creates_pending_candidate():
     assert "snapshot_id" not in SourceCandidate.model_fields
 
 
-def test_registered_domain_is_not_misclassified_as_candidate():
-    registry = SourceRegistryLoader().load_registry()
+def test_pending_review_registered_domain_is_not_a_formal_source():
+    registry = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
+    url = "https://static.cninfo.com.cn/report.pdf"
+
+    assert SourceRegistryLoader.find_registered_definition_for_url(
+        registry.registry,
+        url,
+    ) is None
+    candidate = create_source_candidate(
+        registry,
+        url=url,
+        discovery_context={"run_id": "run-pending-review"},
+    )
+    assert candidate.status == SourceCandidateStatus.PENDING_REVIEW
+
+
+def test_approved_registered_domain_is_not_misclassified_as_candidate(tmp_path):
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload["registry_version"] = "1.2.0"
+    definition = next(
+        item
+        for item in payload["definitions"]
+        if item["source_definition_id"] == "cninfo.disclosures"
+    )
+    definition["version"] = "1.2.0"
+    definition["live_access_review"].update(
+        {
+            "status": "approved",
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
+    path = tmp_path / "approved-registry.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    registry = SourceRegistryLoader().load_registry(path)
+    url = "https://static.cninfo.com.cn/report.pdf"
+
+    registered = SourceRegistryLoader.find_registered_definition_for_url(
+        registry.registry,
+        url,
+    )
+    assert registered is not None
+    assert registered.source_definition_id == "cninfo.disclosures"
     with pytest.raises(SourceRegistryError, match="已属于已批准来源"):
         create_source_candidate(
             registry,
-            url="https://static.cninfo.com.cn/report.pdf",
+            url=url,
             discovery_context={"run_id": "run-1"},
         )
 

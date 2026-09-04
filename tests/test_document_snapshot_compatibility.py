@@ -16,6 +16,7 @@ from analysis.acquisition.models import (
     DiscoveredResource,
     DiscoveryObservation,
     DiscoveryProof,
+    LiveAccessReviewCheck,
     PhysicalQueryPlanItem,
     PublishedAtPrecision,
     SourceDefinitionRef,
@@ -23,7 +24,7 @@ from analysis.acquisition.models import (
 )
 from analysis.acquisition.repository import AcquisitionRepository
 from analysis.acquisition.registry import (
-    DEFAULT_REGISTRY_PATH,
+    INITIAL_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
 )
@@ -92,17 +93,30 @@ def _service(tmp_path: Path) -> tuple[SnapshotService, _DocumentRepository]:
     return service, repository
 
 
-def _runtime_with_derived_text_allowed(tmp_path: Path) -> AcquisitionRuntime:
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
-    payload["registry_version"] = "1.1.0"
+def _runtime_with_approved_cninfo(
+    tmp_path: Path,
+    *,
+    save_derived_text: str = "allowed",
+) -> AcquisitionRuntime:
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload["registry_version"] = "1.2.0"
     definition = next(
         item
         for item in payload["definitions"]
         if item["source_definition_id"] == "cninfo.disclosures"
     )
-    definition["version"] = "1.1.0"
-    definition["license_policy"]["save_derived_text"] = "allowed"
+    definition["version"] = "1.2.0"
+    definition["license_policy"]["save_derived_text"] = save_derived_text
     definition["license_policy"]["llm_processing"] = "allowed"
+    definition["live_access_review"].update(
+        {
+            "status": "approved",
+            "completed_checks": [item.value for item in LiveAccessReviewCheck],
+            "reviewed_at": "2026-09-03T01:00:00Z",
+            "reviewed_by": "fixture-reviewer",
+            "evidence_reference": "fixture:policy-review",
+        }
+    )
     registry_path = tmp_path / "registry.json"
     registry_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     return AcquisitionRuntime.create(
@@ -253,7 +267,10 @@ def test_snapshot_backed_ingest_integrates_with_sqlite_repository(tmp_path):
     repository.save_storage_namespace(namespace)
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
-    loaded_registry = loader.load_registry(question_set=questions)
+    loaded_registry = loader.load_registry(
+        INITIAL_REGISTRY_PATH,
+        question_set=questions,
+    )
     repository.save_source_registry_version(loaded_registry.registry)
     cninfo_definition = loaded_registry.definition("cninfo.disclosures")
     now = datetime.now(timezone.utc)
@@ -444,7 +461,7 @@ def test_snapshot_backed_ingest_integrates_with_sqlite_repository(tmp_path):
 
 
 def test_registered_manual_ingest_uses_alias_audit_chain_and_is_unchanged(tmp_path):
-    runtime = _runtime_with_derived_text_allowed(tmp_path)
+    runtime = _runtime_with_approved_cninfo(tmp_path)
     source_path = tmp_path / "registered.txt"
     source_path.write_text(
         "registered business model evidence with enough deterministic text",
@@ -467,7 +484,7 @@ def test_registered_manual_ingest_uses_alias_audit_chain_and_is_unchanged(tmp_pa
         request.model_copy(
             update={
                 "source_definition_id": "cninfo.disclosures",
-                "source_definition_version": "1.1.0",
+                "source_definition_version": "1.2.0",
             }
         ),
         runtime,
@@ -521,6 +538,7 @@ def test_unregistered_manual_url_creates_one_redacted_candidate_and_no_evidence(
     runtime = AcquisitionRuntime.create(
         tmp_path / "runtime.db",
         tmp_path / "runtime-data",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _: None,
     )
     source_path = tmp_path / "candidate.txt"
@@ -547,12 +565,18 @@ def test_unregistered_manual_url_creates_one_redacted_candidate_and_no_evidence(
     assert runtime.blob_store.scan_orphans(()) == ()
 
 
-def test_registered_manual_ingest_fails_closed_when_derived_text_policy_is_pending(
+@pytest.mark.parametrize(
+    "source_definition_id",
+    [None, "cninfo.disclosures", "official"],
+)
+def test_pending_live_review_manual_ingest_creates_candidate_and_no_evidence(
     tmp_path,
+    source_definition_id,
 ):
     runtime = AcquisitionRuntime.create(
         tmp_path / "runtime.db",
         tmp_path / "runtime-data",
+        registry_path=INITIAL_REGISTRY_PATH,
         orchestrator_factory=lambda _: None,
     )
     source_path = tmp_path / "pending-policy.txt"
@@ -563,6 +587,35 @@ def test_registered_manual_ingest_fails_closed_when_derived_text_policy_is_pendi
         title="许可尚未批准",
         source_name="巨潮资讯",
         source_url="https://static.cninfo.com.cn/manual/pending-policy.txt",
+    )
+
+    with pytest.raises(SourceReviewRequired) as error:
+        ingest_registered_document(
+            request,
+            runtime,
+            source_definition_id=source_definition_id,
+        )
+
+    candidate = runtime.repository.get_source_candidate(error.value.candidate_id)
+    assert candidate.status.value == "pending_review"
+    assert candidate.suggested_upstream_identity == source_definition_id
+    assert runtime.repository.list_runs() == []
+    assert runtime.blob_store.scan_orphans(()) == ()
+
+
+def test_approved_manual_ingest_still_honors_derived_text_policy(tmp_path):
+    runtime = _runtime_with_approved_cninfo(
+        tmp_path,
+        save_derived_text="pending",
+    )
+    source_path = tmp_path / "pending-derived-policy.txt"
+    source_path.write_text("must stay outside derived storage", encoding="utf-8")
+    request = DocumentIngestRequest(
+        ticker="600519",
+        path=str(source_path),
+        title="派生文本许可尚未批准",
+        source_name="巨潮资讯",
+        source_url="https://static.cninfo.com.cn/manual/pending-derived-policy.txt",
     )
 
     with pytest.raises(SourceRegistryError, match="派生文本"):

@@ -23,7 +23,7 @@ from analysis.acquisition.models import (
     SourceLiveAccessReview,
 )
 from analysis.acquisition.orchestrator import AcquisitionExecutionError
-from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.repository import (
     AcquisitionNotFoundError,
     LeaseConflictError,
@@ -131,7 +131,7 @@ def test_claim_before_io_and_execute_ttl_override(tmp_path) -> None:
 def test_executor_rechecks_frozen_definition_effective_window_before_lease_attempt_or_io(
     tmp_path, effective_at, expires_at, valid_as_of, invalid_as_of, message
 ) -> None:
-    payload = json.loads(DEFAULT_REGISTRY_PATH.read_text(encoding="utf-8"))
+    payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
     definition_payload = payload["definitions"][0]
     definition_payload["effective_at"] = effective_at
     definition_payload["expires_at"] = expires_at
@@ -186,6 +186,7 @@ def test_pending_manual_review_becomes_policy_skip_attempt_with_zero_client_send
     runtime = AcquisitionRuntime.create(
         tmp_path / "pending-review.db",
         tmp_path / "pending-review-data",
+        registry_path=INITIAL_REGISTRY_PATH,
         workspace_root=tmp_path / "workspace",
         http_client=client,
     )

@@ -9,6 +9,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from analysis.acquisition.runtime import AcquisitionRuntime
+from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,7 @@ def _runtime(tmp_path: Path) -> AcquisitionRuntime:
     runtime = AcquisitionRuntime.create(
         tmp_path / "analysis.db",
         tmp_path / "data",
+        registry_path=INITIAL_REGISTRY_PATH,
         workspace_root=PROJECT_ROOT,
     )
     runtime.plan_company_run(

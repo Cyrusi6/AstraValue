@@ -64,7 +64,33 @@ def test_pending_manual_review_blocks_v1_source_before_dns_gate_and_send(
     from analysis.acquisition.registry import SourceRegistryLoader
 
     definition = SourceRegistryLoader().load_registry().definition(source_id)
-    query = next(item for item in definition.queries if item.endpoint is not None)
+    query = definition.queries[0]
+    rejected_urls = {
+        "cninfo.disclosures": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+        "sse.disclosures": "https://query.sse.com.cn/security/stock/queryCompanyStatementNew.do",
+        "szse.disclosures": "https://www.szse.cn/api/disc/announcement/annList",
+    }
+    rejected_rules = {
+        "cninfo.disclosures": ("www.cninfo.com.cn", "/new/"),
+        "sse.disclosures": ("query.sse.com.cn", "/security/stock/"),
+        "szse.disclosures": ("www.szse.cn", "/api/disc/"),
+    }
+    host, path_prefix = rejected_rules[source_id]
+    rejected_rule = SimpleNamespace(
+        scheme="https",
+        host=host,
+        port=443,
+        path_prefix=path_prefix,
+    )
+    # The reviewed registry deliberately carries no network authority.  Add a
+    # test-only route so this unit test isolates the review gate and proves it
+    # still runs before DNS, the source gate, or send.
+    definition = definition.model_copy(
+        update={
+            "initial_request_allowlist": (rejected_rule,),
+            "redirect_allowlist": (rejected_rule,),
+        }
+    )
     dns_calls = []
     send_calls = []
 
@@ -89,7 +115,7 @@ def test_pending_manual_review_blocks_v1_source_before_dns_gate_and_send(
         query_family=query.query_family,
         execution_key=query.execution_key,
         method=query.request_method,
-        url=query.endpoint,
+        url=rejected_urls[source_id],
         max_response_bytes=definition.response_limits.max_response_bytes,
     )
 
