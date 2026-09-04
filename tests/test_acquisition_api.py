@@ -188,6 +188,7 @@ def test_error_categories_and_metadata_are_redacted(tmp_path):
         (StaleLeaseError("stale owner"), 409, "stale_owner"),
         (AcquisitionStorageError("corrupt row at C:\\private\\analysis.db"), 500, "storage_integrity_error"),
         (SnapshotIntegrityMismatch("bad C:\\private\\blob.pdf"), 500, "integrity_error"),
+        (AcquisitionStorageError("corrupt row at /tmp/private/analysis.db"), 500, "storage_integrity_error"),
     )
     for index, (error, status, subtype) in enumerate(cases):
         _runtime_value, client = _client(tmp_path / str(index), FakeExecutor(error))
@@ -195,7 +196,7 @@ def test_error_categories_and_metadata_are_redacted(tmp_path):
         response = client.post(f"/api/acquisition-runs/{run_id}/execute", json={})
         assert response.status_code == status
         assert response.json()["error"] == subtype
-        assert "C:\\private" not in response.text
+        assert "private" not in response.text
 
     secret_result = {
         "run_id": "run-secret",
@@ -209,7 +210,13 @@ def test_error_categories_and_metadata_are_redacted(tmp_path):
             "api_key": "do-not-return-either",
             "local_path": "C:\\private\\blob.pdf",
             "source_url": "https://example.test/a?access_token=secret-value",
+            "source_urls": [
+                "https://example.test/b?api_key=list-secret-value"
+            ],
+            "local_paths": ["/tmp/list-private/blob.pdf"],
+            "archive_relative_path": "raw/blobs/sha256/aa/aabbcc",
         },
+        "db_path": "/tmp/private/analysis.db",
     }
     executor = FakeExecutor()
     executor_result = secret_result
@@ -222,8 +229,39 @@ def test_error_categories_and_metadata_are_redacted(tmp_path):
     response = client.post(f"/api/acquisition-runs/{run_id}/execute", json={})
     assert response.status_code == 200
     body = response.text
-    for secret in ("do-not-return", "do-not-return-either", "secret-value", "C:\\private"):
+    for secret in (
+        "do-not-return",
+        "do-not-return-either",
+        "secret-value",
+        "list-secret-value",
+        "C:\\private",
+        "/tmp/list-private",
+        "/tmp/private",
+    ):
         assert secret not in body
+    assert response.json()["nested"]["archive_relative_path"] == (
+        "raw/blobs/sha256/aa/aabbcc"
+    )
+
+
+def test_api_metadata_redacts_posix_absolute_paths_on_every_host(tmp_path):
+    executor = FakeExecutor()
+    executor.execute_run = lambda run_id, lease_ttl_seconds=60: {
+        "run_id": run_id,
+        "result": "succeeded",
+        "coverage_accounted": True,
+        "material_gap_count": 0,
+        "default_consume_eligible": True,
+        "archived_path": "/tmp/private/evidence/raw/blobs/example",
+    }
+    _runtime_value, client = _client(tmp_path, executor)
+    run_id = _create(client)
+
+    response = client.post(f"/api/acquisition-runs/{run_id}/execute", json={})
+
+    assert response.status_code == 200
+    assert response.json()["archived_path"] == "[REDACTED_LOCAL_PATH]"
+    assert "/tmp/private" not in response.text
 
 
 def test_checkpoint_integrity_events_and_manifest_metadata_are_redacted(

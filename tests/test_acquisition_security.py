@@ -6,6 +6,7 @@ import pytest
 
 from analysis.acquisition.security import (
     REDACTED,
+    REDACTED_LOCAL_PATH,
     AllowlistEntry,
     ResponseLimits,
     ResponseSizeExceeded,
@@ -13,9 +14,11 @@ from analysis.acquisition.security import (
     TransportPolicy,
     minimal_response_diagnostic,
     read_limited_body,
+    redact_absolute_local_paths,
     redact_headers,
     redact_redirect_chain,
     redact_url,
+    looks_like_absolute_local_path,
     validate_content_length,
     validate_redirect,
     validate_transport_target,
@@ -54,6 +57,42 @@ def test_redaction_removes_headers_query_credentials_and_redirect_secrets():
     assert "%5BREDACTED%5D" in safe and "year=2025" in safe
     chain = redact_redirect_chain((safe, "https://example.test/disclosures/b?api_key=x"))
     assert all("api_key=x" not in item for item in chain)
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        "/tmp/private/evidence.db",
+        "/var/lib/astravalue/blob",
+        r"C:\\private\\analysis.db",
+        r"\\server\share\evidence.pdf",
+    ),
+)
+def test_absolute_local_path_detection_is_independent_of_host_os(value):
+    assert looks_like_absolute_local_path(value)
+
+
+def test_relative_archive_ids_are_not_treated_as_absolute_local_paths():
+    assert not looks_like_absolute_local_path(
+        "raw/blobs/sha256/aa/aabbcc"
+    )
+    assert not looks_like_absolute_local_path(
+        "https://example.test/disclosures/a.pdf"
+    )
+
+
+@pytest.mark.parametrize(
+    "detail",
+    (
+        "failed at /tmp/private/analysis.db",
+        r"failed at C:\\private\\analysis.db",
+        r"failed at \\server\share\analysis.db",
+    ),
+)
+def test_diagnostic_path_redaction_handles_posix_windows_and_unc(detail):
+    redacted = redact_absolute_local_paths(detail)
+    assert redacted.endswith(REDACTED_LOCAL_PATH)
+    assert "private" not in redacted
 
 
 def test_redirect_chain_is_checked_before_next_hop():

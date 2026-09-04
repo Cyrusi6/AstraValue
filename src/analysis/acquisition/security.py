@@ -7,11 +7,13 @@ import re
 import zlib
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urljoin, urlsplit, urlunsplit
 
 
 REDACTED = "[REDACTED]"
+REDACTED_LOCAL_PATH = "[REDACTED_LOCAL_PATH]"
 _SENSITIVE_HEADER_NAMES = frozenset(
     {
         "authorization",
@@ -124,6 +126,32 @@ def is_sensitive_name(name: str) -> bool:
     normalized = name.strip().lower()
     return normalized in _SENSITIVE_HEADER_NAMES or bool(
         _SENSITIVE_NAME_PATTERN.search(normalized)
+    )
+
+
+def looks_like_absolute_local_path(value: str) -> bool:
+    """Recognize Windows and POSIX absolute paths independent of the host OS."""
+
+    stripped = value.strip()
+    if not stripped:
+        return False
+    return PureWindowsPath(stripped).is_absolute() or PurePosixPath(
+        stripped
+    ).is_absolute()
+
+
+def redact_absolute_local_paths(value: str) -> str:
+    """Remove absolute local paths embedded in diagnostic text on any host OS."""
+
+    redacted = re.sub(
+        r"(?i)(?:[A-Z]:[\\/]|\\\\)[^\r\n,;]*",
+        REDACTED_LOCAL_PATH,
+        value,
+    )
+    return re.sub(
+        r"(?<![:/\\\w])/(?![/\s])[^\r\n,;]*",
+        REDACTED_LOCAL_PATH,
+        redacted,
     )
 
 

@@ -301,7 +301,11 @@ def test_namespace_mismatch_is_usage_error_before_execution(monkeypatch, capsys)
 def test_internal_failure_uses_exit_code_4(monkeypatch, capsys):
     _patch_runtime(
         monkeypatch,
-        FakeRuntime(FakeOrchestrator(error=RuntimeError("executor failed"))),
+        FakeRuntime(
+            FakeOrchestrator(
+                error=RuntimeError("executor failed at /tmp/private/analysis.db")
+            )
+        ),
     )
     code = main(
         [
@@ -316,7 +320,48 @@ def test_internal_failure_uses_exit_code_4(monkeypatch, capsys):
         ]
     )
     assert code == EXIT_INTERNAL
-    assert json.loads(capsys.readouterr().out)["subtype"] == "internal_error"
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["subtype"] == "internal_error"
+    assert "private" not in payload["detail"]
+
+
+def test_cli_success_redacts_paths_and_nested_url_secrets(monkeypatch, capsys):
+    result = {
+        "result": "succeeded",
+        "coverage_accounted": True,
+        "material_gap_count": 0,
+        "default_consume_eligible": True,
+        "archived_path": "/tmp/private/blob.pdf",
+        "db_path": "/var/lib/astravalue/analysis.db",
+        "source_urls": [
+            "https://example.test/a?access_token=list-secret-value"
+        ],
+        "archive_relative_path": "raw/blobs/sha256/aa/aabbcc",
+    }
+    _patch_runtime(
+        monkeypatch,
+        FakeRuntime(FakeOrchestrator(result=result)),
+    )
+
+    code = main(
+        [
+            "acquire",
+            "execute",
+            "run-x",
+            "--db",
+            "pilot.db",
+            "--data-root",
+            "pilot-data",
+            "--json",
+        ]
+    )
+
+    assert code == EXIT_OK
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["archived_path"] == "[REDACTED_LOCAL_PATH]"
+    assert "db_path" not in payload
+    assert "list-secret-value" not in json.dumps(payload)
+    assert payload["archive_relative_path"] == "raw/blobs/sha256/aa/aabbcc"
 
 
 def test_execute_serializes_real_result_dataclass(monkeypatch, capsys):

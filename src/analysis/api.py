@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import threading
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
@@ -53,7 +52,13 @@ from .acquisition.repository import (
     StorageBusyError,
 )
 from .acquisition.runtime import AcquisitionRuntime, acquisition_v1_enabled
-from .acquisition.security import is_sensitive_name, redact_url
+from .acquisition.security import (
+    REDACTED_LOCAL_PATH,
+    is_sensitive_name,
+    looks_like_absolute_local_path,
+    redact_absolute_local_paths,
+    redact_url,
+)
 from .acquisition.snapshots import SnapshotPipelineError
 
 
@@ -133,13 +138,16 @@ def create_app(
     async def storage_error(_: Request, exc: StorageError):
         from fastapi.responses import JSONResponse
 
-        return JSONResponse(status_code=404, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=404,
+            content={"detail": _safe_error_detail(exc)},
+        )
 
     @application.exception_handler(AcquisitionNotFoundError)
     async def acquisition_not_found(_: Request, exc: AcquisitionNotFoundError):
         return JSONResponse(
             status_code=404,
-            content={"detail": str(exc), "error": "not_found"},
+            content={"detail": _safe_error_detail(exc), "error": "not_found"},
         )
 
     @application.exception_handler(LeaseConflictError)
@@ -171,7 +179,7 @@ def create_app(
         return JSONResponse(
             status_code=409,
             content={
-                "detail": str(exc),
+                "detail": _safe_error_detail(exc),
                 "error": "source_review_required",
                 "candidate_id": exc.candidate_id,
             },
@@ -181,7 +189,11 @@ def create_app(
     async def acquisition_storage_busy(_: Request, exc: StorageBusyError):
         return JSONResponse(
             status_code=503,
-            content={"detail": str(exc), "error": "storage_busy", "retryable": True},
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "storage_busy",
+                "retryable": True,
+            },
         )
 
     @application.exception_handler(SourceRegistryError)
@@ -237,13 +249,19 @@ def create_app(
     async def registry_error(_: Request, exc: MethodRegistryError):
         from fastapi.responses import JSONResponse
 
-        return JSONResponse(status_code=404, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=404,
+            content={"detail": _safe_error_detail(exc)},
+        )
 
     @application.exception_handler(ReportBuildError)
     async def report_error(_: Request, exc: ReportBuildError):
         from fastapi.responses import JSONResponse
 
-        return JSONResponse(status_code=422, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=422,
+            content={"detail": _safe_error_detail(exc)},
+        )
 
     @application.get("/api/health")
     def health(request: Request) -> dict:
@@ -635,7 +653,7 @@ def create_app(
                 snapshot_id,
                 **research_records,
             )
-        return result.model_dump(mode="json")
+        return _redacted(result)
 
     @application.get("/api/timeseries/{ticker}")
     def get_timeseries(
@@ -936,7 +954,13 @@ def _redacted(value: Any, *, field_name: str | None = None) -> Any:
             lowered = str(key).lower()
             if (
                 lowered
-                in {"owner_token", "owner_token_hash", "database_path", "data_root"}
+                in {
+                    "owner_token",
+                    "owner_token_hash",
+                    "database_path",
+                    "db_path",
+                    "data_root",
+                }
                 or is_sensitive_name(lowered)
             ):
                 continue
@@ -945,33 +969,23 @@ def _redacted(value: Any, *, field_name: str | None = None) -> Any:
             result[str(key)] = _redacted(item, field_name=lowered)
         return result
     if isinstance(value, (list, tuple)):
-        return [_redacted(item) for item in value]
+        return [_redacted(item, field_name=field_name) for item in value]
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, Path):
-        return "[REDACTED_LOCAL_PATH]"
+        return REDACTED_LOCAL_PATH
     if isinstance(value, str):
         if field_name and "url" in field_name and value.startswith(("http://", "https://")):
             return redact_url(value)
-        if _looks_like_absolute_local_path(value):
-            return "[REDACTED_LOCAL_PATH]"
+        if looks_like_absolute_local_path(value):
+            return REDACTED_LOCAL_PATH
     return value
 
 
-def _looks_like_absolute_local_path(value: str) -> bool:
-    return bool(re.match(r"^(?:[A-Za-z]:[\\/]|\\\\)", value.strip()))
-
-
 def _safe_error_detail(exc: Exception) -> str:
-    detail = str(exc)
-    detail = re.sub(
-        r"(?i)(?:[A-Z]:[\\/]|\\\\)[^\r\n,;]*",
-        "[REDACTED_LOCAL_PATH]",
-        detail,
-    )
-    return detail
+    return redact_absolute_local_paths(str(exc))
 
 
 def _run_summary(repository: Any, run: Any) -> dict[str, Any]:

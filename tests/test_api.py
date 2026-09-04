@@ -1,10 +1,12 @@
 import json
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.api import create_app
+from analysis.models import DocumentRecord, SourceRecord, SyncResult
 
 
 def test_api_report_method_lineage_and_export(service, demo_request):
@@ -130,3 +132,41 @@ def test_document_review_required_returns_candidate_and_no_formal_evidence(tmp_p
     assert runtime.repository.list_runs() == []
     assert len(runtime.repository.list_source_candidates()) == 1
     assert runtime.blob_store.scan_orphans(()) == ()
+
+
+def test_sync_response_redacts_document_paths_on_every_host(service, monkeypatch):
+    source = SourceRecord(name="fixture source")
+    result = SyncResult(
+        ticker="600519",
+        scopes=["financials"],
+        provider_results={"official": "fixture"},
+        sources=[source],
+        documents=[
+            DocumentRecord(
+                ticker="600519",
+                title="fixture document",
+                archived_path="/home/alice/private/report.pdf",
+                text_path="/tmp/private/report.txt",
+                sha256="a" * 64,
+                source=source,
+            )
+        ],
+    )
+    application = create_app(service)
+    application.state.adapters = SimpleNamespace(
+        sync=lambda _ticker, _options: result
+    )
+    monkeypatch.setattr(service.storage, "save_sync_result", lambda _result: None)
+    client = TestClient(application)
+
+    response = client.post(
+        "/api/companies/600519/sync",
+        json={"scopes": ["financials"], "providers": ["official"]},
+    )
+
+    assert response.status_code == 200, response.text
+    document = response.json()["documents"][0]
+    assert document["archived_path"] == "[REDACTED_LOCAL_PATH]"
+    assert document["text_path"] == "[REDACTED_LOCAL_PATH]"
+    assert "/home/alice" not in response.text
+    assert "/tmp/private" not in response.text

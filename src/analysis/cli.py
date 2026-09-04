@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
@@ -29,7 +28,13 @@ from .acquisition.repository import (
     StorageBusyError,
 )
 from .acquisition.runtime import AcquisitionRuntime
-from .acquisition.security import is_sensitive_name, redact_url
+from .acquisition.security import (
+    REDACTED_LOCAL_PATH,
+    is_sensitive_name,
+    looks_like_absolute_local_path,
+    redact_absolute_local_paths,
+    redact_url,
+)
 from .acquisition.snapshots import SnapshotPipelineError
 
 
@@ -373,7 +378,7 @@ def _parse_date(value: str | None) -> date | None:
     return None if value is None else date.fromisoformat(value)
 
 
-def _safe_json_value(value: Any) -> Any:
+def _safe_json_value(value: Any, *, field_name: str | None = None) -> Any:
     if hasattr(value, "as_dict"):
         value = value.as_dict()
     elif hasattr(value, "model_dump"):
@@ -391,26 +396,27 @@ def _safe_json_value(value: Any) -> Any:
                 "owner_token",
                 "owner_token_hash",
                 "database_path",
+                "db_path",
                 "data_root",
             } or lowered.endswith("absolute_path") or is_sensitive_name(lowered):
                 continue
-            safe_item = _safe_json_value(item)
-            if (
-                isinstance(safe_item, str)
-                and "url" in lowered
-                and safe_item.startswith(("http://", "https://"))
-            ):
-                safe_item = redact_url(safe_item)
-            result[str(key)] = safe_item
+            result[str(key)] = _safe_json_value(item, field_name=lowered)
         return result
     if isinstance(value, (list, tuple)):
-        return [_safe_json_value(item) for item in value]
+        return [_safe_json_value(item, field_name=field_name) for item in value]
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, Path):
         return value.name
     if isinstance(value, (datetime, date)):
         return value.isoformat()
+    if isinstance(value, str):
+        if field_name and "url" in field_name and value.startswith(
+            ("http://", "https://")
+        ):
+            return redact_url(value)
+        if looks_like_absolute_local_path(value):
+            return REDACTED_LOCAL_PATH
     return value
 
 
@@ -437,11 +443,7 @@ def _emit_error(code: int, subtype: str, exc: Exception, json_output: bool) -> i
 
 
 def _safe_error_detail(exc: Exception) -> str:
-    return re.sub(
-        r"(?i)(?:[A-Z]:[\\/]|\\\\)[^\r\n,;]*",
-        "[REDACTED_LOCAL_PATH]",
-        str(exc),
-    )
+    return redact_absolute_local_paths(str(exc))
 
 
 if __name__ == "__main__":
