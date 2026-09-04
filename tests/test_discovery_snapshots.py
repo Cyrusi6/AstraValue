@@ -256,3 +256,29 @@ def test_no_data_requires_terminal_proof(tmp_path):
     with pytest.raises(DiscoveryValidationError) as error:
         no_data_is_proven([proof])
     assert error.value.reason_code == "terminal_proof_missing"
+
+
+def test_zero_declared_pages_accepts_one_terminal_empty_response_proof(tmp_path):
+    _, pipeline = _pipeline(tmp_path)
+
+    class ZeroPageValidator(Validator):
+        def validate_and_normalize_without_retention(self, envelope):
+            envelope.read_once()
+            return _page(rows=0, total=0, terminal=True, page_count=0)
+
+    proof = pipeline.process_without_retention(
+        envelope=BoundedDiscoveryEnvelope(
+            b'{"pageHelp":{"data":[],"pageCount":0,"total":0},"result":[]}',
+            max_bytes=100,
+            status_code=200,
+            mime_type="application/json",
+        ),
+        context=_context(),
+        validator=ZeroPageValidator(),
+        independent_replay_required=False,
+    ).proof
+
+    completion = validate_discovery_proof_set([proof])
+    assert proof.declared_page_count == 0
+    assert completion.page_count == 1
+    assert completion.proves_no_data is True

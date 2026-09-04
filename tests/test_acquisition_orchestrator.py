@@ -11,6 +11,7 @@ from analysis.acquisition.models import (
     AcquisitionAttemptEventType,
     AcquisitionMode,
     AcquisitionOutcome,
+    AcquisitionPlan,
     AcquisitionRunEventType,
 )
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
@@ -238,6 +239,70 @@ def test_retry_after_deadline_stops_without_unbounded_wait(tmp_path) -> None:
     assert len(adapter.query_calls) == 1
     assert result.outcome_counts == {"rate_limited": 1}
     assert result.material_gap_count == 1
+
+
+def test_material_gap_count_keeps_distinct_time_slices_in_one_partition(
+    tmp_path,
+) -> None:
+    adapter = ScenarioAdapter(
+        lambda work: envelope(url=work.url, status=503),
+        lambda response, work: discovery_result(work),
+    )
+    runtime = make_runtime(
+        tmp_path / "gap-time-slices",
+        adapter,
+        registry_path=DEFAULT_REGISTRY_PATH,
+    )
+    as_of = max(
+        definition.effective_at
+        for definition in runtime.loaded_registry.registry.definitions
+    ) + timedelta(seconds=1)
+    profile = runtime.build_profile(
+        "600519",
+        company_name="贵州茅台",
+        listing_date=(as_of - timedelta(days=800)).date(),
+    )
+    base = runtime.planner.plan(
+        profile,
+        mode=AcquisitionMode.BASELINE,
+        as_of=as_of,
+        storage_namespace_id=runtime.namespace_id,
+    )
+    plans = tuple(
+        item
+        for item in base.physical_query_plan_items
+        if item.source_definition_id == "sse.disclosures"
+        and item.query_id == "sse.periodic_report"
+    )
+    assert len(plans) >= 3
+    plan_ids = {item.plan_item_id for item in plans}
+    links = tuple(item for item in base.coverage_links if item.plan_item_id in plan_ids)
+    coverage_ids = {item.coverage_entry_id for item in links}
+    coverage = tuple(
+        item for item in base.coverage_entries if item.coverage_entry_id in coverage_ids
+    )
+    source_refs = tuple(
+        item
+        for item in base.run.source_definition_refs
+        if item.source_definition_id == "sse.disclosures"
+    )
+    plan = AcquisitionPlan(
+        run=base.run.model_copy(update={"source_definition_refs": source_refs}),
+        physical_query_plan_items=plans,
+        coverage_entries=coverage,
+        coverage_links=links,
+    )
+    runtime.orchestrator.persist_plan(plan)
+
+    try:
+        result = runtime.orchestrator.execute_run(plan.run.run_id)
+
+        assert result.material_gap_count == len(plans)
+        assert len(
+            runtime.repository.list_checkpoint_barriers(unresolved_only=True)
+        ) == len(plans)
+    finally:
+        runtime.close()
 
 
 def test_no_fake_timeout_when_read_error_precedes_deadline(tmp_path) -> None:

@@ -241,7 +241,10 @@ class SseAcquisitionAdapter(OfficialAcquisitionAdapter):
 
     def _normalize_row(self, row, index, work):
         path = str(row.get("URL") or "").strip()
-        title = str(row.get("TITLE") or "").strip()
+        # The currently observed company-statement response uses lowercase
+        # ``title``.  Keep the historical uppercase spelling readable because
+        # frozen v1.0-v1.2 discovery snapshots must remain replayable.
+        title = str(row.get("title") or row.get("TITLE") or "").strip()
         raw_date = str(row.get("SSEDATE") or row.get("ADDDATE") or "")[:10]
         if not path or not title or not raw_date:
             raise ValueError("sse row misses canonical fields")

@@ -12,6 +12,7 @@ from analysis.acquisition.registry import (
     DEFAULT_QUESTIONS_PATH,
     DEFAULT_REGISTRY_PATH,
     INITIAL_REGISTRY_PATH,
+    POLICY_APPROVED_REGISTRY_PATH,
     REVIEWED_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
@@ -25,6 +26,9 @@ INITIAL_REGISTRY_CANONICAL_SHA256 = (
 REVIEWED_REGISTRY_CANONICAL_SHA256 = (
     "0ed28a38172c96dae1c6dba0b4ff4d7134c10731d8ea170b33f7254a163fb696"
 )
+POLICY_APPROVED_REGISTRY_CANONICAL_SHA256 = (
+    "c1cf7ecaa627bee3e1b34c97276181c2c78dc06914c3b8e0b42cca0ad17eaa0a"
+)
 
 
 def _payload() -> dict:
@@ -37,6 +41,10 @@ def _initial_payload() -> dict:
 
 def _reviewed_payload() -> dict:
     return json.loads(REVIEWED_REGISTRY_PATH.read_text(encoding="utf-8"))
+
+
+def _policy_approved_payload() -> dict:
+    return json.loads(POLICY_APPROVED_REGISTRY_PATH.read_text(encoding="utf-8"))
 
 
 def _write(tmp_path: Path, payload: dict) -> Path:
@@ -58,7 +66,7 @@ def _complete_live_review(definition: dict, *, status: str) -> None:
 
 
 def _approved_moutai_ir_payload() -> dict:
-    payload = _payload()
+    payload = _policy_approved_payload()
     payload["registry_version"] = "1.2.0"
     ir = next(
         item
@@ -297,9 +305,10 @@ def test_reviewed_registry_hash_and_definitions_remain_immutable():
     } == {"1.1.0"}
 
 
-def test_default_v1_2_uses_internal_approval_for_three_sources_only():
-    loaded = SourceRegistryLoader().load_registry()
+def test_v1_2_registry_hash_and_internal_approval_remain_immutable():
+    loaded = SourceRegistryLoader().load_registry(POLICY_APPROVED_REGISTRY_PATH)
     assert loaded.registry.registry_version == "1.2.0"
+    assert loaded.content_hash == POLICY_APPROVED_REGISTRY_CANONICAL_SHA256
     approved_ids = {
         definition.source_definition_id
         for definition in loaded.registry.definitions
@@ -328,6 +337,31 @@ def test_default_v1_2_uses_internal_approval_for_three_sources_only():
     assert all(query.endpoint is None for query in ir.queries)
 
 
+def test_default_v1_3_changes_only_the_observed_sse_schema_contract():
+    previous = SourceRegistryLoader().load_registry(POLICY_APPROVED_REGISTRY_PATH)
+    current = SourceRegistryLoader().load_registry()
+
+    assert current.registry.registry_version == "1.3.0"
+    for source_id in ("cninfo.disclosures", "szse.disclosures", "moutai.ir"):
+        assert current.definition(source_id) == previous.definition(source_id)
+
+    old_sse = previous.definition("sse.disclosures")
+    sse = current.definition("sse.disclosures")
+    query = sse.queries[0]
+    assert sse.version == "1.3.0"
+    assert sse.initial_request_allowlist == old_sse.initial_request_allowlist
+    assert sse.redirect_allowlist == old_sse.redirect_allowlist
+    assert sse.rate_limit == old_sse.rate_limit
+    assert sse.retry_policy == old_sse.retry_policy
+    assert sse.license_policy == old_sse.license_policy
+    assert sse.incremental_policy.checkpoint_compatible_from_versions == ()
+    assert query.execution_key.endswith(".v1.3")
+    assert query.discovery_schema.schema_version == "2"
+    assert query.discovery_schema.resource_fields["title"] == (
+        "pageHelp.data[].title"
+    )
+
+
 def test_pre_v1_2_post_queries_keep_legacy_form_encoding():
     loaded = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
     cninfo = loaded.definition("cninfo.disclosures")
@@ -341,7 +375,7 @@ def test_pre_v1_2_post_queries_keep_legacy_form_encoding():
 
 
 def test_v1_2_request_contracts_are_explicit_and_source_specific():
-    loaded = SourceRegistryLoader().load_registry()
+    loaded = SourceRegistryLoader().load_registry(POLICY_APPROVED_REGISTRY_PATH)
     cninfo = loaded.definition("cninfo.disclosures")
     bootstrap = next(
         query for query in cninfo.queries if query.query_id == "cninfo.company_bootstrap"

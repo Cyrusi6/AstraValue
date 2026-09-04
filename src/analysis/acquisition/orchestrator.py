@@ -37,6 +37,7 @@ from .discovery import (
     DiscoveryValidationError,
     NormalizedDiscoveryPage,
     NormalizedResource,
+    _declared_page_count_matches,
 )
 from .models import (
     AcquisitionAttempt,
@@ -1890,7 +1891,9 @@ class AcquisitionOrchestrator:
         gap_keys = {
             (
                 barrier.source_definition_id,
+                barrier.source_definition_version,
                 barrier.partition_key,
+                barrier.retry_group_id,
                 barrier.work_position,
                 barrier.canonical_resource_id,
             )
@@ -1899,7 +1902,9 @@ class AcquisitionOrchestrator:
         gap_keys.update(
             (
                 row["source_definition_id"],
+                str(row["source_definition_version"]),
                 row["partition_key"],
+                row["retry_group_id"],
                 row["work_position"],
                 row.get("canonical_resource_id"),
             )
@@ -1910,7 +1915,9 @@ class AcquisitionOrchestrator:
                 gap_keys.add(
                     (
                         execution.plan_item.source_definition_id,
+                        execution.plan_item.source_definition_version,
                         execution.plan_item.partition_key,
+                        f"plan:{execution.plan_item.plan_item_id}",
                         "unaccounted",
                         None,
                     )
@@ -2879,14 +2886,7 @@ class AcquisitionOrchestrator:
                 "total_missing_for_empty",
                 "空结果缺少上游declared_total=0，不能判定no_data",
             )
-        declared_pages = {
-            item.declared_page_count
-            for item in ordered
-            if item.declared_page_count is not None
-        }
-        if declared_pages and (
-            len(declared_pages) != 1 or next(iter(declared_pages)) != len(ordered)
-        ):
+        if not _declared_page_count_matches(ordered):
             raise DiscoveryValidationError(
                 "page_count_mismatch", "discovery声明页数与proof不闭合"
             )

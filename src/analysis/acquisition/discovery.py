@@ -399,14 +399,7 @@ def validate_discovery_proof_set(
         raise DiscoveryValidationError(
             "terminal_proof_missing", "必须且只能由最后一页证明终止"
         )
-    declared_page_counts = {
-        item.declared_page_count
-        for item in ordered
-        if item.declared_page_count is not None
-    }
-    if len(declared_page_counts) > 1 or (
-        declared_page_counts and next(iter(declared_page_counts)) != len(ordered)
-    ):
+    if not _declared_page_count_matches(ordered):
         raise DiscoveryValidationError(
             "page_count_mismatch", "声明页数与已提交 proof 不闭合"
         )
@@ -436,6 +429,37 @@ def validate_discovery_proof_set(
 
 def no_data_is_proven(proofs: Sequence[DiscoveryProof]) -> bool:
     return validate_discovery_proof_set(proofs).proves_no_data
+
+
+def _declared_page_count_matches(proofs: Sequence[DiscoveryProof]) -> bool:
+    """Validate upstream page counts against physical response proofs.
+
+    Some list APIs declare ``pageCount=0`` for a successful zero-row query.
+    The client still had to receive and freeze one terminal response to prove
+    that fact, so zero declared result pages legitimately close with exactly
+    one empty terminal proof.  Every non-empty result keeps the ordinary
+    one-proof-per-declared-page rule.
+    """
+
+    declared = {
+        item.declared_page_count
+        for item in proofs
+        if item.declared_page_count is not None
+    }
+    if not declared:
+        return True
+    if len(declared) != 1:
+        return False
+    declared_count = next(iter(declared))
+    if declared_count == len(proofs):
+        return True
+    return bool(
+        declared_count == 0
+        and len(proofs) == 1
+        and proofs[0].terminal
+        and proofs[0].normalized_row_count == 0
+        and proofs[0].declared_total == 0
+    )
 
 
 def _validate_normalized_page(page: NormalizedDiscoveryPage) -> None:
