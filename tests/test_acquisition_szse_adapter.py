@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -37,11 +38,11 @@ def test_szse_schema_pagination_canonical_and_required_fetch() -> None:
                 {
                     "annId": "sz-1",
                     "title": "年度报告",
-                    "publishTime": "2026-09-03",
+                    "publishTime": "2026-09-03 15:30:45",
                     "attachPath": "/disc/disk03/finalpage.pdf",
                 }
             ],
-            "announceCount": 1,
+            "announceCount": "1",
         },
         ensure_ascii=False,
     ).encode("utf-8")
@@ -49,6 +50,10 @@ def test_szse_schema_pagination_canonical_and_required_fetch() -> None:
     assert result.terminal is True
     assert result.resources[0].canonical_resource_id == "szse:sz-1"
     assert result.resources[0].required_fetch is True
+    assert result.resources[0].published_at_precision == "instant"
+    assert result.resources[0].published_at == datetime(
+        2026, 9, 3, 7, 30, 45, tzinfo=timezone.utc
+    )
 
 
 def test_szse_rejects_unknown_response_shape() -> None:

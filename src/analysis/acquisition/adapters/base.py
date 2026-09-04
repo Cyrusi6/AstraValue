@@ -129,6 +129,11 @@ class QueryWork:
             raise ValueError("query identity and URL are required")
         if self.page < 1 or self.max_response_bytes <= 0:
             raise ValueError("invalid page or response bound")
+        body_count = int(self.json_body is not None) + int(self.form_body is not None)
+        if body_count > 1:
+            raise ValueError("query work cannot carry both JSON and form bodies")
+        if method in {"GET", "HEAD"} and body_count:
+            raise ValueError("GET/HEAD query work cannot carry a request body")
         object.__setattr__(self, "method", method)
 
 

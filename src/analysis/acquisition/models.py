@@ -91,7 +91,19 @@ def canonical_json_bytes(value: Any) -> bytes:
     """Return the single canonical UTF-8 representation used by registry/run hashes."""
 
     if isinstance(value, BaseModel):
+        model_name = type(value).__name__
         value = value.model_dump(mode="json", exclude_none=False)
+        # Registry/definition payloads are immutable audit inputs. Fields
+        # introduced by the v1.2 wire contract must not retroactively change
+        # the canonical hashes of already published v1.0/v1.1 definitions.
+        if model_name == "SourceDefinition":
+            _strip_pre_v1_2_query_contract(value)
+        elif model_name == "SourceRegistry":
+            for definition in (
+                *value.get("definitions", ()),
+                *value.get("legacy_definitions", ()),
+            ):
+                _strip_pre_v1_2_query_contract(definition)
     return json.dumps(
         value,
         ensure_ascii=False,
@@ -99,6 +111,18 @@ def canonical_json_bytes(value: Any) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _strip_pre_v1_2_query_contract(definition: dict[str, Any]) -> None:
+    """Apply the canonical serialization used before request contract v1.2."""
+
+    match = re.fullmatch(r"(\d+)\.(\d+)(?:\.\d+)?", str(definition.get("version", "")))
+    if match is None or (int(match.group(1)), int(match.group(2))) >= (1, 2):
+        return
+    for query in definition.get("queries", ()):
+        query.pop("request_encoding", None)
+        query.pop("fixed_headers", None)
+        query.pop("parameter_bindings", None)
 
 
 def canonical_json_sha256(value: Any) -> str:
@@ -531,6 +555,31 @@ class DiscoverySchemaPolicy(FrozenAcquisitionModel):
         return self
 
 
+class SourceParameterBinding(FrozenAcquisitionModel):
+    """Resolve one wire parameter from an earlier persisted discovery row."""
+
+    source_query_id: str
+    match_metadata_key: str
+    match_value_template: str = Field(min_length=1)
+    value_metadata_key: str
+    value_template: str = Field(default="{value}", min_length=1)
+
+    @field_validator(
+        "source_query_id",
+        "match_metadata_key",
+        "value_metadata_key",
+    )
+    @classmethod
+    def validate_ids(cls, value: str) -> str:
+        return _require_stable_id(value)
+
+    @model_validator(mode="after")
+    def validate_templates(self) -> "SourceParameterBinding":
+        if "{value}" not in self.value_template:
+            raise ValueError("parameter binding value_template必须包含{value}")
+        return self
+
+
 class SourceQueryDefinition(FrozenAcquisitionModel):
     query_id: str
     query_family: str
@@ -539,8 +588,11 @@ class SourceQueryDefinition(FrozenAcquisitionModel):
     adapter_operation: str
     question_ids: tuple[str, ...]
     request_method: Literal["GET", "POST"]
+    request_encoding: Literal["query", "form", "json"] = "query"
+    fixed_headers: dict[str, str] = Field(default_factory=dict)
     endpoint: str | None = None
     parameter_template: dict[str, Any] = Field(default_factory=dict)
+    parameter_bindings: dict[str, SourceParameterBinding] = Field(default_factory=dict)
     allowed_parameter_names: tuple[str, ...] = ()
     partition_key: str
     earliest_available_at: AwareDateTime | None = None
@@ -551,6 +603,18 @@ class SourceQueryDefinition(FrozenAcquisitionModel):
     fetch_policy: FetchPolicy
     canonical_id_rule: str = Field(min_length=1)
     smoke_enabled: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def infer_legacy_request_encoding(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "request_encoding" not in value:
+            method = str(value.get("request_method", "")).upper()
+            if method in {"GET", "POST"}:
+                return {
+                    **value,
+                    "request_encoding": "query" if method == "GET" else "form",
+                }
+        return value
 
     @field_validator("query_id", "query_family", "execution_key", "adapter_operation", "partition_key")
     @classmethod
@@ -576,6 +640,43 @@ class SourceQueryDefinition(FrozenAcquisitionModel):
         undeclared = set(self.parameter_template) - set(self.allowed_parameter_names)
         if undeclared:
             raise ValueError(f"parameter_template含未允许参数: {sorted(undeclared)}")
+        undeclared_bindings = set(self.parameter_bindings) - set(
+            self.allowed_parameter_names
+        )
+        if undeclared_bindings:
+            raise ValueError(
+                f"parameter_bindings含未允许参数: {sorted(undeclared_bindings)}"
+            )
+        duplicated = set(self.parameter_template) & set(self.parameter_bindings)
+        if duplicated:
+            raise ValueError(
+                f"参数不得同时由template和discovery binding提供: {sorted(duplicated)}"
+            )
+        if self.request_method == "GET" and self.request_encoding != "query":
+            raise ValueError("GET query只能使用query参数编码")
+        seen_headers: set[str] = set()
+        forbidden_headers = {
+            "authorization",
+            "cookie",
+            "proxy-authorization",
+            "x-api-key",
+            "x-auth-token",
+            "host",
+            "content-length",
+        }
+        for raw_name, raw_value in self.fixed_headers.items():
+            name = str(raw_name).strip()
+            normalized = name.lower()
+            if (
+                not name
+                or normalized in seen_headers
+                or normalized in forbidden_headers
+                or not re.fullmatch(r"[A-Za-z0-9!#$%&'*+.^_`|~-]+", name)
+            ):
+                raise ValueError(f"fixed_headers包含禁止或重复的header: {raw_name}")
+            if not isinstance(raw_value, str) or not raw_value or "\r" in raw_value or "\n" in raw_value:
+                raise ValueError(f"fixed_headers值非法: {raw_name}")
+            seen_headers.add(normalized)
         return self
 
 
@@ -673,7 +774,10 @@ class SourceDefinition(FrozenAcquisitionModel):
             raise ValueError("同一来源版本execution_key必须唯一")
         if len(set(self.aliases)) != len(self.aliases):
             raise ValueError("来源alias不得重复")
-        for query in self.queries:
+        query_ordinals = {
+            query.query_id: ordinal for ordinal, query in enumerate(self.queries)
+        }
+        for query_ordinal, query in enumerate(self.queries):
             if query.endpoint is None:
                 if self.enabled:
                     raise ValueError("启用来源的query必须具有固定endpoint")
@@ -687,6 +791,14 @@ class SourceDefinition(FrozenAcquisitionModel):
                 and self.retry_policy.max_attempts > 1
             ):
                 raise ValueError(f"非声明幂等方法不得配置自动重试: {query.query_id}")
+            for binding in query.parameter_bindings.values():
+                source_ordinal = query_ordinals.get(binding.source_query_id)
+                if source_ordinal is None:
+                    raise ValueError(
+                        f"parameter binding引用未知query: {binding.source_query_id}"
+                    )
+                if source_ordinal >= query_ordinal:
+                    raise ValueError("parameter binding只能引用此前执行的discovery query")
         if "business_model" in self.scopes:
             if self.scope_version != "v1":
                 raise ValueError("business_model来源必须声明scope_version=v1")
@@ -971,6 +1083,9 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     execution_key: str
     attempt_kind: AttemptKind = AttemptKind.DISCOVERY
     request_method: Literal["GET", "POST"]
+    request_encoding: Literal["query", "form", "json"] = "query"
+    fixed_headers: dict[str, str] = Field(default_factory=dict)
+    parameter_binding_names: tuple[str, ...] = ()
     endpoint: str
     normalized_parameters: dict[str, Any] = Field(default_factory=dict)
     partition_key: str
@@ -978,6 +1093,18 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     ordinal: int = Field(ge=0)
     parent_plan_item_id: str | None = None
     discovered_resource_id: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def infer_legacy_request_encoding(cls, value: Any) -> Any:
+        if isinstance(value, dict) and "request_encoding" not in value:
+            method = str(value.get("request_method", "")).upper()
+            if method in {"GET", "POST"}:
+                return {
+                    **value,
+                    "request_encoding": "query" if method == "GET" else "form",
+                }
+        return value
 
     @field_validator("endpoint")
     @classmethod
@@ -1322,6 +1449,7 @@ class DiscoveredResource(FrozenAcquisitionModel):
     row_hash: str
     required_fetch: bool
     expected_mime_types: tuple[str, ...] = ()
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("resource_url")
     @classmethod
@@ -1941,6 +2069,7 @@ __all__ = [
     "SourceIncrementalPolicy",
     "SourceLicensePolicy",
     "SourceLiveAccessReview",
+    "SourceParameterBinding",
     "SourcePolicyStatus",
     "SourceRateLimitPolicy",
     "SourceRegistry",

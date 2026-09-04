@@ -14,7 +14,7 @@
 
 所有会写入或联网的采集命令都必须显式提供匹配的 `--db` 和 `--data-root`。首次运行使用 `baseline` 完成从证据锚点开始的历史计划；有安全 checkpoint 后使用 `incremental`，它按来源水位线和固定 overlap window 检查新增及变化；缺口、迟到修订、完整性问题或不兼容注册表变化使用 `reconcile`。调用方不能用时间或问题筛选缩小 production baseline 后仍声称完整。
 
-当前默认注册表 `business_model_sources.v1.1.json` 已完成四个 v1 来源的 Codex 辅助逐项技术审核；这不构成人工法律签署或联网批准。审核结论均为 `live_access_review=rejected`，并保持 `pending_policy/disabled`、无 endpoint、无 allowlist。以下命令只能冻结静态计划和覆盖，不会发起真实 HTTP；只有后续补齐许可与准确协议、再由有权人工复核人签署带时间和依据的新来源定义版本并标记 `approved` 后，才允许联网。审核依据见 [`docs/acquisition/source-access-policy-review-2026-09-04.md`](docs/acquisition/source-access-policy-review-2026-09-04.md)。自动化门已由提交 `72d446f739a221457262177fc561a65bb4d4b9ad` 对应的 [`verify` run 33845864024](https://github.com/Cyrusi6/AstraValue/actions/runs/33845864024) 验证为 `passed`；真实联网门与人工黄金门仍均为 `pending`。
+当前默认注册表为 `business_model_sources.v1.2.json`。AstraValue 项目创作者/负责人已在“个人、本地、低频、非商业研究”范围内，对巨潮、SSE、SZSE 的指定公开官方端点完成项目内部访问策略审批，并允许合规的本地原文归档、派生文本和冻结 manifest 后的 Codex/LLM 处理；贵州茅台 IR 因协议与许可边界未闭合，继续保持 `pending_policy/disabled`、空 endpoint 和零 I/O。该审批不是来源方授权或法律意见，禁止出售、再分发、商业数据服务以及任何登录、验证码、付费墙、challenge 或许可限制绕过。技术依据与内部审批范围分别见 [`source-access-policy-review-2026-09-04.md`](docs/acquisition/source-access-policy-review-2026-09-04.md) 和 [`source-access-policy-approval-2026-09-04.md`](docs/acquisition/source-access-policy-approval-2026-09-04.md)。v1.0/v1.1 只为历史读取与 hash 兼容保留，不能重新获得联网或正式证据权限。当前 v1.2 自动化门等待本分支干净 CI，真实联网门与人工黄金门也仍为 `pending`；既有 v1.1 绿色 CI 不替代 v1.2 验证。
 
 兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
 

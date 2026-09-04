@@ -141,20 +141,60 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
     adapter_key = "cninfo"
 
     def _rows_and_page(self, payload: Any, work: QueryWork):
+        if work.query_family == "company_bootstrap":
+            if not isinstance(payload, dict) or not isinstance(
+                payload.get("stockList"), list
+            ):
+                raise ValueError("cninfo stockList schema mismatch")
+            ticker = str(work.context.get("ticker") or "")
+            rows = [
+                item
+                for item in payload["stockList"]
+                if isinstance(item, dict) and str(item.get("code") or "") == ticker
+            ]
+            return rows, len(rows), 1, True, None
         if not isinstance(payload, dict) or not isinstance(payload.get("announcements"), list):
             raise ValueError("cninfo announcements schema mismatch")
         rows = payload["announcements"]
         if not all(isinstance(item, dict) for item in rows):
             raise ValueError("cninfo announcement row schema mismatch")
-        if "totalRecordNum" not in payload:
-            raise ValueError("cninfo totalRecordNum is required for termination proof")
-        total = int(payload["totalRecordNum"])
+        total_path = str(work.context.get("total_path") or "totalRecordNum")
+        if total_path not in payload:
+            raise ValueError(
+                f"cninfo {total_path} is required for termination proof"
+            )
+        total = int(payload[total_path])
         page_size = int(work.context.get("page_size") or max(1, len(rows)))
         page_count = (total + page_size - 1) // page_size if total else 1
         terminal = not rows or work.page >= page_count
         return rows, total, page_count, terminal, None if terminal else str(work.page + 1)
 
     def _normalize_row(self, row, index, work):
+        if work.query_family == "company_bootstrap":
+            ticker = str(row.get("code") or "").strip()
+            org_id = str(row.get("orgId") or "").strip()
+            title = str(row.get("zwjc") or ticker).strip()
+            if not ticker or not org_id:
+                raise ValueError("cninfo stock row misses code/orgId")
+            return _resource(
+                canonical_id=f"cninfo-org:{ticker}:{org_id}",
+                upstream_id=f"cninfo-company:{ticker}",
+                title=title,
+                url=work.url,
+                raw=None,
+                published=None,
+                precision="unknown",
+                timezone_name="Asia/Shanghai",
+                row=row,
+                row_locator=f"page:{work.page}/stockList:{index}",
+                required_fetch=False,
+                metadata={
+                    "ticker": ticker,
+                    "org_id": org_id,
+                    "wire_stock": f"{ticker},{org_id}",
+                    "company_name": title,
+                },
+            )
         announcement_id = str(row.get("announcementId") or "").strip()
         adjunct = str(row.get("adjunctUrl") or "").strip()
         title = str(row.get("announcementTitle") or "").strip()
@@ -178,6 +218,7 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
             row_locator=f"page:{work.page}/announcements:{index}",
             required_fetch=str(work.context.get("fetch_policy", "required_attachment"))
             == "required_attachment",
+            metadata={"expected_mime_types": ("application/pdf",)},
         )
 
 
@@ -219,6 +260,7 @@ class SseAcquisitionAdapter(OfficialAcquisitionAdapter):
             row_locator=f"page:{work.page}/pageHelp.data:{index}",
             required_fetch=str(work.context.get("fetch_policy", "required_attachment"))
             == "required_attachment",
+            metadata={"expected_mime_types": ("application/pdf",)},
         )
 
 
@@ -242,11 +284,11 @@ class SzseAcquisitionAdapter(OfficialAcquisitionAdapter):
     def _normalize_row(self, row, index, work):
         path = str(row.get("attachPath") or "").strip()
         title = str(row.get("title") or "").strip()
-        raw_date = str(row.get("publishTime") or "")[:10]
+        raw_date = str(row.get("publishTime") or "").strip()
         announcement_id = str(row.get("annId") or row.get("id") or "").strip()
         if not path or not title or not raw_date or not announcement_id:
             raise ValueError("szse row misses canonical fields")
-        published = _conservative_date_boundary(raw_date)
+        published, precision = _parse_china_published(raw_date)
         return _resource(
             canonical_id=f"szse:{announcement_id}",
             upstream_id=f"disclosure:{announcement_id}",
@@ -254,12 +296,13 @@ class SzseAcquisitionAdapter(OfficialAcquisitionAdapter):
             url=path if path.startswith("https://") else urljoin("https://disc.static.szse.cn/download/", path.lstrip("/")),
             raw=raw_date,
             published=published,
-            precision="date",
+            precision=precision,
             timezone_name="Asia/Shanghai",
             row=row,
             row_locator=f"page:{work.page}/data:{index}",
             required_fetch=str(work.context.get("fetch_policy", "required_attachment"))
             == "required_attachment",
+            metadata={"expected_mime_types": ("application/pdf",)},
         )
 
 
@@ -315,6 +358,7 @@ class MoutaiIrAcquisitionAdapter(OfficialAcquisitionAdapter):
             row_locator=f"page:{work.page}/items:{index}",
             required_fetch=str(work.context.get("fetch_policy", "required_attachment"))
             == "required_attachment",
+            metadata={"expected_mime_types": ("application/pdf", "text/html")},
         )
 
 
@@ -331,6 +375,7 @@ def _resource(
     row: Mapping[str, Any],
     row_locator: str,
     required_fetch: bool,
+    metadata: Mapping[str, Any] | None = None,
 ) -> NormalizedResource:
     encoded = json.dumps(
         row,
@@ -351,7 +396,7 @@ def _resource(
         row_locator=row_locator,
         row_hash=hashlib.sha256(encoded).hexdigest(),
         required_fetch=required_fetch,
-        metadata={},
+        metadata=dict(metadata or {}),
     )
 
 
@@ -359,3 +404,16 @@ def _conservative_date_boundary(value: str) -> datetime:
     parsed = date.fromisoformat(value)
     next_day = parsed.fromordinal(parsed.toordinal() + 1)
     return datetime.combine(next_day, time.min, tzinfo=CHINA_TZ).astimezone(timezone.utc)
+
+
+def _parse_china_published(value: str) -> tuple[datetime, str]:
+    normalized = value.strip().replace("/", "-")
+    if len(normalized) <= 10:
+        return _conservative_date_boundary(normalized[:10]), "date"
+    try:
+        parsed = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+    except ValueError:
+        return _conservative_date_boundary(normalized[:10]), "date"
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=CHINA_TZ)
+    return parsed.astimezone(timezone.utc), "instant"

@@ -258,6 +258,24 @@
         }
       }
     },
+    "parameter_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_query_id",
+        "match_metadata_key",
+        "match_value_template",
+        "value_metadata_key",
+        "value_template"
+      ],
+      "properties": {
+        "source_query_id": {"type": "string", "minLength": 1},
+        "match_metadata_key": {"type": "string", "minLength": 1},
+        "match_value_template": {"type": "string", "minLength": 1},
+        "value_metadata_key": {"type": "string", "minLength": 1},
+        "value_template": {"type": "string", "minLength": 1}
+      }
+    },
     "query": {
       "type": "object",
       "additionalProperties": false,
@@ -290,8 +308,18 @@
         "adapter_operation": {"type": "string", "minLength": 1},
         "question_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
         "request_method": {"enum": ["GET", "POST"]},
+        "request_encoding": {"enum": ["query", "form", "json"]},
+        "fixed_headers": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]+$"},
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
         "endpoint": {"type": ["string", "null"], "format": "uri"},
         "parameter_template": {"type": "object"},
+        "parameter_bindings": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/parameter_binding"}
+        },
         "allowed_parameter_names": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "partition_key": {"type": "string", "minLength": 1},
         "earliest_available_at": {"type": ["string", "null"], "format": "date-time"},

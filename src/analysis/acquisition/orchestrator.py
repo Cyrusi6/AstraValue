@@ -377,6 +377,7 @@ def _normalized_page(result: AdapterDiscoveryResult | Any) -> NormalizedDiscover
                 if isinstance(row.metadata, Mapping)
                 else ()
             ),
+            metadata=(dict(row.metadata) if isinstance(row.metadata, Mapping) else {}),
         )
         for row in result.resources
     )
@@ -2164,7 +2165,16 @@ class AcquisitionOrchestrator:
             request_summary={
                 "method": plan_item.request_method,
                 "endpoint": plan_item.endpoint,
-                "parameter_names": tuple(sorted(plan_item.normalized_parameters)),
+                "request_encoding": plan_item.request_encoding,
+                "parameter_names": tuple(
+                    sorted(
+                        {
+                            *plan_item.normalized_parameters,
+                            *plan_item.parameter_binding_names,
+                        }
+                    )
+                ),
+                "fixed_header_names": tuple(sorted(plan_item.fixed_headers)),
             },
             started_at=_utc(self._now()),
             supersedes_attempt_id=(
@@ -2252,6 +2262,8 @@ class AcquisitionOrchestrator:
             execution_key=stable_acquisition_id("fetch-exec", identity),
             attempt_kind=AttemptKind.FETCH,
             request_method="GET",
+            request_encoding="query",
+            fixed_headers=parent.fixed_headers,
             endpoint=resource.resource_url,
             normalized_parameters={},
             partition_key=parent.partition_key,
@@ -2291,16 +2303,34 @@ class AcquisitionOrchestrator:
     ) -> QueryWork:
         parameters = dict(plan_item.normalized_parameters)
         pagination = query.pagination
-        if pagination.strategy == "page" and pagination.page_parameter:
-            parameters[pagination.page_parameter] = page
-        elif pagination.strategy == "cursor" and pagination.cursor_parameter and cursor:
-            parameters[pagination.cursor_parameter] = cursor
+        if plan_item.attempt_kind == AttemptKind.DISCOVERY:
+            parameters.update(
+                self._resolve_query_parameter_bindings(run, plan_item, query)
+            )
+            if pagination.strategy == "page" and pagination.page_parameter:
+                parameters[pagination.page_parameter] = page
+                if pagination.page_size_parameter:
+                    parameters[pagination.page_size_parameter] = pagination.page_size
+            elif (
+                pagination.strategy == "cursor"
+                and pagination.cursor_parameter
+                and cursor
+            ):
+                parameters[pagination.cursor_parameter] = cursor
+        fetch_policy = (
+            "metadata_only"
+            if run.run_kind == AcquisitionRunKind.SMOKE
+            else query.fetch_policy.value
+        )
         context = {
             "deadline_monotonic": deadline,
             "page_size": pagination.page_size,
-            "fetch_policy": query.fetch_policy.value,
+            "fetch_policy": fetch_policy,
+            "ticker": run.ticker,
+            "items_path": query.pagination.items_path,
+            "total_path": query.pagination.total_path,
         }
-        is_get = plan_item.request_method == "GET"
+        encoding = plan_item.request_encoding
         return QueryWork(
             source_definition_id=definition.source_definition_id,
             source_definition_version=definition.version,
@@ -2311,8 +2341,10 @@ class AcquisitionOrchestrator:
             url=url or plan_item.endpoint,
             page=page,
             cursor=cursor,
-            params=(parameters if is_get else {}),
-            form_body=(None if is_get else parameters),
+            params=(parameters if encoding == "query" else {}),
+            json_body=(parameters if encoding == "json" else None),
+            form_body=(parameters if encoding == "form" else None),
+            headers=dict(plan_item.fixed_headers),
             expected_mime_types=tuple(query.discovery_schema.response_mime_types),
             max_response_bytes=definition.response_limits.max_response_bytes,
             parser_schema_version=query.discovery_schema.schema_version,
@@ -2324,6 +2356,59 @@ class AcquisitionOrchestrator:
                 heartbeat,
             ),
         )
+
+    def _resolve_query_parameter_bindings(
+        self,
+        run: AcquisitionRun,
+        plan_item: PhysicalQueryPlanItem,
+        query: SourceQueryDefinition,
+    ) -> dict[str, Any]:
+        """Resolve frozen wire parameters only from earlier persisted proof rows."""
+
+        if not query.parameter_bindings:
+            return {}
+        source_plans = [
+            item
+            for item in self.repository.list_physical_query_plan_items(run.run_id)
+            if item.source_definition_id == plan_item.source_definition_id
+            and str(item.source_definition_version)
+            == str(plan_item.source_definition_version)
+        ]
+        resolved: dict[str, Any] = {}
+        for parameter_name, binding in sorted(query.parameter_bindings.items()):
+            expected = binding.match_value_template.replace("{ticker}", run.ticker)
+            values: list[Any] = []
+            for source_plan in source_plans:
+                if source_plan.query_id != binding.source_query_id:
+                    continue
+                for source_attempt in self.repository.list_attempts(
+                    plan_item_id=source_plan.plan_item_id
+                ):
+                    for observation in self.repository.list_discovery_observations(
+                        source_attempt.attempt_id
+                    ):
+                        for resource in self.repository.list_discovered_resources(
+                            observation.observation_id
+                        ):
+                            metadata = dict(resource.metadata)
+                            if str(metadata.get(binding.match_metadata_key, "")) != expected:
+                                continue
+                            if binding.value_metadata_key not in metadata:
+                                continue
+                            values.append(metadata[binding.value_metadata_key])
+            unique_values = list(dict.fromkeys(str(value) for value in values))
+            if len(unique_values) != 1:
+                raise DiscoveryValidationError(
+                    "parameter_binding_missing",
+                    "无法从已持久化discovery proof唯一解析请求参数"
+                    f" {parameter_name} ({binding.source_query_id})",
+                )
+            resolved[parameter_name] = (
+                binding.value_template.replace("{ticker}", run.ticker).replace(
+                    "{value}", unique_values[0]
+                )
+            )
+        return resolved
 
     def _transport_execution_capability(
         self,

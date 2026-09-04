@@ -50,6 +50,7 @@ class NormalizedResource:
     published_at_precision: PublishedAtPrecision = PublishedAtPrecision.UNKNOWN
     row_locator: str | None = None
     expected_mime_types: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -463,6 +464,7 @@ def _build_discovered_resource(
         "published_at": row.published_at.isoformat() if row.published_at else None,
         "published_at_precision": row.published_at_precision.value,
         "row_locator": row.row_locator,
+        "metadata": dict(row.metadata or {}),
         "ordinal": ordinal,
     }
     row_hash = hashlib.sha256(
@@ -494,6 +496,7 @@ def _build_discovered_resource(
         row_hash=row_hash,
         required_fetch=row.required_fetch,
         expected_mime_types=row.expected_mime_types,
+        metadata=dict(row.metadata or {}),
     )
 
 

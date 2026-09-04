@@ -32,7 +32,7 @@ def test_sse_date_precision_uses_next_local_day_boundary() -> None:
         query_family="periodic_report",
         execution_key="periodic",
         method="GET",
-        url="https://query.sse.com.cn/security/stock/queryCompanyBulletin.do",
+        url="https://query.sse.com.cn/security/stock/queryCompanyStatementNew.do",
         max_response_bytes=50_000,
     )
     adapter = AcquisitionAdapterFactory().create(
@@ -43,6 +43,7 @@ def test_sse_date_precision_uses_next_local_day_boundary() -> None:
     resource = adapter.parse_retained_discovery("snapshot", work).resources[0]
     assert resource.published_at_precision == "date"
     assert resource.published_at == datetime(2026, 9, 3, 16, 0, tzinfo=timezone.utc)
+    assert resource.metadata == {"expected_mime_types": ("application/pdf",)}
 
 
 def test_sse_challenge_is_restricted_not_empty_data() -> None:

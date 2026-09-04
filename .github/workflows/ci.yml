@@ -19,6 +19,13 @@ jobs:
       - name: Validate current acquisition source registry
         run: >-
           python scripts/validate_source_registry.py
+          --registry config/data_sources/business_model_sources.v1.2.json
+          --questions config/data_sources/business_model_questions.v1.json
+          --expect-business-model-v1 4
+          --require-plan-traceability
+      - name: Validate reviewed acquisition source registry compatibility
+        run: >-
+          python scripts/validate_source_registry.py
           --registry config/data_sources/business_model_sources.v1.1.json
           --questions config/data_sources/business_model_questions.v1.json
           --expect-business-model-v1 4

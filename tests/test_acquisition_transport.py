@@ -61,9 +61,13 @@ def _definition(
 def test_pending_manual_review_blocks_v1_source_before_dns_gate_and_send(
     tmp_path, source_id
 ) -> None:
-    from analysis.acquisition.registry import SourceRegistryLoader
+    from analysis.acquisition.registry import REVIEWED_REGISTRY_PATH, SourceRegistryLoader
 
-    definition = SourceRegistryLoader().load_registry().definition(source_id)
+    definition = (
+        SourceRegistryLoader()
+        .load_registry(REVIEWED_REGISTRY_PATH)
+        .definition(source_id)
+    )
     query = definition.queries[0]
     rejected_urls = {
         "cninfo.disclosures": "https://www.cninfo.com.cn/new/hisAnnouncement/query",

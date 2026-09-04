@@ -27,7 +27,8 @@ from .models import (
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SOURCE_CONFIG_DIR = PROJECT_ROOT / "config" / "data_sources"
 INITIAL_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.json"
-DEFAULT_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.1.json"
+REVIEWED_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.1.json"
+DEFAULT_REGISTRY_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_sources.v1.2.json"
 DEFAULT_QUESTIONS_PATH = DEFAULT_SOURCE_CONFIG_DIR / "business_model_questions.v1.json"
 
 SUPPORTED_REGISTRY_SCHEMA_VERSION = "1.0.0"
@@ -545,6 +546,7 @@ __all__ = [
     "BUSINESS_MODEL_V1_SOURCE_IDS",
     "DEFAULT_QUESTIONS_PATH",
     "DEFAULT_REGISTRY_PATH",
+    "REVIEWED_REGISTRY_PATH",
     "INITIAL_REGISTRY_PATH",
     "KNOWN_ADAPTER_KEYS",
     "LoadedQuestionSet",

@@ -12,6 +12,7 @@ from analysis.acquisition.registry import (
     DEFAULT_QUESTIONS_PATH,
     DEFAULT_REGISTRY_PATH,
     INITIAL_REGISTRY_PATH,
+    REVIEWED_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
 )
@@ -21,6 +22,9 @@ from analysis.acquisition.runtime import AcquisitionRuntime
 INITIAL_REGISTRY_CANONICAL_SHA256 = (
     "51e8af5e394b8ca82a073bf7fdf4de19ee03fcf07c47dbd0f813e3a74856c084"
 )
+REVIEWED_REGISTRY_CANONICAL_SHA256 = (
+    "0ed28a38172c96dae1c6dba0b4ff4d7134c10731d8ea170b33f7254a163fb696"
+)
 
 
 def _payload() -> dict:
@@ -29,6 +33,10 @@ def _payload() -> dict:
 
 def _initial_payload() -> dict:
     return json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
+
+
+def _reviewed_payload() -> dict:
+    return json.loads(REVIEWED_REGISTRY_PATH.read_text(encoding="utf-8"))
 
 
 def _write(tmp_path: Path, payload: dict) -> Path:
@@ -193,7 +201,7 @@ def test_registry_license_policy_fails_closed_for_enabled_source(tmp_path):
 
 
 def test_pending_policy_source_cannot_retain_network_authority(tmp_path):
-    payload = _payload()
+    payload = _reviewed_payload()
     definition = payload["definitions"][0]
     definition["live_access_review"].update(
         {
@@ -216,8 +224,8 @@ def test_pending_policy_source_cannot_retain_network_authority(tmp_path):
         SourceRegistryLoader().load_registry(_write(tmp_path, payload))
 
 
-def test_v1_live_access_review_records_rejected_9_1_decisions_in_new_versions():
-    loaded = SourceRegistryLoader().load_registry()
+def test_v1_1_records_rejected_technical_review_without_network_authority():
+    loaded = SourceRegistryLoader().load_registry(REVIEWED_REGISTRY_PATH)
     statuses = {
         source_id: loaded.definition(source_id).live_access_review.status.value
         for source_id in (
@@ -253,7 +261,7 @@ def test_v1_live_access_review_records_rejected_9_1_decisions_in_new_versions():
 
 def test_review_registry_preserves_unchanged_legacy_definition_versions():
     initial = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
-    reviewed = SourceRegistryLoader().load_registry(DEFAULT_REGISTRY_PATH)
+    reviewed = SourceRegistryLoader().load_registry(REVIEWED_REGISTRY_PATH)
     initial_legacy = {
         definition.source_definition_id: definition.model_dump(mode="json")
         for definition in initial.registry.legacy_definitions
@@ -280,6 +288,108 @@ def test_initial_registry_and_definitions_remain_immutable_pending_versions():
         assert definition.live_access_review.status.value == "pending"
 
 
+def test_reviewed_registry_hash_and_definitions_remain_immutable():
+    loaded = SourceRegistryLoader().load_registry(REVIEWED_REGISTRY_PATH)
+    assert loaded.registry.registry_version == "1.1.0"
+    assert loaded.content_hash == REVIEWED_REGISTRY_CANONICAL_SHA256
+    assert {
+        definition.version for definition in loaded.registry.definitions
+    } == {"1.1.0"}
+
+
+def test_default_v1_2_uses_internal_approval_for_three_sources_only():
+    loaded = SourceRegistryLoader().load_registry()
+    assert loaded.registry.registry_version == "1.2.0"
+    approved_ids = {
+        definition.source_definition_id
+        for definition in loaded.registry.definitions
+        if definition.live_access_review.status.value == "approved"
+    }
+    assert approved_ids == {
+        "cninfo.disclosures",
+        "sse.disclosures",
+        "szse.disclosures",
+    }
+    for source_id in approved_ids:
+        definition = loaded.definition(source_id)
+        assert definition.version == "1.2.0"
+        assert definition.enabled is True
+        assert definition.policy_status.value == "enabled"
+        assert definition.license_policy.automated_access.value == "allowed"
+        assert definition.license_policy.archive_original.value == "allowed"
+        assert definition.license_policy.save_derived_text.value == "allowed"
+        assert definition.license_policy.llm_processing.value == "allowed"
+    ir = loaded.definition("moutai.ir")
+    assert ir.version == "1.2.0"
+    assert ir.live_access_review.status.value == "rejected"
+    assert ir.policy_status.value == "pending_policy"
+    assert ir.enabled is False
+    assert ir.initial_request_allowlist == ()
+    assert all(query.endpoint is None for query in ir.queries)
+
+
+def test_pre_v1_2_post_queries_keep_legacy_form_encoding():
+    loaded = SourceRegistryLoader().load_registry(INITIAL_REGISTRY_PATH)
+    cninfo = loaded.definition("cninfo.disclosures")
+    post_query = next(
+        query for query in cninfo.queries if query.request_method == "POST"
+    )
+    assert post_query.request_encoding == "form"
+    sse = loaded.definition("sse.disclosures")
+    get_query = next(query for query in sse.queries if query.request_method == "GET")
+    assert get_query.request_encoding == "query"
+
+
+def test_v1_2_request_contracts_are_explicit_and_source_specific():
+    loaded = SourceRegistryLoader().load_registry()
+    cninfo = loaded.definition("cninfo.disclosures")
+    bootstrap = next(
+        query for query in cninfo.queries if query.query_id == "cninfo.company_bootstrap"
+    )
+    periodic = next(
+        query for query in cninfo.queries if query.query_id == "cninfo.periodic_report"
+    )
+    assert bootstrap.request_method == "GET"
+    assert bootstrap.request_encoding == "query"
+    assert periodic.request_method == "POST"
+    assert periodic.request_encoding == "form"
+    assert periodic.pagination.total_path == "totalAnnouncement"
+    assert periodic.parameter_bindings["stock"].source_query_id == (
+        "cninfo.company_bootstrap"
+    )
+
+    sse = loaded.definition("sse.disclosures").queries[0]
+    assert sse.endpoint.endswith("/queryCompanyStatementNew.do")
+    assert sse.request_encoding == "query"
+    assert sse.parameter_template["reportType2"] == "DQBG"
+
+    szse = loaded.definition("szse.disclosures")
+    assert {query.request_encoding for query in szse.queries} == {"json"}
+    assert all(
+        isinstance(query.parameter_template["stock"], list)
+        for query in szse.queries
+    )
+
+
+def test_v1_2_fixed_headers_reject_credentials_before_network(tmp_path):
+    payload = _payload()
+    payload["definitions"][0]["queries"][0]["fixed_headers"][
+        "Authorization"
+    ] = "Bearer fixture-secret"
+    with pytest.raises(SourceRegistryError, match="fixed_headers"):
+        SourceRegistryLoader().load_registry(_write(tmp_path, payload))
+
+
+def test_parameter_binding_can_only_reference_an_earlier_query(tmp_path):
+    payload = _payload()
+    periodic = payload["definitions"][0]["queries"][1]
+    periodic["parameter_bindings"]["stock"]["source_query_id"] = (
+        "cninfo.periodic_report"
+    )
+    with pytest.raises(SourceRegistryError, match="此前执行"):
+        SourceRegistryLoader().load_registry(_write(tmp_path, payload))
+
+
 def test_live_access_approval_requires_complete_9_1_checklist_and_signoff(tmp_path):
     payload = _payload()
     review = payload["definitions"][0]["live_access_review"]
@@ -303,7 +413,7 @@ def test_live_access_approval_requires_complete_9_1_checklist_and_signoff(tmp_pa
 
 
 def test_live_access_rejection_requires_complete_checklist_and_signoff(tmp_path):
-    payload = _payload()
+    payload = _reviewed_payload()
     review = payload["definitions"][0]["live_access_review"]
     review["reviewed_by"] = None
     with pytest.raises(SourceRegistryError, match="拒绝必须记录复核人"):

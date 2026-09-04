@@ -66,7 +66,14 @@ def _json_default(value: Any) -> Any:
 
 def _payload(value: Any) -> dict[str, Any]:
     if hasattr(value, "model_dump"):
-        result = value.model_dump(mode="json")
+        if type(value).__name__ in {"SourceRegistry", "SourceDefinition"}:
+            # Preserve the historical canonical payload for immutable v1.0/
+            # v1.1 registry rows even after the v1.2 query model gains fields.
+            from .models import canonical_json_bytes
+
+            result = json.loads(canonical_json_bytes(value))
+        else:
+            result = value.model_dump(mode="json")
     elif isinstance(value, Mapping):
         result = dict(value)
     else:

@@ -18,6 +18,7 @@ from analysis.acquisition.planner import AcquisitionPlanner, AcquisitionPlanning
 from analysis.acquisition.registry import (
     DEFAULT_REGISTRY_PATH,
     INITIAL_REGISTRY_PATH,
+    REVIEWED_REGISTRY_PATH,
     SourceRegistryLoader,
 )
 
@@ -44,7 +45,7 @@ def _planner() -> AcquisitionPlanner:
 def test_default_reviewed_registry_fails_closed_with_static_coverage_only():
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
-    registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
+    registry = loader.load_registry(REVIEWED_REGISTRY_PATH, question_set=questions)
     as_of = max(
         definition.effective_at for definition in registry.registry.definitions
     ) + timedelta(seconds=1)
@@ -71,6 +72,49 @@ def test_default_reviewed_registry_fails_closed_with_static_coverage_only():
     assert ("sse.disclosures", "pending_policy") in reasons
     assert ("szse.disclosures", "market_not_applicable") in reasons
     assert ("moutai.ir", "pending_policy") in reasons
+
+
+def test_default_v1_2_plans_only_approved_applicable_sources_and_freezes_wire_contract():
+    loader = SourceRegistryLoader()
+    questions = loader.load_questions()
+    registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
+    as_of = max(
+        definition.effective_at for definition in registry.registry.definitions
+    ) + timedelta(seconds=1)
+
+    plan = AcquisitionPlanner(registry, questions).plan(
+        _profile(),
+        mode=AcquisitionMode.BASELINE,
+        as_of=as_of,
+        run_id="run-v1-2-approved-policy",
+    )
+
+    planned_sources = {
+        item.source_definition_id for item in plan.physical_query_plan_items
+    }
+    assert planned_sources == {"cninfo.disclosures", "sse.disclosures"}
+    reasons = {
+        (item.source_definition_id, item.static_reason_code)
+        for item in plan.coverage_entries
+        if item.plan_disposition == CoveragePlanDisposition.STATIC_POLICY_SKIPPED
+    }
+    assert ("szse.disclosures", "market_not_applicable") in reasons
+    assert ("moutai.ir", "pending_policy") in reasons
+
+    cninfo = next(
+        item
+        for item in plan.physical_query_plan_items
+        if item.query_id == "cninfo.periodic_report"
+    )
+    assert cninfo.request_encoding == "form"
+    assert cninfo.parameter_binding_names == ("stock",)
+    assert set(cninfo.fixed_headers) == {
+        "Accept",
+        "Referer",
+        "User-Agent",
+        "X-Requested-With",
+    }
+    assert cninfo.normalized_parameters["plate"] == "sh"
 
 
 def test_plan_traceability_has_all_ten_questions_and_static_dispositions():

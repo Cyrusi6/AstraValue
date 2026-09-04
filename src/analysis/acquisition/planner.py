@@ -427,6 +427,12 @@ class AcquisitionPlanner:
             "source_definition_version": definition.version,
             "query_execution_key": query.execution_key,
             "request_method": query.request_method,
+            "request_encoding": query.request_encoding,
+            "fixed_headers": query.fixed_headers,
+            "parameter_bindings": {
+                key: value.model_dump(mode="json")
+                for key, value in sorted(query.parameter_bindings.items())
+            },
             "endpoint": query.endpoint,
             "normalized_parameters": parameters,
             "partition_key": query.partition_key,
@@ -446,6 +452,7 @@ class AcquisitionPlanner:
         replacements = {
             "ticker": profile.ticker,
             "market": profile.market.lower(),
+            "plate": "sh" if profile.market == "SSE" else "sz",
             "start_date": start.date().isoformat(),
             "end_date": end.date().isoformat(),
             "start_at": start.isoformat(),
@@ -487,6 +494,9 @@ class AcquisitionPlanner:
             query_family=query.query_family,
             execution_key=execution_key,
             request_method=query.request_method,
+            request_encoding=query.request_encoding,
+            fixed_headers=query.fixed_headers,
+            parameter_binding_names=tuple(sorted(query.parameter_bindings)),
             endpoint=query.endpoint,
             normalized_parameters=parameters,
             partition_key=query.partition_key,

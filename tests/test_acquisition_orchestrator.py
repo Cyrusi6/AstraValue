@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 
 import httpx
+import pytest
 
 from analysis.acquisition.adapters.base import DiscoveryResult, QueryWork
 from analysis.acquisition.models import AcquisitionMode, AcquisitionRunEventType
+from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
 from analysis.acquisition.repository import AcquisitionRepository
 
 from orchestrator_support import (
@@ -18,6 +21,58 @@ from orchestrator_support import (
     resource,
     targeted_plan,
 )
+
+
+class RegistryProtocolAdapter:
+    def __init__(self) -> None:
+        self.query_calls = []
+        self.fetch_calls = []
+
+    def execute_query(self, work):
+        self.query_calls.append(work)
+        return envelope(url=work.url)
+
+    def parse_retained_discovery(self, _snapshot_id, work):
+        if work.query_family == "company_bootstrap":
+            company = resource(
+                canonical_id="cninfo-org:600519:gssh0600519",
+                url=work.url,
+                required_fetch=False,
+            )
+            company = replace(
+                company,
+                metadata={
+                    "ticker": "600519",
+                    "org_id": "gssh0600519",
+                    "wire_stock": "600519,gssh0600519",
+                },
+            )
+            return discovery_result(
+                work,
+                resources=(company,),
+                declared_total=1,
+            )
+        resource_url = {
+            "cninfo.disclosures": "https://static.cninfo.com.cn/finalpage/fixture.pdf",
+            "sse.disclosures": (
+                "https://www.sse.com.cn/disclosure/listedinfo/announcement/"
+                "c/fixture.pdf"
+            ),
+            "szse.disclosures": "https://disc.static.szse.cn/download/fixture.pdf",
+        }[work.source_definition_id]
+        item = resource(
+            canonical_id=f"{work.source_definition_id}:fixture",
+            url=resource_url,
+            required_fetch=work.context["fetch_policy"] == "required_attachment",
+        )
+        return discovery_result(work, resources=(item,), declared_total=1)
+
+    def validate_and_normalize_without_retention(self, _envelope, work):
+        return self.parse_retained_discovery("unused", work)
+
+    def fetch_resource(self, work):
+        self.fetch_calls.append(work)
+        raise AssertionError("metadata-only smoke must not fetch attachments")
 
 
 def test_persist_before_io_coverage_matrix_ten_topic_traceability_shared_execution_no_duplicate_io(
@@ -180,3 +235,101 @@ def test_no_fake_timeout_when_read_error_precedes_deadline(tmp_path) -> None:
 
     assert result.outcome_counts == {"network_failed": 3}
     assert "timeout" not in result.outcome_counts
+
+
+def test_cninfo_v1_2_smoke_resolves_bootstrap_binding_into_form_body(tmp_path) -> None:
+    adapter = RegistryProtocolAdapter()
+    runtime = make_runtime(
+        tmp_path / "cninfo-v1-2-wire",
+        adapter,
+        registry_path=DEFAULT_REGISTRY_PATH,
+    )
+    as_of = max(
+        definition.effective_at
+        for definition in runtime.loaded_registry.registry.definitions
+    ) + timedelta(seconds=1)
+    try:
+        result = runtime.orchestrator.smoke_sources(
+            ticker="600519",
+            source_ids=["cninfo.disclosures"],
+            as_of=as_of,
+        )
+
+        assert [work.query_id for work in adapter.query_calls] == [
+            "cninfo.company_bootstrap",
+            "cninfo.periodic_report",
+        ]
+        bootstrap, periodic = adapter.query_calls
+        assert bootstrap.method == "GET"
+        assert bootstrap.params == {}
+        assert bootstrap.form_body is None
+        assert periodic.method == "POST"
+        assert periodic.params == {}
+        assert periodic.form_body["stock"] == "600519,gssh0600519"
+        assert periodic.form_body["pageNum"] == 1
+        assert periodic.form_body["pageSize"] == 30
+        assert periodic.form_body["plate"] == "sh"
+        assert set(periodic.headers) == {
+            "Accept",
+            "Referer",
+            "User-Agent",
+            "X-Requested-With",
+        }
+        assert adapter.fetch_calls == []
+        assert result.material_gap_count == 0
+        assert result.checkpoint_advanced is False
+    finally:
+        runtime.close()
+
+
+@pytest.mark.parametrize(
+    ("source_id", "ticker", "expected_encoding"),
+    (
+        ("sse.disclosures", "600519", "query"),
+        ("szse.disclosures", "300750", "json"),
+    ),
+)
+def test_v1_2_exchange_smoke_uses_registered_wire_shape_and_no_fetch(
+    tmp_path, source_id, ticker, expected_encoding
+) -> None:
+    adapter = RegistryProtocolAdapter()
+    runtime = make_runtime(
+        tmp_path / source_id,
+        adapter,
+        registry_path=DEFAULT_REGISTRY_PATH,
+    )
+    as_of = max(
+        definition.effective_at
+        for definition in runtime.loaded_registry.registry.definitions
+    ) + timedelta(seconds=1)
+    try:
+        result = runtime.orchestrator.smoke_sources(
+            ticker=ticker,
+            source_ids=[source_id],
+            as_of=as_of,
+        )
+
+        assert len(adapter.query_calls) == 1
+        work = adapter.query_calls[0]
+        if expected_encoding == "query":
+            assert work.url.endswith("/queryCompanyStatementNew.do")
+            assert work.params["productId"] == ticker
+            assert work.params["reportType2"] == "DQBG"
+            assert work.params["pageHelp.pageNo"] == 1
+            assert work.params["pageHelp.pageSize"] == 100
+            assert work.form_body is None
+            assert work.json_body is None
+        else:
+            assert work.params == {}
+            assert work.form_body is None
+            assert work.json_body["stock"] == [ticker]
+            assert work.json_body["channelCode"] == ["listedNotice_disc"]
+            assert work.json_body["bigCategoryId"] == ["010301"]
+            assert work.json_body["pageNum"] == 1
+            assert work.json_body["pageSize"] == 50
+        assert work.context["fetch_policy"] == "metadata_only"
+        assert adapter.fetch_calls == []
+        assert result.material_gap_count == 0
+        assert result.checkpoint_advanced is False
+    finally:
+        runtime.close()
