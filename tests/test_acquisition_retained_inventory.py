@@ -135,7 +135,8 @@ def test_archive_report_refreshes_derived_versions_without_network_and_retains_o
     cached["classifier_version"] = cached["material"]["classifier_version"] = "1.2.0"
     path.write_text(json.dumps(cached), encoding="utf-8")
     refreshed = report(runtime, bundle, state, output, derive=True)
-    assert all(r["material"]["classifier_version"] == "1.3.0" for r in refreshed["rows"])
+    from analysis.acquisition.materials import CLASSIFIER_VERSION
+    assert all(r["material"]["classifier_version"] == CLASSIFIER_VERSION for r in refreshed["rows"])
     assert (output/"derivation-history"/f"{path.stem}-1.2.0.json").exists()
     assert len(adapter.fetch_calls) == 2 and not adapter.query_calls
     def broken(_):

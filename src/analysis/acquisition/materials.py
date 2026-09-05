@@ -11,7 +11,7 @@ from .content import extract_announcement_text
 
 
 CLASSIFIER_ID = "announcement-material-type"
-CLASSIFIER_VERSION = "1.3.0"
+CLASSIFIER_VERSION = "1.4.0"
 _REPORT = r"(?:年度|半年度|中期|第一季度|第三季度|一季度|三季度|季度)(?:财务)?报告"
 
 
@@ -20,13 +20,9 @@ def _compact(value: str) -> str:
 
 
 def _kind(value: str) -> str:
-    if re.search(r"(?:更正|补充|修正).{0,12}(?:公告|通知)$", value):
-        return "correction_notice"
-    if re.search(r"(?:可转债|可转换公司债券|公司债券|权证).{0,60}上市公告书", value):
-        return "other_financing"
-    if re.search(r"关于.{0,70}(?:招股说明书|上市公告书)", value):
-        return "ipo_related_notice"
     patterns = [
+        ("correction_notice", r"(?:关于.{0,70})?(?:更正|补充|修正).{0,12}(?:公告|通知)"),
+        ("other_announcement", r"(?:股东大会.{0,24}会议(?:资料|材料)|(?:董事会|监事会).{0,32}?(?:会议)?决议公告|议案(?:等)?)"),
         ("prospectus_appendix", r"招股说明书(?:及其)?(?:附录|附件|附表)"),
         ("prospectus_summary", r"招股说明书摘要"),
         ("prospectus", r"招股说明书"),
@@ -35,13 +31,23 @@ def _kind(value: str) -> str:
     ]
     matches = [(m.start(), rank, kind) for rank, (kind, pattern) in enumerate(patterns)
                if (m := re.search(pattern, value))]
-    if matches:
-        return min(matches)[2]
     if report := re.search(_REPORT, value):
+        kind = "periodic_summary" if re.match(r"[（(]?摘要", value[report.end():]) else "periodic_report"
         if re.search(r"(?:延期|披露|编制|说明会|提示性|审核|审议|董事会).{0,24}(?:公告|通知|意见)", value):
-            return "report_related_notice"
-        return "periodic_summary" if re.match(r"[（(]?摘要", value[report.end():]) else "periodic_report"
-    return "other_announcement"
+            kind = "report_related_notice"
+        matches.append((report.start(), len(patterns), kind))
+    # Resolve an explicit meeting/resolution heading before interpreting report
+    # or IPO terms in its agenda. Specialized modifiers still apply to a report
+    # or financing heading, e.g. an annual-report correction or warrant listing.
+    if matches and min(matches)[2] == "other_announcement":
+        return "other_announcement"
+    if re.search(r"(?:更正|补充|修正).{0,12}(?:公告|通知)$", value):
+        return "correction_notice"
+    if re.search(r"(?:可转债|可转换公司债券|公司债券|权证).{0,60}上市公告书", value):
+        return "other_financing"
+    if re.search(r"关于.{0,70}(?:招股说明书|上市公告书)", value):
+        return "ipo_related_notice"
+    return min(matches)[2] if matches else "other_announcement"
 
 
 @dataclass(frozen=True)
