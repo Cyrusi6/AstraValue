@@ -737,6 +737,8 @@ class AcquisitionOrchestrator:
     ) -> None:
         if not coverage_entries:
             raise AcquisitionExecutionError("run没有durable coverage matrix")
+        if any(p.retained_inventory_ref is not None for p in plan_items) and run.run_kind != AcquisitionRunKind.AD_HOC:
+            raise AcquisitionExecutionError("本地目录归档禁止production运行")
         plan_ids = {item.plan_item_id for item in plan_items}
         coverage_ids = {item.coverage_entry_id for item in coverage_entries}
         for link in links:
@@ -763,7 +765,7 @@ class AcquisitionOrchestrator:
         owner_token: str,
     ) -> dict[str, AcquisitionAttempt]:
         resumable: dict[str, AcquisitionAttempt] = {}
-        for attempt in self.repository.list_attempts(run_id=run.run_id):
+        for attempt in self.repository.list_attempts(run_id=run.run_id, limit=None):
             events = self.repository.list_attempt_events(attempt.attempt_id)
             terminal = any(
                 event.event_type
@@ -812,6 +814,10 @@ class AcquisitionOrchestrator:
         query = self._query_definition(definition, plan_item.query_id)
         execution = _PlanExecution(plan_item=plan_item)
         self._load_existing_discovery(execution)
+        if plan_item.retained_inventory_ref is not None:
+            from .retained_inventory import execute_retained_inventory
+            return execute_retained_inventory(self, run, definition, query, execution,
+                lease_epoch=lease_epoch, owner_token=owner_token, heartbeat=heartbeat)
         halt = self._source_halts.get(self._halt_key(run.run_id, plan_item))
         if halt:
             if not execution.discovery_complete:
@@ -1302,12 +1308,29 @@ class AcquisitionOrchestrator:
         for index, resource in enumerate(
             sorted(required, key=lambda item: item.canonical_resource_id)
         ):
-            if self._resource_completed_in_run(run.run_id, resource.canonical_resource_id):
-                self._load_resource_result(execution, run.run_id, resource)
+            completed = self._completed_resource_in_run(run.run_id, resource)
+            if completed is not None:
+                self._load_resource_result(execution, completed)
                 continue
             fetch_plan = self._ensure_fetch_plan(
                 execution.plan_item, resource, index
             )
+            if execution.plan_item.retained_inventory_ref is not None:
+                # Resuming an interrupted batch must not silently retry terminal failures.
+                previous = self._latest_attempt(fetch_plan.plan_item_id)
+                terminals = [] if previous is None else [e for e in
+                    self.repository.list_attempt_events(previous.attempt_id)
+                    if e.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL]
+                if terminals:
+                    event = terminals[-1]
+                    execution.fetch_attempt_ids.append(previous.attempt_id)
+                    execution.failed_resource_ids.add(resource.canonical_resource_id)
+                    execution.reasons.append(event.reason_code or "retained_fetch_requires_review")
+                    execution.barriers.append(barrier_for_attempt(attempt=previous,
+                        plan_item=fetch_plan, work_position=previous.work_position,
+                        outcome=event.outcome, reason_code=event.reason_code or "retained_fetch_requires_review",
+                        canonical_resource_id=resource.canonical_resource_id))
+                    continue
             halt = self._source_halts.get(self._halt_key(run.run_id, fetch_plan))
             if halt:
                 heartbeat.renew(force=True)
@@ -1538,6 +1561,19 @@ class AcquisitionOrchestrator:
                     expected_mime=tuple(resource.expected_mime_types)
                     or ("application/pdf", "text/html"),
                 )
+                if (response_classification.outcome == AcquisitionOutcome.SUCCESS
+                        and definition.adapter_key == "cninfo"
+                        and resource.expected_mime_types == ("text/html",)):
+                    from .content import validate_cninfo_html_response
+                    try:
+                        validate_cninfo_html_response(envelope.body)
+                    except ValueError as exc:
+                        response_classification = AttemptClassification(
+                            "parse_failed", str(exc) if str(exc) in {
+                                "invalid_html_document", "incomplete_html_document",
+                                "html_error_page", "unsupported_html_encoding",
+                            } else "html_encoding_invalid",
+                        )
                 if response_classification.outcome != AcquisitionOutcome.SUCCESS:
                     observation = self._failed_resource_observation(
                         attempt,
@@ -2132,7 +2168,9 @@ class AcquisitionOrchestrator:
             retry_group_id=retry_group_id,
             retry_ordinal=retry_ordinal,
             lease_epoch=lease_epoch,
-            request_summary={
+            request_summary=({"input_kind": "retained_inventory", "io_performed": False,
+                              "inventory_sha256": plan_item.retained_inventory_ref["sha256"]}
+                if plan_item.retained_inventory_ref is not None else {
                 "method": plan_item.request_method,
                 "endpoint": plan_item.endpoint,
                 "request_encoding": plan_item.request_encoding,
@@ -2145,7 +2183,7 @@ class AcquisitionOrchestrator:
                     )
                 ),
                 "fixed_header_names": tuple(sorted(plan_item.fixed_headers)),
-            },
+            }),
             started_at=_utc(self._now()),
             supersedes_attempt_id=(
                 None if supersedes is None else supersedes.attempt_id
@@ -2197,7 +2235,7 @@ class AcquisitionOrchestrator:
             if key[0] == run_id:
                 del self._source_halts[key]
         facts = []
-        for attempt in self.repository.list_attempts(run_id=run_id):
+        for attempt in self.repository.list_attempts(run_id=run_id, limit=None):
             for event in self.repository.list_attempt_events(attempt.attempt_id):
                 if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL:
                     facts.append((attempt, event))
@@ -2512,7 +2550,8 @@ class AcquisitionOrchestrator:
                 if source_plan.query_id != binding.source_query_id:
                     continue
                 for source_attempt in self.repository.list_attempts(
-                    plan_item_id=source_plan.plan_item_id
+                    plan_item_id=source_plan.plan_item_id,
+                    limit=None,
                 ):
                     events = self.repository.list_attempt_events(source_attempt.attempt_id)
                     if not any(event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL
@@ -2787,7 +2826,7 @@ class AcquisitionOrchestrator:
         self._adapter_cache.clear()
 
     def _latest_attempt(self, plan_item_id: str) -> AcquisitionAttempt | None:
-        attempts = self.repository.list_attempts(plan_item_id=plan_item_id)
+        attempts = self.repository.list_attempts(plan_item_id=plan_item_id, limit=None)
         return max(
             attempts,
             key=lambda item: (item.retry_ordinal, item.started_at, item.attempt_id),
@@ -2859,8 +2898,9 @@ class AcquisitionOrchestrator:
         selected = [item for item in matches if item[1].retry_group_id == selected_group]
         lineage = [
             attempt
-            for attempt in self.repository.list_attempts()
-            if attempt.retry_group_id == selected_group
+            for attempt in self.repository.list_attempts(
+                retry_group_id=selected_group, limit=None,
+            )
         ]
         previous = max(
             lineage,
@@ -2934,7 +2974,8 @@ class AcquisitionOrchestrator:
 
     def _load_existing_discovery(self, execution: _PlanExecution) -> None:
         attempts = self.repository.list_attempts(
-            plan_item_id=execution.plan_item.plan_item_id
+            plan_item_id=execution.plan_item.plan_item_id,
+            limit=None,
         )
         for attempt in attempts:
             if attempt.attempt_kind != AttemptKind.DISCOVERY:
@@ -2970,7 +3011,7 @@ class AcquisitionOrchestrator:
                         execution.discovery_outcome = event.outcome
 
     def _proof_completion(self, plan_item_id: str) -> tuple[int, int | None]:
-        attempts = self.repository.list_attempts(plan_item_id=plan_item_id)
+        attempts = self.repository.list_attempts(plan_item_id=plan_item_id, limit=None)
         proofs: list[tuple[int, int, DiscoveryProof]] = []
         for attempt in attempts:
             for proof in self.repository.list_discovery_proofs(attempt.attempt_id):
@@ -3037,7 +3078,8 @@ class AcquisitionOrchestrator:
         if snapshot is None or not self._snapshot_is_valid(snapshot):
             return None, {}
         observations = self.repository.list_resource_observations(
-            snapshot_id=snapshot.snapshot_id
+            snapshot_id=snapshot.snapshot_id,
+            limit=None,
         )
         with_validator = [
             item for item in observations if item.etag or item.last_modified
@@ -3187,76 +3229,40 @@ class AcquisitionOrchestrator:
             reason_code=classification.reason_code,
         )
 
-    def _resource_completed_in_run(
-        self, run_id: str, canonical_resource_id: str
-    ) -> bool:
-        for attempt in self.repository.list_attempts(run_id=run_id):
-            if attempt.attempt_kind != AttemptKind.FETCH:
+    def _completed_resource_in_run(
+        self, run_id: str, resource: DiscoveredResource,
+    ) -> ResourceObservation | None:
+        for observation in self.repository.completed_resource_observations(
+            run_id=run_id, source_definition_id=resource.source_definition_id,
+            source_definition_version=resource.source_definition_version,
+            canonical_resource_id=resource.canonical_resource_id,
+        ):
+            if observation.original_url != resource.resource_url:
                 continue
-            try:
-                resource = self.repository.list_resource_observations(
-                    attempt_id=attempt.attempt_id
-                )
-            except Exception:
-                continue
-            if not resource:
-                continue
-            observation = resource[-1]
-            try:
-                discovered = self._discovered_resource(
-                    observation.discovered_resource_id
-                )
-            except Exception:
-                continue
-            if discovered.canonical_resource_id != canonical_resource_id:
-                continue
-            events = self.repository.list_attempt_events(attempt.attempt_id)
-            if any(
-                event.outcome
-                in {AcquisitionOutcome.SUCCESS, AcquisitionOutcome.UNCHANGED}
-                for event in events
-            ):
-                return True
-        return False
+            snapshot = self.repository.get_raw_resource_snapshot(observation.snapshot_id)
+            if self._snapshot_is_valid(snapshot):
+                return observation
+        return None
 
     def _load_resource_result(
-        self,
-        execution: _PlanExecution,
-        run_id: str,
-        resource: DiscoveredResource,
+        self, execution: _PlanExecution, observation: ResourceObservation,
     ) -> None:
-        for attempt in self.repository.list_attempts(run_id=run_id):
-            if attempt.attempt_kind != AttemptKind.FETCH:
-                continue
-            observations = self.repository.list_resource_observations(
-                attempt_id=attempt.attempt_id
-            )
-            for observation in observations:
-                if observation.discovered_resource_id != resource.discovered_resource_id:
-                    continue
-                execution.fetch_attempt_ids.append(attempt.attempt_id)
-                if observation.snapshot_id:
-                    execution.content_snapshot_ids.append(observation.snapshot_id)
-                    execution.resource_observation_ids.append(
-                        observation.observation_id
-                    )
+        attempt = self.repository.get_attempt(observation.attempt_id)
+        execution.fetch_attempt_ids.append(attempt.attempt_id)
+        execution.content_snapshot_ids.append(observation.snapshot_id)
+        execution.resource_observation_ids.append(observation.observation_id)
+        # A shared fetch must retain a physical link to every newly covered
+        # question, even when its discovery row came from another query page.
+        for link in self.repository.list_physical_query_coverage_links(
+            plan_item_id=execution.plan_item.plan_item_id,
+        ):
+            self.repository.save_physical_query_coverage_link(PhysicalQueryCoverageLink(
+                plan_item_id=attempt.physical_query_plan_item_id,
+                coverage_entry_id=link.coverage_entry_id,
+            ))
 
     def _discovered_resource(self, discovered_resource_id: str) -> DiscoveredResource:
-        # Repository intentionally exposes row-lineage lists rather than an
-        # arbitrary URL lookup.  This bounded scan is only a compatibility path
-        # used while reconstructing one already persisted run.
-        for attempt in self.repository.list_attempts():
-            if attempt.attempt_kind != AttemptKind.DISCOVERY:
-                continue
-            for observation in self.repository.list_discovery_observations(
-                attempt.attempt_id
-            ):
-                for resource in self.repository.list_discovered_resources(
-                    observation.observation_id
-                ):
-                    if resource.discovered_resource_id == discovered_resource_id:
-                        return resource
-        raise KeyError(discovered_resource_id)
+        return self.repository.get_discovered_resource(discovered_resource_id)
 
     @staticmethod
     def _parent_discovery_attempt_id(execution: _PlanExecution) -> str:
@@ -3266,7 +3272,7 @@ class AcquisitionOrchestrator:
 
     def _causal_group_summaries(self, run_id: str) -> tuple[Mapping[str, Any], ...]:
         groups = {}
-        for attempt in self.repository.list_attempts(run_id=run_id):
+        for attempt in self.repository.list_attempts(run_id=run_id, limit=None):
             for event in self.repository.list_attempt_events(attempt.attempt_id):
                 group_id = event.protocol_summary.get("causal_group_id")
                 if event.event_type != AcquisitionAttemptEventType.OUTCOME_TERMINAL or not group_id:
@@ -3285,7 +3291,7 @@ class AcquisitionOrchestrator:
 
     def _attempt_facts(self, run_id: str) -> list[_AttemptFact]:
         facts: list[_AttemptFact] = []
-        for attempt in self.repository.list_attempts(run_id=run_id):
+        for attempt in self.repository.list_attempts(run_id=run_id, limit=None):
             for event in self.repository.list_attempt_events(attempt.attempt_id):
                 if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL:
                     facts.append(

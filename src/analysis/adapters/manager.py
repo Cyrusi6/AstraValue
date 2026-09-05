@@ -284,12 +284,12 @@ class AdapterManager:
             if hasattr(execution, "model_dump")
             else dict(execution)
         )
-        attempts = runtime.repository.list_attempts(run_id=plan.run.run_id)
+        attempts = runtime.repository.list_attempts(run_id=plan.run.run_id, limit=None)
         snapshot_ids = sorted(
             {
                 observation.snapshot_id
                 for observation in runtime.repository.list_resource_observations(
-                    limit=100_000
+                    limit=None
                 )
                 if observation.attempt_id in {item.attempt_id for item in attempts}
                 and observation.snapshot_id is not None
@@ -330,7 +330,7 @@ class AdapterManager:
     def _executed_source_summaries(self, run_id: str) -> dict[str, str]:
         repository = self.acquisition_runtime.repository
         by_source: dict[str, Counter[str]] = defaultdict(Counter)
-        for attempt in repository.list_attempts(run_id=run_id):
+        for attempt in repository.list_attempts(run_id=run_id, limit=None):
             events = repository.list_attempt_events(attempt.attempt_id)
             terminal = next(
                 (

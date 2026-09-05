@@ -74,7 +74,7 @@ def test_default_reviewed_registry_fails_closed_with_static_coverage_only():
     assert ("moutai.ir", "pending_policy") in reasons
 
 
-def test_default_v1_2_plans_only_approved_applicable_sources_and_freezes_wire_contract():
+def test_default_registry_plans_primary_source_and_freezes_wire_contract():
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
     registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
@@ -92,7 +92,7 @@ def test_default_v1_2_plans_only_approved_applicable_sources_and_freezes_wire_co
     planned_sources = {
         item.source_definition_id for item in plan.physical_query_plan_items
     }
-    assert planned_sources == {"cninfo.disclosures", "sse.disclosures"}
+    assert planned_sources == {"cninfo.disclosures"}
     reasons = {
         (item.source_definition_id, item.static_reason_code)
         for item in plan.coverage_entries
@@ -100,6 +100,8 @@ def test_default_v1_2_plans_only_approved_applicable_sources_and_freezes_wire_co
     }
     assert ("szse.disclosures", "market_not_applicable") in reasons
     assert ("moutai.ir", "pending_policy") in reasons
+
+    assert ("sse.disclosures", "on_demand_supplement") in reasons
 
     cninfo = next(
         item

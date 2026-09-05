@@ -4,6 +4,39 @@
 
 ## ADDED Requirements
 
+### Requirement: 已冻结目录的可验证本地输入
+已有目录正文归档 SHALL 在来源库只读核对已终结运行、公司、namespace、原始 discovery proof/observation/snapshot、字节哈希、长度和行定位后，生成携带原始响应字节与出处的不可变本地输入。新 namespace MUST 创建新的输入 observation/proof/resource 身份；原始出处仅作为显式 origin 引用，不能重绑定旧 observation。新输入 MUST 标记 proof_kind=retained_inventory、http_status=null、io_performed=false，总数仅指本地选择。空本地目录 MUST 拒绝，不能证明来源 no_data。
+
+#### Scenario: 历史 HTML 使用新版 MIME 合同归档
+- **WHEN** 旧目录行曾以旧 PDF MIME 合同保存，但原始行明确给出 HTML URL
+- **THEN** 系统 SHALL 保留旧资源不变，在新目录输入中依据 schema 3 解释该 URL，冻结新来源版本及原始行出处后执行正文请求
+
+#### Scenario: 输入证据被修改
+- **WHEN** 本地目录的公司、namespace、标题、URL、原始响应字节、行哈希或谱系不符
+- **THEN** 系统 MUST 在正文请求前拒绝该输入并记录错误，不得作为新 HTTP discovery 成功
+
+### Requirement: 分批归档状态闭合与恢复
+目录归档 SHALL 先处理定期报告、更正版本与招股材料，再处理其余公告，按 canonical ID 去重但保留各公告版本。每批 SHALL 显式冻结 ad_hoc 计划，并记录每条资源成功、失败或尚未请求；成功正文 SHALL 核对原始哈希并单独保存确定性文本和材料分类派生版本。恢复 SHALL 复用成功 fetch，保留已终态失败且不默认重试。明确访问挑战 MUST 停止本次归档任务的后续来源请求，包括未开始批次，不得借新批次规避来源停止。
+
+#### Scenario: 中断后恢复含已失败资源的批次
+- **WHEN** 一条下载已有 timeout 终态，下一条之前进程中断
+- **THEN** 恢复 SHALL 保留 timeout、重建其缺口并从未处理位置继续，不能再次自动请求失败条目或将最终结果称为无缺口
+
+#### Scenario: 正文可归档但没有可提取文字
+- **WHEN** PDF 原始文件有效但文本层为空
+- **THEN** 原始归档 SHALL 保留，文本状态 SHALL 明确 requires_review，不得伪造文本；本轮不执行 OCR
+
+### Requirement: 版本化历史 HTML 正文与派生文本
+CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 HTML MIME，旧 schema 的重放行为 MUST 保持原样。系统 MUST 先按 HTTP、挑战信号和 MIME 分类，再做有界 HTML 结构/编码检查；错误页、不完整页面和明确拦截不得成为正文快照。原始字节归档及哈希复核后，文本提取 SHALL 仅接受 content snapshot ID，按声明的中文编码严格解码并冻结带提取器版本与哈希的派生文本，不执行脚本或加载外部资源。
+
+#### Scenario: 合法历史 HTML 摘要
+- **WHEN** 目录返回 HTML 附件且响应通过分类及结构校验
+- **THEN** 系统 SHALL 保存原始字节哈希与来源 lineage，并从已提交快照提取无乱码的公告文本，记录派生哈希；不因非 PDF 而拒绝正常公告
+
+#### Scenario: HTML 地址返回拦截页
+- **WHEN** HTML 附件请求返回精确挑战头、验证码或登录信号
+- **THEN** 系统 SHALL 保留对应受限终态且不创建 content snapshot，不得因已允许 HTML MIME 而放行该页面
+
 ### Requirement: 先归档校验后供下游使用
 对允许保留的材料，系统 MUST 先以代码读取原始字节、计算完整 SHA-256 与长度、写入运行绑定 `data_root` 下内容寻址的临时文件、原子发布并重新读取校验，之后才可创建 `RawResourceSnapshot`。快照只保存相对于该数据根的归档标识，路径解析不得接受调用方任意本地目标或模块级默认 raw 目录。除“许可禁止保留 discovery body”的受限原子验证流程外，任何列表/正文解析、文本提取、索引或 Codex 输入生成 MUST 只接受已提交 snapshot/proof/resource ID，不得直接接受 URL、响应对象、任意本地路径或未校验字节；该受限流程也不得把临时 body 暴露给后续组件或 LLM。
 

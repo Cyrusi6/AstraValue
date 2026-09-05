@@ -213,6 +213,9 @@ class AcquisitionPlanner:
                     f"as_of不晚于采集起点: {definition.source_definition_id}"
                 )
             static_reason = self._source_static_reason(definition, profile)
+            if (static_reason is None and definition.collection_role == "on_demand"
+                    and selected_kind != AcquisitionRunKind.SMOKE):
+                static_reason = "on_demand_supplement"
             query_by_question = self._queries_by_question(definition, questions)
             for question in questions:
                 relevant_queries = query_by_question[question.question_id]

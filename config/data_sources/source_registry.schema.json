@@ -397,7 +397,9 @@
         "expires_at": {"type": ["string", "null"], "format": "date-time"},
         "queries": {"type": "array", "items": {"$ref": "#/$defs/query"}},
         "aliases": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "legacy": {"type": "boolean"}
+        "legacy": {"type": "boolean"},
+        "collection_role": {"enum": ["primary", "on_demand", null]},
+        "supplements_source_id": {"type": ["string", "null"], "minLength": 1}
       },
       "allOf": [
         {

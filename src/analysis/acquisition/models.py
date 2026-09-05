@@ -116,6 +116,11 @@ def canonical_json_bytes(value: Any) -> bytes:
 def _strip_pre_v1_2_query_contract(definition: dict[str, Any]) -> None:
     """Apply the canonical serialization used before request contract v1.2."""
 
+    # Optional collection roles did not exist in historical immutable payloads.
+    for key in ("collection_role", "supplements_source_id"):
+        if definition.get(key) is None:
+            definition.pop(key, None)
+
     match = re.fullmatch(r"(\d+)\.(\d+)(?:\.\d+)?", str(definition.get("version", "")))
     if match is None or (int(match.group(1)), int(match.group(2))) >= (1, 2):
         return
@@ -711,6 +716,8 @@ class SourceDefinition(FrozenAcquisitionModel):
     queries: tuple[SourceQueryDefinition, ...] = ()
     aliases: tuple[str, ...] = ()
     legacy: bool = False
+    collection_role: Literal["primary", "on_demand"] | None = None
+    supplements_source_id: str | None = None
 
     @field_validator("source_definition_id", "adapter_key")
     @classmethod
@@ -728,6 +735,11 @@ class SourceDefinition(FrozenAcquisitionModel):
 
     @model_validator(mode="after")
     def validate_definition(self) -> "SourceDefinition":
+        if self.collection_role == "on_demand":
+            if not self.supplements_source_id or self.supplements_source_id == self.source_definition_id:
+                raise ValueError("按需来源必须引用另一个主采来源")
+        elif self.supplements_source_id is not None:
+            raise ValueError("只有按需来源可以声明supplements_source_id")
         if self.expires_at is not None and self.expires_at <= self.effective_at:
             raise ValueError("来源定义expires_at必须晚于effective_at")
         if self.live_access_review.status == LiveAccessReviewStatus.REJECTED:
@@ -868,6 +880,12 @@ class SourceRegistry(FrozenAcquisitionModel):
         if len(set(aliases)) != len(aliases):
             raise ValueError("注册表alias必须唯一")
         known_ids = set(current_ids) | {item.source_definition_id for item in self.legacy_definitions}
+        by_id = {d.source_definition_id: d for d in self.definitions}
+        for definition in self.definitions:
+            if definition.collection_role == "on_demand":
+                primary = by_id.get(definition.supplements_source_id)
+                if primary is None or primary.collection_role == "on_demand" or not primary.enabled:
+                    raise ValueError("按需来源必须引用已启用主采定义")
         missing = {
             target
             for alias in self.aliases
@@ -1098,6 +1116,8 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     ordinal: int = Field(ge=0)
     parent_plan_item_id: str | None = None
     discovered_resource_id: str | None = None
+    # Local, verified directory input; endpoint remains an origin descriptor only.
+    retained_inventory_ref: dict[str, Any] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -1118,6 +1138,13 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
 
     @model_validator(mode="after")
     def validate_kind(self) -> "PhysicalQueryPlanItem":
+        if self.retained_inventory_ref is not None:
+            if self.attempt_kind != AttemptKind.DISCOVERY:
+                raise ValueError("本地目录只能作为discovery输入")
+            _require_sha256(self.retained_inventory_ref["sha256"])
+            _require_relative_path(self.retained_inventory_ref["archive_relative_path"])
+            if self.retained_inventory_ref["byte_length"] <= 0:
+                raise ValueError("本地目录必须非空")
         if self.attempt_kind == AttemptKind.FETCH and not (
             self.parent_plan_item_id and self.discovered_resource_id
         ):
@@ -1152,6 +1179,7 @@ class CoverageEntry(TimeSliceMixin):
         "pending_policy",
         "source_disabled",
         "no_relevant_query",
+        "on_demand_supplement",
     ] | None = None
 
     @model_validator(mode="after")
@@ -1194,6 +1222,9 @@ class AcquisitionPlan(FrozenAcquisitionModel):
 
     @model_validator(mode="after")
     def validate_graph(self) -> "AcquisitionPlan":
+        if any(p.retained_inventory_ref is not None for p in self.physical_query_plan_items):
+            if self.run.run_kind != AcquisitionRunKind.AD_HOC or self.run.request_scope != "ad_hoc":
+                raise ValueError("本地目录归档只能创建ad_hoc运行")
         coverage_ids = {item.coverage_entry_id for item in self.coverage_entries}
         plan_ids = {item.plan_item_id for item in self.physical_query_plan_items}
         if len(coverage_ids) != len(self.coverage_entries):
@@ -1388,7 +1419,8 @@ class DiscoveryProof(FrozenAcquisitionModel):
     physical_query_plan_item_id: str
     response_sha256: str
     response_byte_length: int = Field(ge=0)
-    http_status: int = Field(ge=100, le=599)
+    http_status: int | None = Field(default=None, ge=100, le=599)
+    proof_kind: Literal["http_response", "retained_inventory"] = "http_response"
     mime_type: str
     parser_id: str
     parser_version: str
@@ -1413,6 +1445,12 @@ class DiscoveryProof(FrozenAcquisitionModel):
 
     @model_validator(mode="after")
     def validate_proof(self) -> "DiscoveryProof":
+        if self.proof_kind == "http_response" and self.http_status is None:
+            raise ValueError("HTTP proof必须有实际HTTP状态")
+        if self.proof_kind == "retained_inventory" and (
+            self.http_status is not None or not self.body_retained or self.normalized_row_count == 0
+        ):
+            raise ValueError("本地目录proof必须保留非空输入，不得伪造HTTP状态或no_data")
         if self.body_retained:
             if not self.discovery_snapshot_id or not self.replayable:
                 raise ValueError("保留正文的discovery proof必须引用可重放response snapshot")
@@ -1426,7 +1464,8 @@ class DiscoveryProof(FrozenAcquisitionModel):
     @property
     def proves_no_data(self) -> bool:
         return (
-            self.schema_valid
+            self.proof_kind == "http_response"
+            and self.schema_valid
             and self.terminal
             and self.normalized_row_count == 0
             and self.declared_total == 0
@@ -1916,7 +1955,7 @@ class DerivedArtifact(FrozenAcquisitionModel):
     derived_artifact_id: str = Field(default_factory=acquisition_new_id)
     storage_namespace_id: str
     parent_snapshot_id: str
-    artifact_type: Literal["text", "ocr", "table", "page_image"]
+    artifact_type: Literal["text", "ocr", "table", "page_image", "classification"]
     extractor_id: str
     extractor_version: str
     parameters: dict[str, Any] = Field(default_factory=dict)

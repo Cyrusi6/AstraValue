@@ -458,7 +458,7 @@ def test_material_gap_count_keeps_distinct_time_slices_in_one_partition(
     runtime = make_runtime(
         tmp_path / "gap-time-slices",
         adapter,
-        registry_path=DEFAULT_REGISTRY_PATH,
+        registry_path=DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.4.json"),
     )
     as_of = max(
         definition.effective_at
@@ -575,7 +575,8 @@ def test_cninfo_v1_2_smoke_resolves_bootstrap_binding_into_form_body(tmp_path) -
 
 
 @pytest.mark.parametrize("case", ["empty", "conflicting_count", "challenge"])
-def test_cninfo_nullable_v2_runs_through_retention_and_outcome_pipeline(tmp_path, case):
+@pytest.mark.parametrize("registry,schema", [("1.4", "2"), ("1.7", "3")])
+def test_cninfo_nullable_runs_through_retention_and_outcome_pipeline(tmp_path, case, registry, schema):
     calls = []
 
     class FixtureTransport:
@@ -598,13 +599,14 @@ def test_cninfo_nullable_v2_runs_through_retention_and_outcome_pipeline(tmp_path
             pass
 
     runtime = AcquisitionRuntime.create(tmp_path / "analysis.db", tmp_path / "data",
-                                        workspace_root=tmp_path)
+        workspace_root=tmp_path, registry_path=DEFAULT_REGISTRY_PATH.with_name(
+            f"business_model_sources.v{registry}.json"))
     runtime.orchestrator = AcquisitionOrchestrator(
         runtime, transport_factory=lambda _definition: FixtureTransport())
     try:
         result = runtime.orchestrator.smoke_sources(ticker="600519", source_ids=["cninfo.disclosures"])
         assert len(calls) == 2
-        assert calls[1].parser_schema_version == "2"
+        assert calls[1].parser_schema_version == schema
         assert calls[1].context["schema_id"] == "cninfo.announcements"
         run = runtime.repository.get_run(result.run_id)
         assert run.http_route_policy == "direct-v1"
@@ -616,7 +618,7 @@ def test_cninfo_nullable_v2_runs_through_retention_and_outcome_pipeline(tmp_path
             assert result.material_gap_count == 0
             assert len(proofs) == 1 and proofs[0].terminal
             assert proofs[0].declared_total == proofs[0].normalized_row_count == 0
-            assert proofs[0].replayable and proofs[0].schema_version == "2"
+            assert proofs[0].replayable and proofs[0].schema_version == schema
         else:
             expected = "restricted" if case == "challenge" else "parse_failed"
             assert result.outcome_counts == {"success": 1, expected: 1}

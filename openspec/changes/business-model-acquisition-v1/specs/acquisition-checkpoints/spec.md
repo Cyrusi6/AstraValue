@@ -4,6 +4,17 @@
 
 ## ADDED Requirements
 
+### Requirement: 主采安全水位线与补充来源隔离
+incremental 的安全 checkpoint 前置条件 SHALL 应用于已启用适用主采来源，按需来源不属于默认必需分区。按需补缺和已有目录归档 SHALL 使用 ad_hoc，不能推进 production checkpoint，也不能清除另一来源的 barrier。新来源版本没有显式声明的兼容关系时 MUST 保持需 baseline 或 reconcile 的前置条件。
+
+#### Scenario: 巨潮有安全水位线但上交所未全采
+- **WHEN** 唯一适用主采巨潮已有当前合同兼容的安全 checkpoint，上交所配置为 on_demand
+- **THEN** 默认 incremental SHALL 允许从主采水位线规划；若巨潮没有安全 checkpoint 则 MUST 在创建 run 或 I/O 前拒绝
+
+#### Scenario: 补充材料成功不更改主采屏障
+- **WHEN** 上交所 ad_hoc 补缺取得一份定期报告
+- **THEN** 新报告 SHALL 保留上交所来源身份，巨潮原运行、覆盖和未解决 barrier MUST 保持不变
+
 ### Requirement: 来源级 checkpoint 的可追溯结构
 系统 SHALL 为公司、来源定义 ID/版本和问题清单版本维护版本化 `SourceCheckpoint`。checkpoint partition SHALL 按物理 query definition/`execution_key`、来源分区和时间范围建立，不得因一个物理查询映射多个业务问题而复制或重复推进。checkpoint MUST 包含安全水位线、各物理查询分区的连续完成位置/游标、重叠回看配置、最近成功运行、已知 validator 及其快照锚点、阻塞位置及 checkpoint 版本；时间型安全位置 MUST 使用来源可证明的时间上界与 canonical resource ID 构成稳定全序，避免同时间戳资源被跳过。来源级安全水位线 MUST 是所有必需查询分区可证明连续完成位置的保守下界。
 

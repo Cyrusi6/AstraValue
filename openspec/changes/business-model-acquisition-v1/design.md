@@ -1,5 +1,15 @@
 ## Context
 
+### 2026-09-05 历史审计修订
+
+完整内部读取使用显式无分页上限，显示接口保留分页。汇总、恢复、durable halt、依赖、validator 与去重读取不得复用显示默认值；同 canonical 的成功 fetch 复用必须同时补齐新的 coverage links。
+
+新增 registry 1.5.0（HTML schema 3）、1.6.0（首发参数 category_sf_szsh）、1.7.0（CNINFO 1.6.0 primary、SSE 1.4.0 on_demand）保留之前合同。SSE 当前只有定期报告 DQBG 补缺能力；`acquire supplement` 接受 finalized 父运行的实际 required 缺口，生成保持来源身份的 ad_hoc reconcile，不清除巨潮屏障。旧版未声明 collection_role 时仍按主采解释。生产安全水位线前置条件按当前适用主采来源检查。
+
+HTML 正文先经过 HTTP/挑战/MIME/结构与严格中文解码校验，再冻结字节。PDF/HTML 文本仅从已提交且验证哈希的 content snapshot 派生，不运行页面脚本、不取子资源、不执行 OCR。材料分类独立保留 title_type/content_type/evidence_status，检索类别不能代替类型判断。
+
+目录归档入口读取已终结历史库的原始 proof、observation、snapshot 与行记录，复制支持字节到带哈希的本地目录输入。新 proof 的 `proof_kind=retained_inventory`、`http_status=null`、`io_performed=false` 明确表示本地选择；原来源 namespace/run/proof/snapshot/row locator 单独保留，绝不把它记作新 HTTP 查询。正文仍由正式 executor 下载，使用当前来源合同、lease、直连、allowlist、限速、challenge halt 与归档校验。批次按材料优先级分组后每批最多 100 条；恢复不重跑已终态失败，整项归档遇到明确访问限制时停止后续批次。每批是 ad_hoc，不推进生产水位线、不声称查询历史重新完整。
+
 ### 2026-09-05 巨潮直连与空结果修订
 
 依据 [来源可用性诊断](../../../docs/acquisition/source-availability-diagnosis-2026-09-05.md) 和用户本轮修复指令，正式 acquisition runtime 与独立 registry-bound transport 创建的 HTTP 客户端统一禁用环境/Windows 系统代理继承，使用直连且保持 TLS 证书验证。此选择适用于已批准来源，不提供自动代理切换。新运行在已有 JSON payload 中冻结 `http_route_policy=direct-v1`，无需 SQLite DDL 迁移；旧 payload 缺字段时读为 null，旧 finalized 结果及离线重放仍可读，未完成且路由未知的旧运行不得静默按新路由恢复，必须创建新运行。API、CLI 和 smoke 复用该规则；注入式测试客户端继续作为测试接缝，路由约定不冒充真实网络 trace。
@@ -66,8 +76,8 @@ v1 业务来源定义如下；`official` 是兼容 alias，不是第五个来源
 | source_definition_id | 适用范围 | adapter_key | v1 初始状态 | 主要访问操作 |
 | --- | --- | --- | --- | --- |
 | `cninfo.disclosures` | 全部 A 股 | `cninfo` | 以版本化策略为准 | 公司身份/上市锚点、招股书、定期报告、业务相关公告元数据与附件 |
-| `sse.disclosures` | 上交所证券 | `sse` | 以版本化策略为准 | 招股书/公告元数据与附件 |
-| `szse.disclosures` | 深交所证券 | `szse` | 以版本化策略为准 | 招股书/公告元数据与附件 |
+| `sse.disclosures` | 上交所证券 | `sse` | 以版本化策略为准 | 按需定期报告元数据与附件（DQBG） |
+| `szse.disclosures` | 深交所证券 | `szse` | 以版本化策略为准 | 按需定期报告元数据与附件（DQBG） |
 | `moutai.ir` | 仅 `600519` | `moutai_ir` | `pending_policy/disabled` | 获批后才允许访问固定官方 IR 列表页与附件 |
 
 `moutai.ir` 的确切 canonical 域名、允许路径、服务条款检查时间和许可依据必须在实现期人工只读核对并创建新定义版本后才能设为 `enabled`；未批准时保持禁用，以无 I/O 的静态策略处置进入覆盖清单，不得换用搜索结果。已批准来源在运行时新遇到登录、验证码、付费墙或许可不明时才创建阻塞性的 `policy_skipped`/相应受限 attempt。现有 AKShare、Sina、BaoStock、Tushare 只为已有非 `business_model` scope 建立 `legacy` 定义/alias；它们不计入上述 v1 范围，本 change 也不新增其数据能力。
@@ -172,7 +182,7 @@ incremental 计划从 `safe_through - overlap_window` 至 run.as_of。判断顺�
 
 reconcile 读取原覆盖缺口、完整性异常或不兼容 registry 变化，生成新的关联 run。迟到资源可以新增版本和覆盖修正，但不修改旧 run，也不会简单回退 checkpoint；若证明当前安全性不足，则写新 checkpoint 版本并设置 barrier。对于允许历史 URL 静默替换的来源，注册表另行定义周期性历史资源复核/reconcile cadence；有限 overlap 只承诺检查窗口内变化，不能宣称持续检查全部历史。
 
-reconcile target 由一个无 I/O 的 `ReconcileTargetSelector`（或等价唯一领域服务）权威计算，`AcquisitionRuntime.plan_company_run()`、CLI 与 API 只能消费该结果，不得复制选择算法。父 run 必须已有不可变 final event；显式指定未 finalized 父项时在子 run 创建前拒绝，`--from-latest-run` 只在同 ticker/scope 的 finalized 非 reconcile production runs 中选择并明确报告被排除的更新未终结 run。优先级固定为：最早未解决 barrier 的精确 source/query/partition/work position；没有 barrier 的未解决 required coverage；quarantined snapshot 所属 coverage；前三者都不存在时最早已完成 required slice 的周期性复核。每类按父计划时间片/ordinal 与规范 work-position 排序，再以稳定 ID 打破平局。选择结果携带 barrier/opening attempt/retry group/canonical、父时间片和按该来源固定 overlap 计算的 effective range；planner 只加入该目标、必要 overlap 与 parameter-binding prerequisites，不从父 run 全局最早 coverage 重跑所有来源。explicit incremental 仍保持更保守的前置条件：任一 enabled 且适用来源没有兼容 `source_safe_through` 时，在创建 run/I/O 前拒绝。
+reconcile target 由一个无 I/O 的 `ReconcileTargetSelector`（或等价唯一领域服务）权威计算，`AcquisitionRuntime.plan_company_run()`、CLI 与 API 只能消费该结果，不得复制选择算法。父 run 必须已有不可变 final event；显式指定未 finalized 父项时在子 run 创建前拒绝，`--from-latest-run` 只在同 ticker/scope 的 finalized 非 reconcile production runs 中选择并明确报告被排除的更新未终结 run。优先级固定为：最早未解决 barrier 的精确 source/query/partition/work position；没有 barrier 的未解决 required coverage；quarantined snapshot 所属 coverage；前三者都不存在时最早已完成 required slice 的周期性复核。每类按父计划时间片/ordinal 与规范 work-position 排序，再以稳定 ID 打破平局。选择结果携带 barrier/opening attempt/retry group/canonical、父时间片和按该来源固定 overlap 计算的 effective range；planner 只加入该目标、必要 overlap 与 parameter-binding prerequisites，不从父 run 全局最早 coverage 重跑所有来源。explicit incremental 仍保持更保守的前置条件：任一 enabled 且适用的主采来源没有兼容 `source_safe_through` 时，在创建 run/I/O 前拒绝。
 
 **替代方案：**每家公司一个最大发布时间水位线、只信 ETag，或把父 run 全局最早 coverage 当 reconcile 起点。未采用，因为多 query 进度不同、公告可能迟到、上游 validator 可能错误，而全局最早起点会掩盖真正 barrier 并产生无意义全历史重跑。
 
@@ -283,7 +293,7 @@ API 使用显式注入的 `AcquisitionRuntime`，不在 `create_app()` 内额外
 ### 12. 三个验收门分别存证与判定
 
 1. **自动化门**：冻结响应/MockTransport 覆盖 registry schema、M:N shared execution、两条 discovery-before-parse/proof 路径、required attachment barrier/resolution、所有 12 状态、abandoned closure 与 supersedes 关系、lease race/expired reclaim/stale-owner fencing、baseline 分片、no_data、分页/重试/barrier、日期精度、有效锚点 304/hash、同 URL 新版本、乱序/周期性 reconcile、逐跳 redirect/大小、双进程来源门禁、snapshot 篡改、namespace 首次绑定与中间崩溃、候选隔离、fresh/v4/v5/v6 迁移矩阵、旧 JSON/API、并发 checkpoint、latest 可消费批次、Git ignore/敏感头清洗；本轮再增加精确 Tengine challenge header 与 generic HTML 反例、challenge 后同来源零 I/O/自动 partial finalize、lease takeover 后 durable halt、bootstrap 504 的 per-plan dependency fan-out/zero downstream I/O、成功 proof 的 invalid binding，以及 API/CLI/runtime 一致的 exact reconcile selector/finalized-parent 拒绝夹具。运行聚焦测试后仍需全量 pytest、方法库、黄金清单结构、前端测试/构建、严格 OpenSpec 校验和一次当前提交的干净 CI；这些均不替代联网门。
-2. **真实联网门**：人工先核对四个 v1 definition 的当日许可/路径。代码补强后必须使用全新显式隔离且 namespace 绑定的 `--db`/`--data-root`，不得 resume 或修改旧 v1.3 未 finalized run。以 `600519` 执行一次无需人工终止且自动产生 final event 的 baseline；只有所有 enabled 且适用来源都形成安全 checkpoint 时，才原样执行至少两次 incremental，否则命令须在 I/O 前拒绝并保持该门 pending。随后只以 finalized run 为父执行一次由权威 selector 给出精确 barrier/work position 和 effective overlap 的 reconcile。逐来源记录真实状态、运行/registry/checkpoint/manifest ID、discovery proof/snapshot、required fetch、起止时间与缺口。SSE/巨潮为适用来源；茅台 IR 只有已批准定义版本才执行，否则保留 pending policy 处置；SZSE 对 600519 必须显示不适用静态处置。另以一个已记录的深市样本（优先 `300750`）执行只读 metadata smoke，避免把 SZSE 的“未调用”误称联网通过。该门独立取 `passed|pending|failed`：全部必需探针已按合同完成才 passed；来源持续 challenge、许可或网络环境阻塞，但分类/熔断/coverage/barrier 均符合合同时为 pending；误分类、挑战后继续 I/O、错误依赖状态、越过 barrier、证据门禁破坏或未解释状态才为 failed。不得提交原文或数据库。
+2. **真实联网门**：人工先核对四个 v1 definition 的当日许可/路径。代码补强后必须使用全新显式隔离且 namespace 绑定的 `--db`/`--data-root`，不得 resume 或修改旧 v1.3 未 finalized run。以 `600519` 执行一次无需人工终止且自动产生 final event 的 baseline；只有所有 enabled 且适用的主采来源都形成安全 checkpoint 时，才原样执行至少两次 incremental，否则命令须在 I/O 前拒绝并保持该门 pending。随后只以 finalized run 为父执行一次由权威 selector 给出精确 barrier/work position 和 effective overlap 的 reconcile。逐来源记录真实状态、运行/registry/checkpoint/manifest ID、discovery proof/snapshot、required fetch、起止时间与缺口。巨潮为主采来源；SSE 按需补缺或显式 smoke，不是默认必需 checkpoint 来源；茅台 IR 只有已批准定义版本才执行，否则保留 pending policy 处置；SZSE 对 600519 必须显示不适用静态处置。另以一个已记录的深市样本（优先 `300750`）执行只读 metadata smoke，避免把 SZSE 的“未调用”误称联网通过。该门独立取 `passed|pending|failed`：全部必需探针已按合同完成才 passed；来源持续 challenge、许可或网络环境阻塞，但分类/熔断/coverage/barrier 均符合合同时为 pending；误分类、挑战后继续 I/O、错误依赖状态、越过 barrier、证据门禁破坏或未解释状态才为 failed。不得提交原文或数据库。
 3. **人工黄金门**：对 600519 锚点、每个适用来源 × 十项追踪主题 × 早/中/近期至少一项覆盖、共享物理查询与 coverage links、discovery proof、试点中实际观察到的全部非成功条目、至少 20 个成功/unchanged 快照以及全部发现的同 URL 版本链，人工核对 URL、canonical/upstream 身份、原始发布时间/精度/available_at、磁盘哈希和覆盖解释；单独签署 `pending|passed|failed` 与复核人/时间。它不复用当前 0/10 的财务黄金验收结论，也不声称全 A 股。
 
 实际命令与观察结果只在实现期写入 [阶段日志.md](../../../阶段日志.md)；本设计和 tasks 只定义门槛。

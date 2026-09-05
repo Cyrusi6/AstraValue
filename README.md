@@ -16,9 +16,9 @@
 
 明确的来源挑战（包括 `x-tengine-error: denied by bot`）会停止当前 run 内该来源版本的后续请求，逐计划记录 `policy_skipped: source_access_halted`；接管同一 run 后仍保持停止。bootstrap 不可用时，下游逐项记录零 I/O 的 `dependency_unavailable`，并在终态 `causal_groups` 汇总共同原因和受影响数量。两者都保留 barrier，运行可自行以有缺口的 partial 状态终结。
 
-API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先定位最早未解决 barrier，再考虑无 barrier 的未解决 coverage、隔离快照和最早已完成时间片。输出包含精确页/游标、来源、查询、父时间片和固定 overlap 范围；计划只包含该目标及所需前置查询。`--from-latest-run` 会列出被排除的较新未终结 run；任何适用且 enabled 来源缺少安全 checkpoint 时，incremental 在创建 run 和联网前拒绝。
+API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先定位最早未解决 barrier，再考虑无 barrier 的未解决 coverage、隔离快照和最早已完成时间片。输出包含精确页/游标、来源、查询、父时间片和固定 overlap 范围；计划只包含该目标及所需前置查询。`--from-latest-run` 会列出被排除的较新未终结 run；任何适用且 enabled 的主采来源缺少安全 checkpoint 时，incremental 在创建 run 和联网前拒绝。
 
-当前默认注册表为 `business_model_sources.v1.3.json`。它只依据 v1.2 试点中已冻结并复核哈希的 SSE 响应，把标题字段修正为 `pageHelp.data[].title`，并承认 `data=[]、total=0、pageCount=0` 是一次合法终结空响应；访问域名、路径、速率、保存/派生/LLM 权限均未扩大，详见 [`source-access-policy-schema-amendment-2026-09-04.md`](docs/acquisition/source-access-policy-schema-amendment-2026-09-04.md)。AstraValue 项目创作者/负责人此前批准的“个人、本地、低频、非商业研究”边界继续适用于巨潮、SSE、SZSE 指定公开官方端点；贵州茅台 IR 仍为 `pending_policy/disabled`、空 endpoint 和零 I/O。该审批不是来源方授权或法律意见，禁止出售、再分发、商业数据服务以及任何登录、验证码、付费墙、challenge 或许可限制绕过。v1.0–v1.2 均只读保留以解释历史 run 和 canonical hash；v1.3 自动化门须取得当前提交的干净 CI 后才可视为通过，真实联网门与人工黄金门仍独立判定。
+当前默认注册表为 `business_model_sources.v1.7.json`：巨潮 `1.6.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧 v1.0–v1.6 合同保留用于历史重放。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
 
 兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
 

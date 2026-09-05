@@ -599,6 +599,8 @@ class AcquisitionRuntime:
                 continue
             if not definition.enabled or not definition.applies_to(profile.ticker, profile.market):
                 continue
+            if definition.collection_role == "on_demand":
+                continue
             checkpoint = self.repository.latest_checkpoint(
                 profile.ticker,
                 definition.source_definition_id,

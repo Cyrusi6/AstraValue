@@ -4,6 +4,24 @@
 
 ## ADDED Requirements
 
+### Requirement: 版本化主采与按需补充角色
+registry 1.7.0 SHALL 固定 CNINFO 1.6.0 为 primary、SSE 1.4.0 为 on_demand 并引用 supplements_source_id=cninfo.disclosures。历史未声明角色的定义 SHALL 维持其主采解释。角色变化 MUST 新建来源版本；默认主采计划 SHALL 为补充来源生成无 I/O 的 on_demand_supplement 静态覆盖。当前 SSE DQBG 合同只支持定期报告，不得假定两个来源历史材料完全相同。
+
+#### Scenario: 默认计划保留补充来源状态
+- **WHEN** 使用 registry 1.7.0 为沪市公司生成默认主采计划
+- **THEN** 巨潮适用查询 SHALL 进入必需计划，上交所 SHALL 保留 on_demand_supplement 静态处置且零 I/O
+
+#### Scenario: 显式按需补缺
+- **WHEN** 调用方引用已终结父运行中真实存在的必需材料缺口并指定适用的补充来源
+- **THEN** 系统 SHALL 仅生成该来源支持的 query family 与缺口时间范围内的 ad_hoc reconcile；无缺口、未终结、市场不适用或协议不支持 SHALL 在 I/O 前拒绝
+
+### Requirement: 首发检索参数与材料类型分离
+registry 1.6.0 及后续版本的 CNINFO 首发检索 SHALL 使用经公开客户端协议核对的 category_sf_szsh，单项参数不附加分号。检索命中只能作为发现目录，不能自动将每行称为招股说明书。系统 SHALL 对标题和已验证正文前部单独分类，保留版本、标题类型、正文类型、证据状态及冲突。
+
+#### Scenario: 首发类别返回不同材料
+- **WHEN** 首发查询同时返回招股说明书、附录、上市公告书和股票发行公告
+- **THEN** 材料分类 SHALL 保留四种不同类型，标题与正文不一致 SHALL 标为 requires_review，不得据查询类别覆盖实际材料类型
+
 ### Requirement: CNINFO nullable 空结果使用独立版本合同
 CNINFO 新公告 schema 2 SHALL 仅在 page 1、`announcements` 存在且为 null、`totalAnnouncement` 为严格整数 0、`hasMore` 为布尔 false 时允许零行；出现的 `totalRecordNum|totalSecurities|totalpages` MUST 为严格整数 0。响应 MUST 只包含这六类字段及可选的 null `classifiedAnnouncements|categoryList`，未知字段、错误标记和不支持形态不得生成 no_data。此解释 MUST 由冻结的 schema id/version 启用，旧 schema 1 重放仍拒绝 null。新 registry 1.4.0 SHALL 只升级 CNINFO definition 为 1.3.0、公告 schema 与 execution key，不扩大端点、请求类别、速率、保存或 LLM 权限，也不声明旧 checkpoint 兼容。
 
@@ -50,7 +68,7 @@ CNINFO 新公告 schema 2 SHALL 仅在 page 1、`announcements` 存在且为 nul
 - **THEN** 系统 SHALL 得到相同的来源、查询、适用性和访问策略集合
 
 ### Requirement: 来源与业务问题的穷尽式适用性解析
-系统 SHALL 从固定版本的业务问题清单和 `SourceDefinition` 查询定义生成来源 × 问题 × 时间范围计划。对合法、允许访问、适用于目标公司且与问题相关的每个查询 MUST 安排尝试；调用方不得通过省略来源或查询来把覆盖结果伪装为完整。对不适用或策略禁止的组合 MUST 生成带机器可读理由的 `policy_skipped` 覆盖项。
+系统 SHALL 从固定版本的业务问题清单和 `SourceDefinition` 查询定义生成来源 × 问题 × 时间范围计划。对合法、允许访问、适用于目标公司且与问题相关的每个主采查询 MUST 安排尝试；按需补充来源 MUST 保留有版本依据的静态处置，除非显式启动补缺；调用方不得通过省略来源或查询来把覆盖结果伪装为完整。对不适用或策略禁止的组合 MUST 生成带机器可读理由的 `policy_skipped` 覆盖项。
 
 #### Scenario: 适用查询全部进入计划
 - **WHEN** 一个有效来源版本包含三个适用于目标公司的业务问题查询
@@ -58,7 +76,7 @@ CNINFO 新公告 schema 2 SHALL 仅在 page 1、`announcements` 存在且为 nul
 
 #### Scenario: 沪市公司不适用深交所查询
 - **WHEN** 为沪市公司 `600519` 生成 v1 覆盖计划
-- **THEN** 巨潮、上交所及已 enabled 的贵州茅台 IR 适用查询 SHALL 被安排；IR 尚为 `pending_policy/disabled` 时 SHALL 生成静态策略处置，深交所组合 SHALL 以“不适用市场”理由保留在覆盖清单中，二者均不得发起未批准 I/O
+- **THEN** 主采巨潮及已 enabled 的主采贵州茅台 IR 适用查询 SHALL 被安排；上交所按新版本角色保留 on_demand_supplement 静态处置，旧版本角色不变；IR 尚为 `pending_policy/disabled` 时 SHALL 生成静态策略处置，深交所组合 SHALL 以“不适用市场”理由保留在覆盖清单中，二者均不得发起未批准 I/O
 
 ### Requirement: 物理查询去重与覆盖多对多追踪
 每个 `SourceQueryDefinition` MUST 提供稳定 `execution_key`、query family、`query_stage=discovery`、所覆盖的业务问题 ID、时间/分页边界、响应 schema/version、discovery body 保留策略、资源提取规则、`fetch_policy=metadata_only|required_attachment` 和 canonical 资源规则。计划器 SHALL 以固定来源版本、请求方法/端点、`execution_key`、规范参数、查询分区、时间分片和分页语义生成物理计划单元，并在尚未创建 attempt 的 plan-only 阶段以不可变 `PhysicalQueryCoverageLink(plan_item_id, coverage_entry_id)` 建立多对多关系；同一物理发现查询不得仅因业务问题不同而重复联网。执行时每个 discovery/fetch attempt SHALL 引用对应 plan item，retry 可产生多个引用同一 plan item 的 attempt。上述任何影响实际请求或终止证明的要素不同，均不得错误合并。每个覆盖项 MUST 能经 plan link 反向列出实际贡献的 attempts，不能用共享查询结果省略问题级覆盖状态。

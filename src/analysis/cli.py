@@ -126,6 +126,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     acquire_execute.add_argument("--lease-ttl-seconds", type=_lease_ttl, default=60)
     _add_bound_storage_arguments(acquire_execute)
 
+    supplement = acquire_commands.add_parser("supplement", help="针对已终结运行的实际缺口调用补充来源")
+    supplement.add_argument("--from-run", required=True)
+    supplement.add_argument("--coverage-entry", required=True)
+    supplement.add_argument("--source", required=True)
+    supplement.add_argument("--plan-only", action="store_true")
+    _add_bound_storage_arguments(supplement)
+
     smoke = subparsers.add_parser("smoke-sources", help="执行注册表驱动的最小在线探针")
     smoke.add_argument("--ticker", required=True)
     smoke.add_argument("--source", action="append", dest="sources")
@@ -230,6 +237,16 @@ def _run_acquisition_command(args: argparse.Namespace) -> int:
             return EXIT_OK
         if args.acquire_command == "execute":
             result = _execute(runtime, args.run_id, args.lease_ttl_seconds)
+            _emit(_safe_json_value(result), json_output=args.json_output)
+            return _result_exit_code(result)
+        if args.acquire_command == "supplement":
+            from .acquisition.supplement import plan_supplement
+            plan = plan_supplement(runtime, parent_run_id=args.from_run,
+                coverage_entry_id=args.coverage_entry, source_definition_id=args.source)
+            if args.plan_only:
+                _emit(_safe_json_value(plan), json_output=args.json_output)
+                return EXIT_OK
+            result = _execute(runtime, plan.run.run_id, 60)
             _emit(_safe_json_value(result), json_output=args.json_output)
             return _result_exit_code(result)
         if args.acquire_command == "start":
@@ -341,7 +358,7 @@ def _run_detail(runtime: AcquisitionRuntime, run_id: str) -> dict[str, Any]:
             for item in repository.list_plan_coverage_links(run_id=run_id)
         ],
         "attempts": [
-            _safe_json_value(item) for item in repository.list_attempts(run_id=run_id)
+            _safe_json_value(item) for item in repository.list_attempts(run_id=run_id, limit=None)
         ],
         "coverage_resolutions": [
             _safe_json_value(item)

@@ -19,10 +19,15 @@ jobs:
       - name: Validate current acquisition source registry
         run: >-
           python scripts/validate_source_registry.py
-          --registry config/data_sources/business_model_sources.v1.4.json
+          --registry config/data_sources/business_model_sources.v1.7.json
           --questions config/data_sources/business_model_questions.v1.json
           --expect-business-model-v1 4
           --require-plan-traceability
+      - name: Validate direct empty, historical HTML and IPO registry compatibility
+        run: |
+          for version in 1.4 1.5 1.6; do
+            python scripts/validate_source_registry.py --registry config/data_sources/business_model_sources.v${version}.json --expect-business-model-v1 4 --require-plan-traceability
+          done
       - name: Validate SSE schema-approved acquisition source registry compatibility
         run: >-
           python scripts/validate_source_registry.py

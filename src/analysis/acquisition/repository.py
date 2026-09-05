@@ -1259,15 +1259,22 @@ class AcquisitionRepository:
         run_id: str | None = None,
         plan_item_id: str | None = None,
         source_definition_id: str | None = None,
-        limit: int = 500,
+        retry_group_id: str | None = None,
+        limit: int | None = 500,
         offset: int = 0,
     ) -> list[Any]:
+        """Read a display page, or the complete selection with ``limit=None``.
+
+        Runtime decisions and exports must explicitly request the complete
+        selection.  A larger numeric limit is still a lossy display page.
+        """
         clauses: list[str] = []
         args: list[Any] = []
         for column, value in (
             ("run_id", run_id),
             ("physical_query_plan_item_id", plan_item_id),
             ("source_definition_id", source_definition_id),
+            ("retry_group_id", retry_group_id),
         ):
             if value is not None:
                 clauses.append(f"{column}=?")
@@ -1277,7 +1284,7 @@ class AcquisitionRepository:
             rows = connection.execute(
                 f"SELECT payload FROM acquisition_attempts {where} "
                 "ORDER BY started_at, retry_group_id, retry_ordinal, attempt_id LIMIT ? OFFSET ?",
-                (*args, limit, offset),
+                (*args, -1 if limit is None else limit, offset),
             ).fetchall()
         return [_load_model("AcquisitionAttempt", row["payload"]) for row in rows]
 
@@ -1644,6 +1651,12 @@ class AcquisitionRepository:
                 (observation_id,),
             ).fetchall()
         return [_load_model("DiscoveredResource", row["payload"]) for row in rows]
+
+    def get_discovered_resource(self, discovered_resource_id: str) -> Any:
+        return self._get_typed(
+            "discovered_resources", "discovered_resource_id",
+            discovered_resource_id, "DiscoveredResource",
+        )
 
     def list_discovery_observations(self, attempt_id: str) -> list[Any]:
         with self._connect(readonly=True) as connection:
@@ -2097,7 +2110,7 @@ class AcquisitionRepository:
         *,
         attempt_id: str | None = None,
         snapshot_id: str | None = None,
-        limit: int = 500,
+        limit: int | None = 500,
         offset: int = 0,
     ) -> list[Any]:
         clauses: list[str] = []
@@ -2113,7 +2126,7 @@ class AcquisitionRepository:
             rows = connection.execute(
                 f"SELECT payload FROM resource_observations {where} "
                 "ORDER BY observed_at, observation_id LIMIT ? OFFSET ?",
-                (*args, limit, offset),
+                (*args, -1 if limit is None else limit, offset),
             ).fetchall()
         return [_load_model("ResourceObservation", row["payload"]) for row in rows]
 
@@ -2121,6 +2134,26 @@ class AcquisitionRepository:
         return self._get_typed(
             "resource_observations", "observation_id", observation_id, "ResourceObservation"
         )
+
+    def completed_resource_observations(
+        self, *, run_id: str, source_definition_id: str,
+        source_definition_version: str, canonical_resource_id: str,
+    ) -> list[Any]:
+        """Read all successful observations for one exact run/source/resource."""
+        with self._connect(readonly=True) as connection:
+            rows = connection.execute(
+                "SELECT o.payload FROM resource_observations o "
+                "JOIN discovered_resources r ON r.discovered_resource_id=o.discovered_resource_id "
+                "JOIN acquisition_attempts a ON a.attempt_id=o.attempt_id "
+                "WHERE a.run_id=? AND o.source_definition_id=? "
+                "AND o.source_definition_version=? AND r.canonical_resource_id=? "
+                "AND o.snapshot_id IS NOT NULL AND EXISTS ("
+                "SELECT 1 FROM acquisition_attempt_events e WHERE e.attempt_id=a.attempt_id "
+                "AND e.event_type='outcome_terminal' AND e.outcome IN ('success','unchanged')) "
+                "ORDER BY o.observed_at DESC, o.observation_id DESC",
+                (run_id, source_definition_id, str(source_definition_version), canonical_resource_id),
+            ).fetchall()
+        return [_load_model("ResourceObservation", row["payload"]) for row in rows]
 
     def append_snapshot_integrity_event(self, event: Any) -> None:
         data = _payload(event)

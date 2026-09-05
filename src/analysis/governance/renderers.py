@@ -9,6 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
+from openpyxl.xml.functions import tostring
 
 from .canonical import canonical_datetime, canonical_sha256
 from .codex_tools import canonical_session_manifest_hash
@@ -20,7 +21,7 @@ from .report_service import canonical_governance_report_hash
 REPORT_VIEW_VERSION = "1.0.0"
 MARKDOWN_RENDERER_VERSION = "1.0.0"
 HTML_RENDERER_VERSION = "1.0.0"
-XLSX_RENDERER_VERSION = "1.0.0"
+XLSX_RENDERER_VERSION = "1.0.1"
 PDF_RENDERER_VERSION = "1.0.0"
 
 _FIXED_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
@@ -458,6 +459,9 @@ def _write_sheet(workbook: Workbook, title: str, headers: tuple[str, ...], rows:
 
 
 def _deterministic_workbook_bytes(workbook: Workbook) -> bytes:
+    # openpyxl.save() replaces modified with wall-clock time. Preserve the
+    # explicitly chosen properties before saving, then freeze those bytes too.
+    core_properties = tostring(workbook.properties.to_tree())
     raw = BytesIO()
     workbook.save(raw)
     normalized = BytesIO()
@@ -469,7 +473,8 @@ def _deterministic_workbook_bytes(workbook: Workbook) -> bytes:
             info.compress_type = ZIP_DEFLATED
             info.create_system = 0
             info.external_attr = 0
-            target.writestr(info, source.read(name), compress_type=ZIP_DEFLATED, compresslevel=9)
+            payload = core_properties if name == "docProps/core.xml" else source.read(name)
+            target.writestr(info, payload, compress_type=ZIP_DEFLATED, compresslevel=9)
     return normalized.getvalue()
 
 

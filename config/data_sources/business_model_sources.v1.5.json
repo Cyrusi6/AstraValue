@@ -1,0 +1,2045 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "astravalue.data_sources",
+  "registry_version": "1.5.0",
+  "effective_at": "2026-09-05T11:21:28.156500+00:00",
+  "question_set_version": "1.0.0",
+  "definitions": [
+    {
+      "source_definition_id": "cninfo.disclosures",
+      "version": "1.4.0",
+      "upstream_identity": "深圳证券信息有限公司巨潮资讯网法定信息披露平台",
+      "display_name": "巨潮资讯",
+      "authority_level": 5,
+      "adapter_key": "cninfo",
+      "policy_status": "enabled",
+      "enabled": true,
+      "access_method": "https_api",
+      "scopes": [
+        "business_model"
+      ],
+      "scope_version": "v1",
+      "topics": [
+        "company_identity",
+        "prospectus",
+        "periodic_report",
+        "business_announcement"
+      ],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "daily",
+      "initial_request_allowlist": [
+        {
+          "scheme": "https",
+          "host": "www.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/new/data/szse_stock.json"
+        },
+        {
+          "scheme": "https",
+          "host": "www.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/new/hisAnnouncement/query"
+        },
+        {
+          "scheme": "https",
+          "host": "static.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/finalpage/"
+        }
+      ],
+      "redirect_allowlist": [
+        {
+          "scheme": "https",
+          "host": "www.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/new/data/szse_stock.json"
+        },
+        {
+          "scheme": "https",
+          "host": "www.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/new/hisAnnouncement/query"
+        },
+        {
+          "scheme": "https",
+          "host": "static.cninfo.com.cn",
+          "port": 443,
+          "path_prefix": "/finalpage/"
+        }
+      ],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "instant",
+      "incremental_policy": {
+        "overlap_days": 14,
+        "canonical_id_required": true,
+        "use_etag": true,
+        "use_last_modified": true,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": 90,
+        "silent_replacement_limit": "有限overlap不能证明窗口外历史URL未被静默替换；每90日需reconcile。HTML/schema 3不声明兼容旧版本checkpoint。"
+      },
+      "retention_policy": {
+        "discovery_body": "retain",
+        "content_body": "allowed",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 67108864,
+        "max_compressed_bytes": 67108864,
+        "max_decompressed_bytes": 134217728,
+        "max_redirects": 1
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 5,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 30,
+        "request_timeout_seconds": 30,
+        "attempt_deadline_seconds": 120
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "allowed",
+        "save_derived_text": "allowed",
+        "llm_processing": "allowed",
+        "access_cost": "free",
+        "evidence_basis": "项目负责人2026-09-05明确批准按顺序修复完整读取、历史HTML和招股分类后分批归档公开正文。沿用个人、本地、低频、非商业研究、直连、不攻击且不规避挑战的既有内部策略。见 docs/acquisition/cninfo-history-archive-policy-2026-09-05.md。",
+        "checked_at": "2026-09-05T11:21:28.156500+00:00",
+        "restrictions": [
+          "仅限AstraValue个人、本地、低频、非商业研究",
+          "禁止出售、对外再分发或作为商业数据服务",
+          "原始响应、附件、派生文本、数据库、令牌和报告不得进入Git",
+          "失败或受限须保留规范状态并及时报告讨论；继续其他已批准且未受影响工作，不攻击网站、不密集重试、不自动规避挑战、不伪造成功或无数据",
+          "访问结果只代表执行时点；来源协议或政策变化必须发布新definition版本并重新审核"
+        ]
+      },
+      "live_access_review": {
+        "status": "approved",
+        "checklist_version": "business_model_v1.9.1",
+        "completed_checks": [
+          "exact_request_endpoints",
+          "exact_redirect_boundaries",
+          "access_method",
+          "response_schema",
+          "time_semantics",
+          "discovery_and_content_retention",
+          "response_limits",
+          "rate_and_retry",
+          "license_terms",
+          "llm_terms"
+        ],
+        "reviewed_at": "2026-09-05T11:21:28.156500+00:00",
+        "reviewed_by": "AstraValue project owner instruction; Codex technical review",
+        "evidence_reference": "docs/acquisition/cninfo-history-archive-policy-2026-09-05.md"
+      },
+      "effective_at": "2026-09-05T11:21:28.156500+00:00",
+      "expires_at": null,
+      "queries": [
+        {
+          "query_id": "cninfo.company_bootstrap",
+          "query_family": "company_bootstrap",
+          "query_stage": "discovery",
+          "execution_key": "cninfo.company_bootstrap.v1.approved.v1.4",
+          "adapter_operation": "bootstrap_company",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL"
+          ],
+          "request_method": "GET",
+          "request_encoding": "query",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.cninfo.com.cn/new/data/szse_stock.json",
+          "parameter_template": {},
+          "parameter_bindings": {},
+          "allowed_parameter_names": [],
+          "partition_key": "company_identity",
+          "earliest_available_at": "1990-12-19T00:00:00Z",
+          "max_window_days": null,
+          "pagination": {
+            "strategy": "none",
+            "page_parameter": null,
+            "page_size_parameter": null,
+            "page_size": null,
+            "cursor_parameter": null,
+            "termination": "single_response",
+            "total_path": null,
+            "items_path": "stockList"
+          },
+          "discovery_schema": {
+            "schema_id": "cninfo.stock-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "stockList"
+            ],
+            "resource_fields": {
+              "canonical_id": "stockList[].code",
+              "url": "$request_url",
+              "title": "stockList[].zwjc"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "metadata_only",
+          "canonical_id_rule": "cninfo-org:{code}:{orgId}",
+          "smoke_enabled": true
+        },
+        {
+          "query_stage": "discovery",
+          "adapter_operation": "execute_query",
+          "request_method": "POST",
+          "request_encoding": "form",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+          "allowed_parameter_names": [
+            "stock",
+            "tabName",
+            "pageSize",
+            "pageNum",
+            "column",
+            "category",
+            "plate",
+            "seDate",
+            "searchkey",
+            "secid",
+            "trade",
+            "sortName",
+            "sortType",
+            "isHLtitle"
+          ],
+          "parameter_bindings": {
+            "stock": {
+              "source_query_id": "cninfo.company_bootstrap",
+              "match_metadata_key": "ticker",
+              "match_value_template": "{ticker}",
+              "value_metadata_key": "wire_stock",
+              "value_template": "{value}"
+            }
+          },
+          "earliest_available_at": "1990-12-19T00:00:00Z",
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 30,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "totalAnnouncement",
+            "items_path": "announcements"
+          },
+          "discovery_schema": {
+            "schema_id": "cninfo.announcements",
+            "schema_version": "3",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "announcements",
+              "totalAnnouncement"
+            ],
+            "resource_fields": {
+              "canonical_id": "announcements[].announcementId",
+              "url": "announcements[].adjunctUrl",
+              "title": "announcements[].announcementTitle",
+              "published_at": "announcements[].announcementTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "announcementId; fallback normalized(ticker,title,announcementTime)",
+          "query_id": "cninfo.prospectus",
+          "query_family": "prospectus",
+          "execution_key": "cninfo.prospectus.v1.approved.v1.4",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "parameter_template": {
+            "tabName": "fulltext",
+            "column": "{market}",
+            "category": "category_scgkfx_szsh;",
+            "plate": "{plate}",
+            "seDate": "{start_date}~{end_date}",
+            "searchkey": "",
+            "secid": "",
+            "trade": "",
+            "sortName": "announcementTime",
+            "sortType": "desc",
+            "isHLtitle": "true"
+          },
+          "partition_key": "prospectus",
+          "max_window_days": 365,
+          "smoke_enabled": false
+        },
+        {
+          "query_stage": "discovery",
+          "adapter_operation": "execute_query",
+          "request_method": "POST",
+          "request_encoding": "form",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+          "allowed_parameter_names": [
+            "stock",
+            "tabName",
+            "pageSize",
+            "pageNum",
+            "column",
+            "category",
+            "plate",
+            "seDate",
+            "searchkey",
+            "secid",
+            "trade",
+            "sortName",
+            "sortType",
+            "isHLtitle"
+          ],
+          "parameter_bindings": {
+            "stock": {
+              "source_query_id": "cninfo.company_bootstrap",
+              "match_metadata_key": "ticker",
+              "match_value_template": "{ticker}",
+              "value_metadata_key": "wire_stock",
+              "value_template": "{value}"
+            }
+          },
+          "earliest_available_at": "1990-12-19T00:00:00Z",
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 30,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "totalAnnouncement",
+            "items_path": "announcements"
+          },
+          "discovery_schema": {
+            "schema_id": "cninfo.announcements",
+            "schema_version": "3",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "announcements",
+              "totalAnnouncement"
+            ],
+            "resource_fields": {
+              "canonical_id": "announcements[].announcementId",
+              "url": "announcements[].adjunctUrl",
+              "title": "announcements[].announcementTitle",
+              "published_at": "announcements[].announcementTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "announcementId; fallback normalized(ticker,title,announcementTime)",
+          "query_id": "cninfo.periodic_report",
+          "query_family": "periodic_report",
+          "execution_key": "cninfo.periodic_report.v1.approved.v1.4",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "parameter_template": {
+            "tabName": "fulltext",
+            "column": "{market}",
+            "category": "category_ndbg_szsh;category_bndbg_szsh;category_yjdbg_szsh;category_sjdbg_szsh",
+            "plate": "{plate}",
+            "seDate": "{start_date}~{end_date}",
+            "searchkey": "",
+            "secid": "",
+            "trade": "",
+            "sortName": "announcementTime",
+            "sortType": "desc",
+            "isHLtitle": "true"
+          },
+          "partition_key": "periodic_report",
+          "max_window_days": 365,
+          "smoke_enabled": true
+        },
+        {
+          "query_stage": "discovery",
+          "adapter_operation": "execute_query",
+          "request_method": "POST",
+          "request_encoding": "form",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+          "allowed_parameter_names": [
+            "stock",
+            "tabName",
+            "pageSize",
+            "pageNum",
+            "column",
+            "category",
+            "plate",
+            "seDate",
+            "searchkey",
+            "secid",
+            "trade",
+            "sortName",
+            "sortType",
+            "isHLtitle"
+          ],
+          "parameter_bindings": {
+            "stock": {
+              "source_query_id": "cninfo.company_bootstrap",
+              "match_metadata_key": "ticker",
+              "match_value_template": "{ticker}",
+              "value_metadata_key": "wire_stock",
+              "value_template": "{value}"
+            }
+          },
+          "earliest_available_at": "1990-12-19T00:00:00Z",
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 30,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "totalAnnouncement",
+            "items_path": "announcements"
+          },
+          "discovery_schema": {
+            "schema_id": "cninfo.announcements",
+            "schema_version": "3",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "announcements",
+              "totalAnnouncement"
+            ],
+            "resource_fields": {
+              "canonical_id": "announcements[].announcementId",
+              "url": "announcements[].adjunctUrl",
+              "title": "announcements[].announcementTitle",
+              "published_at": "announcements[].announcementTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "announcementId; fallback normalized(ticker,title,announcementTime)",
+          "query_id": "cninfo.business_announcement",
+          "query_family": "business_announcement",
+          "execution_key": "cninfo.business_announcement.v1.approved.v1.4",
+          "question_ids": [
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "parameter_template": {
+            "tabName": "fulltext",
+            "column": "{market}",
+            "category": "",
+            "plate": "{plate}",
+            "seDate": "{start_date}~{end_date}",
+            "searchkey": "",
+            "secid": "",
+            "trade": "",
+            "sortName": "announcementTime",
+            "sortType": "desc",
+            "isHLtitle": "true"
+          },
+          "partition_key": "business_announcement",
+          "max_window_days": 90,
+          "smoke_enabled": false
+        }
+      ],
+      "aliases": [],
+      "legacy": false
+    },
+    {
+      "source_definition_id": "sse.disclosures",
+      "version": "1.3.0",
+      "upstream_identity": "上海证券交易所上市公司信息披露平台",
+      "display_name": "上海证券交易所",
+      "authority_level": 5,
+      "adapter_key": "sse",
+      "policy_status": "enabled",
+      "enabled": true,
+      "access_method": "https_api",
+      "scopes": [
+        "business_model"
+      ],
+      "scope_version": "v1",
+      "topics": [
+        "periodic_report"
+      ],
+      "applicability": {
+        "markets": [
+          "SSE"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "daily",
+      "initial_request_allowlist": [
+        {
+          "scheme": "https",
+          "host": "query.sse.com.cn",
+          "port": 443,
+          "path_prefix": "/security/stock/queryCompanyStatementNew.do"
+        },
+        {
+          "scheme": "https",
+          "host": "www.sse.com.cn",
+          "port": 443,
+          "path_prefix": "/disclosure/listedinfo/announcement/"
+        },
+        {
+          "scheme": "https",
+          "host": "static.sse.com.cn",
+          "port": 443,
+          "path_prefix": "/disclosure/listedinfo/announcement/"
+        }
+      ],
+      "redirect_allowlist": [
+        {
+          "scheme": "https",
+          "host": "www.sse.com.cn",
+          "port": 443,
+          "path_prefix": "/disclosure/listedinfo/announcement/"
+        },
+        {
+          "scheme": "https",
+          "host": "static.sse.com.cn",
+          "port": 443,
+          "path_prefix": "/disclosure/listedinfo/announcement/"
+        }
+      ],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "date",
+      "incremental_policy": {
+        "overlap_days": 14,
+        "canonical_id_required": true,
+        "use_etag": true,
+        "use_last_modified": true,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": 90,
+        "silent_replacement_limit": "v1.2.0仅批准已确认的DQBG定期报告查询；招股书与一般公告分类尚未纳入。有限overlap之外每90日reconcile。"
+      },
+      "retention_policy": {
+        "discovery_body": "retain",
+        "content_body": "allowed",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 67108864,
+        "max_compressed_bytes": 67108864,
+        "max_decompressed_bytes": 134217728,
+        "max_redirects": 1
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 5,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 30,
+        "request_timeout_seconds": 30,
+        "attempt_deadline_seconds": 120
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "allowed",
+        "save_derived_text": "allowed",
+        "llm_processing": "allowed",
+        "access_cost": "free",
+        "evidence_basis": "AstraValue项目负责人于2026-09-04T07:57:25Z批准仅限个人、本地、低频、非商业研究的内部处理；该项目内部决定不是来源方授权或法律意见。见 docs/acquisition/source-access-policy-approval-2026-09-04.md#sse-disclosures。",
+        "checked_at": "2026-09-04T07:57:25Z",
+        "restrictions": [
+          "仅限AstraValue个人、本地、低频、非商业研究",
+          "禁止出售、对外再分发或作为商业数据服务",
+          "原始响应、附件、派生文本、数据库、令牌和报告不得进入Git",
+          "遇到登录、验证码、付费墙、JavaScript挑战、401/403或明确许可限制立即停止，不得绕过",
+          "访问结果只代表执行时点；来源协议或政策变化必须发布新definition版本并重新审核",
+          "v1.2.0仅执行已确认的DQBG定期报告查询；未确认的招股书和一般公告分类不得猜测或联网"
+        ]
+      },
+      "live_access_review": {
+        "status": "approved",
+        "checklist_version": "business_model_v1.9.1",
+        "completed_checks": [
+          "exact_request_endpoints",
+          "exact_redirect_boundaries",
+          "access_method",
+          "response_schema",
+          "time_semantics",
+          "discovery_and_content_retention",
+          "response_limits",
+          "rate_and_retry",
+          "license_terms",
+          "llm_terms"
+        ],
+        "reviewed_at": "2026-09-04T09:50:30Z",
+        "reviewed_by": "AstraValue project creator/owner (user attestation)",
+        "evidence_reference": "docs/acquisition/source-access-policy-schema-amendment-2026-09-04.md#sse-disclosures-v130"
+      },
+      "effective_at": "2026-09-04T09:50:30Z",
+      "expires_at": null,
+      "queries": [
+        {
+          "query_id": "sse.periodic_report",
+          "query_family": "periodic_report",
+          "query_stage": "discovery",
+          "execution_key": "sse.periodic_report.dqbg.v1.approved.v1.3",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "GET",
+          "request_encoding": "query",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.sse.com.cn/assortment/stock/list/info/announcement/",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)"
+          },
+          "endpoint": "https://query.sse.com.cn/security/stock/queryCompanyStatementNew.do",
+          "parameter_template": {
+            "isPagination": "true",
+            "productId": "{ticker}",
+            "keyWord": "",
+            "securityType": "0101,120100,020100,020200,120200",
+            "reportType2": "DQBG",
+            "reportType": "ALL",
+            "beginDate": "{start_date}",
+            "endDate": "{end_date}",
+            "pageHelp.pageCount": "50",
+            "pageHelp.beginPage": "1",
+            "pageHelp.cacheSize": "1",
+            "pageHelp.endPage": "5"
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "isPagination",
+            "productId",
+            "keyWord",
+            "securityType",
+            "reportType2",
+            "reportType",
+            "beginDate",
+            "endDate",
+            "pageHelp.pageSize",
+            "pageHelp.pageCount",
+            "pageHelp.pageNo",
+            "pageHelp.beginPage",
+            "pageHelp.cacheSize",
+            "pageHelp.endPage"
+          ],
+          "partition_key": "periodic_report_dqbg",
+          "earliest_available_at": "1990-12-19T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageHelp.pageNo",
+            "page_size_parameter": "pageHelp.pageSize",
+            "page_size": 100,
+            "cursor_parameter": null,
+            "termination": "declared_page_count",
+            "total_path": null,
+            "items_path": "pageHelp.data"
+          },
+          "discovery_schema": {
+            "schema_id": "sse.company-statement-new",
+            "schema_version": "2",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "pageHelp.data",
+              "pageHelp.pageCount",
+              "pageHelp.total"
+            ],
+            "resource_fields": {
+              "canonical_id": "pageHelp.data[].URL",
+              "url": "pageHelp.data[].URL",
+              "title": "pageHelp.data[].title",
+              "published_at": "pageHelp.data[].SSEDATE"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "normalized URL basename; fallback normalized(ticker,title,SSEDATE)",
+          "smoke_enabled": true
+        }
+      ],
+      "aliases": [],
+      "legacy": false
+    },
+    {
+      "source_definition_id": "szse.disclosures",
+      "version": "1.2.0",
+      "upstream_identity": "深圳证券交易所上市公司信息披露平台",
+      "display_name": "深圳证券交易所",
+      "authority_level": 5,
+      "adapter_key": "szse",
+      "policy_status": "enabled",
+      "enabled": true,
+      "access_method": "https_api",
+      "scopes": [
+        "business_model"
+      ],
+      "scope_version": "v1",
+      "topics": [
+        "prospectus",
+        "periodic_report"
+      ],
+      "applicability": {
+        "markets": [
+          "SZSE"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "daily",
+      "initial_request_allowlist": [
+        {
+          "scheme": "https",
+          "host": "www.szse.cn",
+          "port": 443,
+          "path_prefix": "/api/disc/announcement/annList"
+        },
+        {
+          "scheme": "https",
+          "host": "disc.static.szse.cn",
+          "port": 443,
+          "path_prefix": "/download/"
+        }
+      ],
+      "redirect_allowlist": [
+        {
+          "scheme": "https",
+          "host": "www.szse.cn",
+          "port": 443,
+          "path_prefix": "/api/disc/announcement/annList"
+        },
+        {
+          "scheme": "https",
+          "host": "disc.static.szse.cn",
+          "port": 443,
+          "path_prefix": "/download/"
+        }
+      ],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "instant",
+      "incremental_policy": {
+        "overlap_days": 14,
+        "canonical_id_required": true,
+        "use_etag": true,
+        "use_last_modified": true,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": 90,
+        "silent_replacement_limit": "v1.2.0仅批准0102及四类已确认定期报告分类；一般业务公告分类尚未纳入。有限overlap之外每90日reconcile。"
+      },
+      "retention_policy": {
+        "discovery_body": "retain",
+        "content_body": "allowed",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 67108864,
+        "max_compressed_bytes": 67108864,
+        "max_decompressed_bytes": 134217728,
+        "max_redirects": 1
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 5,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 30,
+        "request_timeout_seconds": 30,
+        "attempt_deadline_seconds": 120
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "allowed",
+        "save_derived_text": "allowed",
+        "llm_processing": "allowed",
+        "access_cost": "free",
+        "evidence_basis": "AstraValue项目负责人于2026-09-04T07:57:25Z批准仅限个人、本地、低频、非商业研究的内部处理；该项目内部决定不是来源方授权或法律意见。见 docs/acquisition/source-access-policy-approval-2026-09-04.md#szse-disclosures。",
+        "checked_at": "2026-09-04T07:57:25Z",
+        "restrictions": [
+          "仅限AstraValue个人、本地、低频、非商业研究",
+          "禁止出售、对外再分发或作为商业数据服务",
+          "原始响应、附件、派生文本、数据库、令牌和报告不得进入Git",
+          "遇到登录、验证码、付费墙、JavaScript挑战、401/403或明确许可限制立即停止，不得绕过",
+          "访问结果只代表执行时点；来源协议或政策变化必须发布新definition版本并重新审核",
+          "v1.2.0仅执行已确认的0102、010301、010303、010305、010307分类；一般业务公告分类不得猜测或联网"
+        ]
+      },
+      "live_access_review": {
+        "status": "approved",
+        "checklist_version": "business_model_v1.9.1",
+        "completed_checks": [
+          "exact_request_endpoints",
+          "exact_redirect_boundaries",
+          "access_method",
+          "response_schema",
+          "time_semantics",
+          "discovery_and_content_retention",
+          "response_limits",
+          "rate_and_retry",
+          "license_terms",
+          "llm_terms"
+        ],
+        "reviewed_at": "2026-09-04T07:57:25Z",
+        "reviewed_by": "AstraValue project creator/owner (user attestation)",
+        "evidence_reference": "docs/acquisition/source-access-policy-approval-2026-09-04.md#szse-disclosures"
+      },
+      "effective_at": "2026-09-04T07:57:25Z",
+      "expires_at": null,
+      "queries": [
+        {
+          "query_id": "szse.prospectus",
+          "query_family": "prospectus",
+          "query_stage": "discovery",
+          "execution_key": "szse.prospectus.0102.v1.approved.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "POST",
+          "request_encoding": "json",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.szse.cn/disclosure/listed/notice/index.html",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.szse.cn/api/disc/announcement/annList",
+          "parameter_template": {
+            "stock": [
+              "{ticker}"
+            ],
+            "channelCode": [
+              "listedNotice_disc"
+            ],
+            "seDate": [
+              "{start_date}",
+              "{end_date}"
+            ],
+            "bigCategoryId": [
+              "0102"
+            ]
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "stock",
+            "channelCode",
+            "seDate",
+            "bigCategoryId",
+            "pageSize",
+            "pageNum"
+          ],
+          "partition_key": "prospectus_0102",
+          "earliest_available_at": "1991-07-03T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 50,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "announceCount",
+            "items_path": "data"
+          },
+          "discovery_schema": {
+            "schema_id": "szse.announcement-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "data",
+              "announceCount"
+            ],
+            "resource_fields": {
+              "canonical_id": "data[].annId",
+              "url": "data[].attachPath",
+              "title": "data[].title",
+              "published_at": "data[].publishTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "annId; fallback normalized(ticker,title,publishTime)",
+          "smoke_enabled": false
+        },
+        {
+          "query_id": "szse.annual_report",
+          "query_family": "periodic_report",
+          "query_stage": "discovery",
+          "execution_key": "szse.periodic.010301.v1.approved.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "POST",
+          "request_encoding": "json",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.szse.cn/disclosure/listed/notice/index.html",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.szse.cn/api/disc/announcement/annList",
+          "parameter_template": {
+            "stock": [
+              "{ticker}"
+            ],
+            "channelCode": [
+              "listedNotice_disc"
+            ],
+            "seDate": [
+              "{start_date}",
+              "{end_date}"
+            ],
+            "bigCategoryId": [
+              "010301"
+            ]
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "stock",
+            "channelCode",
+            "seDate",
+            "bigCategoryId",
+            "pageSize",
+            "pageNum"
+          ],
+          "partition_key": "periodic_010301",
+          "earliest_available_at": "1991-07-03T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 50,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "announceCount",
+            "items_path": "data"
+          },
+          "discovery_schema": {
+            "schema_id": "szse.announcement-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "data",
+              "announceCount"
+            ],
+            "resource_fields": {
+              "canonical_id": "data[].annId",
+              "url": "data[].attachPath",
+              "title": "data[].title",
+              "published_at": "data[].publishTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "annId; fallback normalized(ticker,title,publishTime)",
+          "smoke_enabled": true
+        },
+        {
+          "query_id": "szse.semiannual_report",
+          "query_family": "periodic_report",
+          "query_stage": "discovery",
+          "execution_key": "szse.periodic.010303.v1.approved.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "POST",
+          "request_encoding": "json",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.szse.cn/disclosure/listed/notice/index.html",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.szse.cn/api/disc/announcement/annList",
+          "parameter_template": {
+            "stock": [
+              "{ticker}"
+            ],
+            "channelCode": [
+              "listedNotice_disc"
+            ],
+            "seDate": [
+              "{start_date}",
+              "{end_date}"
+            ],
+            "bigCategoryId": [
+              "010303"
+            ]
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "stock",
+            "channelCode",
+            "seDate",
+            "bigCategoryId",
+            "pageSize",
+            "pageNum"
+          ],
+          "partition_key": "periodic_010303",
+          "earliest_available_at": "1991-07-03T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 50,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "announceCount",
+            "items_path": "data"
+          },
+          "discovery_schema": {
+            "schema_id": "szse.announcement-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "data",
+              "announceCount"
+            ],
+            "resource_fields": {
+              "canonical_id": "data[].annId",
+              "url": "data[].attachPath",
+              "title": "data[].title",
+              "published_at": "data[].publishTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "annId; fallback normalized(ticker,title,publishTime)",
+          "smoke_enabled": false
+        },
+        {
+          "query_id": "szse.first_quarter_report",
+          "query_family": "periodic_report",
+          "query_stage": "discovery",
+          "execution_key": "szse.periodic.010305.v1.approved.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "POST",
+          "request_encoding": "json",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.szse.cn/disclosure/listed/notice/index.html",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.szse.cn/api/disc/announcement/annList",
+          "parameter_template": {
+            "stock": [
+              "{ticker}"
+            ],
+            "channelCode": [
+              "listedNotice_disc"
+            ],
+            "seDate": [
+              "{start_date}",
+              "{end_date}"
+            ],
+            "bigCategoryId": [
+              "010305"
+            ]
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "stock",
+            "channelCode",
+            "seDate",
+            "bigCategoryId",
+            "pageSize",
+            "pageNum"
+          ],
+          "partition_key": "periodic_010305",
+          "earliest_available_at": "1991-07-03T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 50,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "announceCount",
+            "items_path": "data"
+          },
+          "discovery_schema": {
+            "schema_id": "szse.announcement-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "data",
+              "announceCount"
+            ],
+            "resource_fields": {
+              "canonical_id": "data[].annId",
+              "url": "data[].attachPath",
+              "title": "data[].title",
+              "published_at": "data[].publishTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "annId; fallback normalized(ticker,title,publishTime)",
+          "smoke_enabled": false
+        },
+        {
+          "query_id": "szse.third_quarter_report",
+          "query_family": "periodic_report",
+          "query_stage": "discovery",
+          "execution_key": "szse.periodic.010307.v1.approved.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q01.IDENTITY_BUSINESS_MODEL",
+            "BM.Q02.PRODUCT_REGION_ECONOMICS",
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q04.UNIT_ECONOMICS_PRICING",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q06.CAPEX_CYCLE",
+            "BM.Q07.RD_INPUT_EFFICIENCY",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "POST",
+          "request_encoding": "json",
+          "fixed_headers": {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.szse.cn/disclosure/listed/notice/index.html",
+            "User-Agent": "AstraValue/1.0 (personal non-commercial research)",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          "endpoint": "https://www.szse.cn/api/disc/announcement/annList",
+          "parameter_template": {
+            "stock": [
+              "{ticker}"
+            ],
+            "channelCode": [
+              "listedNotice_disc"
+            ],
+            "seDate": [
+              "{start_date}",
+              "{end_date}"
+            ],
+            "bigCategoryId": [
+              "010307"
+            ]
+          },
+          "parameter_bindings": {},
+          "allowed_parameter_names": [
+            "stock",
+            "channelCode",
+            "seDate",
+            "bigCategoryId",
+            "pageSize",
+            "pageNum"
+          ],
+          "partition_key": "periodic_010307",
+          "earliest_available_at": "1991-07-03T00:00:00Z",
+          "max_window_days": 365,
+          "pagination": {
+            "strategy": "page",
+            "page_parameter": "pageNum",
+            "page_size_parameter": "pageSize",
+            "page_size": 50,
+            "cursor_parameter": null,
+            "termination": "declared_total",
+            "total_path": "announceCount",
+            "items_path": "data"
+          },
+          "discovery_schema": {
+            "schema_id": "szse.announcement-list",
+            "schema_version": "1",
+            "response_mime_types": [
+              "application/json",
+              "text/json"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "data",
+              "announceCount"
+            ],
+            "resource_fields": {
+              "canonical_id": "data[].annId",
+              "url": "data[].attachPath",
+              "title": "data[].title",
+              "published_at": "data[].publishTime"
+            }
+          },
+          "discovery_body_policy": "retain",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "annId; fallback normalized(ticker,title,publishTime)",
+          "smoke_enabled": false
+        }
+      ],
+      "aliases": [],
+      "legacy": false
+    },
+    {
+      "source_definition_id": "moutai.ir",
+      "version": "1.2.0",
+      "upstream_identity": "贵州茅台酒股份有限公司官方网站投资者关系栏目",
+      "display_name": "贵州茅台官方投资者关系网站（继续禁用）",
+      "authority_level": 4,
+      "adapter_key": "moutai_ir",
+      "policy_status": "pending_policy",
+      "enabled": false,
+      "access_method": "disabled",
+      "scopes": [
+        "business_model"
+      ],
+      "scope_version": "v1",
+      "topics": [
+        "ir_publication"
+      ],
+      "applicability": {
+        "markets": [
+          "SSE"
+        ],
+        "tickers": [
+          "600519"
+        ],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "daily_after_approval",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "date",
+      "incremental_policy": {
+        "overlap_days": 14,
+        "canonical_id_required": true,
+        "use_etag": true,
+        "use_last_modified": true,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "观察到的HTML分页、PDF路径、重定向和许可均未形成可批准合同；本版本拒绝联网且无水位线兼容性。"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "pending",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 16777216,
+        "max_compressed_bytes": 16777216,
+        "max_decompressed_bytes": 33554432,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 5,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 30,
+        "request_timeout_seconds": 30,
+        "attempt_deadline_seconds": 120
+      },
+      "license_policy": {
+        "automated_access": "pending",
+        "archive_original": "pending",
+        "save_derived_text": "pending",
+        "llm_processing": "pending",
+        "access_cost": "free",
+        "evidence_basis": "AstraValue项目负责人确认：贵州茅台IR许可与稳定协议仍不明确，v1.2.0继续禁用；见 docs/acquisition/source-access-policy-approval-2026-09-04.md#moutai-ir。",
+        "checked_at": "2026-09-04T07:57:25Z",
+        "restrictions": [
+          "页面为HTML分页且现有JSON adapter合同不适用",
+          "自动访问、原文归档、派生文本及LLM处理许可未确认",
+          "不得提交年龄确认、登录、验证码或绕过任何挑战、付费和访问限制",
+          "后续启用必须创建更高的registry和definition版本并重新签署"
+        ]
+      },
+      "live_access_review": {
+        "status": "rejected",
+        "checklist_version": "business_model_v1.9.1",
+        "completed_checks": [
+          "exact_request_endpoints",
+          "exact_redirect_boundaries",
+          "access_method",
+          "response_schema",
+          "time_semantics",
+          "discovery_and_content_retention",
+          "response_limits",
+          "rate_and_retry",
+          "license_terms",
+          "llm_terms"
+        ],
+        "reviewed_at": "2026-09-04T07:57:25Z",
+        "reviewed_by": "AstraValue project creator/owner (user attestation)",
+        "evidence_reference": "docs/acquisition/source-access-policy-approval-2026-09-04.md#moutai-ir"
+      },
+      "effective_at": "2026-09-04T07:57:25Z",
+      "expires_at": null,
+      "queries": [
+        {
+          "query_id": "moutai.ir_publication",
+          "query_family": "ir_publication",
+          "query_stage": "discovery",
+          "execution_key": "moutai.ir_publication.pending.v1.review-rejected.v1.2",
+          "adapter_operation": "execute_query",
+          "question_ids": [
+            "BM.Q03.COUNTERPARTY_CHANNEL",
+            "BM.Q05.CAPACITY_OPERATIONS",
+            "BM.Q08.VALUE_CHAIN",
+            "BM.Q09.STRATEGY_CHANGES",
+            "BM.Q10.COMPETITIVE_CLAIMS_EVIDENCE"
+          ],
+          "request_method": "GET",
+          "endpoint": null,
+          "parameter_template": {},
+          "allowed_parameter_names": [],
+          "partition_key": "ir_publication",
+          "earliest_available_at": null,
+          "max_window_days": null,
+          "pagination": {
+            "strategy": "none",
+            "page_parameter": null,
+            "page_size_parameter": null,
+            "page_size": null,
+            "cursor_parameter": null,
+            "termination": "single_response",
+            "total_path": null,
+            "items_path": "$unapproved_html_contract"
+          },
+          "discovery_schema": {
+            "schema_id": "moutai-ir.html-list.unapproved",
+            "schema_version": "1",
+            "response_mime_types": [
+              "text/html"
+            ],
+            "root_type": "object",
+            "required_paths": [
+              "$unapproved_html_contract"
+            ],
+            "resource_fields": {
+              "canonical_id": "$unapproved_html_contract",
+              "url": "$unapproved_html_contract",
+              "title": "$unapproved_html_contract",
+              "published_at": "$unapproved_html_contract"
+            }
+          },
+          "discovery_body_policy": "forbidden",
+          "fetch_policy": "required_attachment",
+          "canonical_id_rule": "unapproved_html_contract:no_canonical_rule",
+          "smoke_enabled": false,
+          "request_encoding": "query",
+          "fixed_headers": {},
+          "parameter_bindings": {}
+        }
+      ],
+      "aliases": [],
+      "legacy": false
+    }
+  ],
+  "legacy_definitions": [
+    {
+      "source_definition_id": "legacy.official",
+      "version": "1.0.0",
+      "upstream_identity": "既有official聚合适配器兼容入口",
+      "display_name": "Official legacy compatibility",
+      "authority_level": 5,
+      "adapter_key": "official",
+      "policy_status": "legacy",
+      "enabled": true,
+      "access_method": "legacy_adapter",
+      "scopes": [
+        "financials",
+        "announcements",
+        "dimensions",
+        "governance",
+        "capital_actions",
+        "risks"
+      ],
+      "scope_version": null,
+      "topics": [],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "legacy_request",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "unknown",
+      "incremental_policy": {
+        "overlap_days": 0,
+        "canonical_id_required": false,
+        "use_etag": false,
+        "use_last_modified": false,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "legacy_unassessed"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "denied",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 1,
+        "max_compressed_bytes": 1,
+        "max_decompressed_bytes": 1,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 1,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 1,
+        "request_timeout_seconds": 1,
+        "attempt_deadline_seconds": 1
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "denied",
+        "save_derived_text": "denied",
+        "llm_processing": "denied",
+        "access_cost": "free",
+        "evidence_basis": "仅标识现有兼容路径；不授予business_model v1新能力。",
+        "checked_at": "2026-09-03T00:00:00Z",
+        "restrictions": [
+          "legacy_unassessed",
+          "不得用于business_model v1覆盖"
+        ]
+      },
+      "live_access_review": {
+        "status": "not_required",
+        "checklist_version": "legacy_compatibility_v1",
+        "completed_checks": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "evidence_reference": null
+      },
+      "effective_at": "2026-09-03T00:00:00Z",
+      "expires_at": null,
+      "queries": [],
+      "aliases": [
+        "official"
+      ],
+      "legacy": true
+    },
+    {
+      "source_definition_id": "legacy.akshare",
+      "version": "1.0.0",
+      "upstream_identity": "既有AKShare免费数据适配器",
+      "display_name": "AKShare legacy compatibility",
+      "authority_level": 2,
+      "adapter_key": "akshare",
+      "policy_status": "legacy",
+      "enabled": true,
+      "access_method": "legacy_adapter",
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "scope_version": null,
+      "topics": [],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "legacy_request",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "unknown",
+      "incremental_policy": {
+        "overlap_days": 0,
+        "canonical_id_required": false,
+        "use_etag": false,
+        "use_last_modified": false,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "legacy_unassessed"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "denied",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 1,
+        "max_compressed_bytes": 1,
+        "max_decompressed_bytes": 1,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 1,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 1,
+        "request_timeout_seconds": 1,
+        "attempt_deadline_seconds": 1
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "denied",
+        "save_derived_text": "denied",
+        "llm_processing": "denied",
+        "access_cost": "free",
+        "evidence_basis": "仅标识现有兼容路径；不授予business_model v1新能力。",
+        "checked_at": "2026-09-03T00:00:00Z",
+        "restrictions": [
+          "legacy_unassessed",
+          "不得用于business_model v1覆盖"
+        ]
+      },
+      "live_access_review": {
+        "status": "not_required",
+        "checklist_version": "legacy_compatibility_v1",
+        "completed_checks": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "evidence_reference": null
+      },
+      "effective_at": "2026-09-03T00:00:00Z",
+      "expires_at": null,
+      "queries": [],
+      "aliases": [
+        "akshare"
+      ],
+      "legacy": true
+    },
+    {
+      "source_definition_id": "legacy.sina",
+      "version": "1.0.0",
+      "upstream_identity": "既有新浪财经免费数据适配器",
+      "display_name": "Sina legacy compatibility",
+      "authority_level": 2,
+      "adapter_key": "sina",
+      "policy_status": "legacy",
+      "enabled": true,
+      "access_method": "legacy_adapter",
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "scope_version": null,
+      "topics": [],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "legacy_request",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "unknown",
+      "incremental_policy": {
+        "overlap_days": 0,
+        "canonical_id_required": false,
+        "use_etag": false,
+        "use_last_modified": false,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "legacy_unassessed"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "denied",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 1,
+        "max_compressed_bytes": 1,
+        "max_decompressed_bytes": 1,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 1,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 1,
+        "request_timeout_seconds": 1,
+        "attempt_deadline_seconds": 1
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "denied",
+        "save_derived_text": "denied",
+        "llm_processing": "denied",
+        "access_cost": "free",
+        "evidence_basis": "仅标识现有兼容路径；不授予business_model v1新能力。",
+        "checked_at": "2026-09-03T00:00:00Z",
+        "restrictions": [
+          "legacy_unassessed",
+          "不得用于business_model v1覆盖"
+        ]
+      },
+      "live_access_review": {
+        "status": "not_required",
+        "checklist_version": "legacy_compatibility_v1",
+        "completed_checks": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "evidence_reference": null
+      },
+      "effective_at": "2026-09-03T00:00:00Z",
+      "expires_at": null,
+      "queries": [],
+      "aliases": [
+        "sina"
+      ],
+      "legacy": true
+    },
+    {
+      "source_definition_id": "legacy.baostock",
+      "version": "1.0.0",
+      "upstream_identity": "既有BaoStock免费数据适配器",
+      "display_name": "BaoStock legacy compatibility",
+      "authority_level": 2,
+      "adapter_key": "baostock",
+      "policy_status": "legacy",
+      "enabled": true,
+      "access_method": "legacy_adapter",
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "scope_version": null,
+      "topics": [],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "legacy_request",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "unknown",
+      "incremental_policy": {
+        "overlap_days": 0,
+        "canonical_id_required": false,
+        "use_etag": false,
+        "use_last_modified": false,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "legacy_unassessed"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "denied",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 1,
+        "max_compressed_bytes": 1,
+        "max_decompressed_bytes": 1,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 1,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 1,
+        "request_timeout_seconds": 1,
+        "attempt_deadline_seconds": 1
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "denied",
+        "save_derived_text": "denied",
+        "llm_processing": "denied",
+        "access_cost": "free",
+        "evidence_basis": "仅标识现有兼容路径；不授予business_model v1新能力。",
+        "checked_at": "2026-09-03T00:00:00Z",
+        "restrictions": [
+          "legacy_unassessed",
+          "不得用于business_model v1覆盖"
+        ]
+      },
+      "live_access_review": {
+        "status": "not_required",
+        "checklist_version": "legacy_compatibility_v1",
+        "completed_checks": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "evidence_reference": null
+      },
+      "effective_at": "2026-09-03T00:00:00Z",
+      "expires_at": null,
+      "queries": [],
+      "aliases": [
+        "baostock"
+      ],
+      "legacy": true
+    },
+    {
+      "source_definition_id": "legacy.tushare",
+      "version": "1.0.0",
+      "upstream_identity": "既有Tushare Pro用户显式配置适配器",
+      "display_name": "Tushare legacy opt-in compatibility",
+      "authority_level": 2,
+      "adapter_key": "tushare",
+      "policy_status": "legacy",
+      "enabled": true,
+      "access_method": "legacy_adapter",
+      "scopes": [
+        "financials",
+        "market",
+        "forecasts"
+      ],
+      "scope_version": null,
+      "topics": [],
+      "applicability": {
+        "markets": [
+          "ALL"
+        ],
+        "tickers": [],
+        "excluded_tickers": []
+      },
+      "refresh_frequency": "legacy_request_opt_in",
+      "initial_request_allowlist": [],
+      "redirect_allowlist": [],
+      "source_timezone": "Asia/Shanghai",
+      "published_at_precision": "unknown",
+      "incremental_policy": {
+        "overlap_days": 0,
+        "canonical_id_required": false,
+        "use_etag": false,
+        "use_last_modified": false,
+        "hash_is_final": true,
+        "checkpoint_compatible_from_versions": [],
+        "historical_reconcile_days": null,
+        "silent_replacement_limit": "legacy_unassessed"
+      },
+      "retention_policy": {
+        "discovery_body": "forbidden",
+        "content_body": "denied",
+        "independent_replay_required": false
+      },
+      "response_limits": {
+        "max_response_bytes": 1,
+        "max_compressed_bytes": 1,
+        "max_decompressed_bytes": 1,
+        "max_redirects": 0
+      },
+      "rate_limit": {
+        "max_concurrency": 1,
+        "min_interval_seconds": 1,
+        "workspace_shared": true
+      },
+      "retry_policy": {
+        "max_attempts": 1,
+        "retryable_methods": [
+          "GET",
+          "HEAD"
+        ],
+        "initial_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "retry_after_cap_seconds": 1,
+        "request_timeout_seconds": 1,
+        "attempt_deadline_seconds": 1
+      },
+      "license_policy": {
+        "automated_access": "allowed",
+        "archive_original": "denied",
+        "save_derived_text": "denied",
+        "llm_processing": "denied",
+        "access_cost": "user_configured",
+        "evidence_basis": "仅标识现有用户显式opt-in兼容路径；token不入注册表，不授予business_model v1新能力。",
+        "checked_at": "2026-09-03T00:00:00Z",
+        "restrictions": [
+          "legacy_unassessed",
+          "需要用户显式配置token",
+          "不得用于business_model v1覆盖"
+        ]
+      },
+      "live_access_review": {
+        "status": "not_required",
+        "checklist_version": "legacy_compatibility_v1",
+        "completed_checks": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "evidence_reference": null
+      },
+      "effective_at": "2026-09-03T00:00:00Z",
+      "expires_at": null,
+      "queries": [],
+      "aliases": [
+        "tushare"
+      ],
+      "legacy": true
+    }
+  ],
+  "aliases": [
+    {
+      "alias": "official",
+      "target_source_definition_ids": [
+        "cninfo.disclosures",
+        "sse.disclosures",
+        "szse.disclosures"
+      ],
+      "scopes": [
+        "business_model"
+      ],
+      "deprecated": true
+    },
+    {
+      "alias": "official_legacy",
+      "target_source_definition_ids": [
+        "legacy.official"
+      ],
+      "scopes": [
+        "financials",
+        "announcements",
+        "dimensions",
+        "governance",
+        "capital_actions",
+        "risks"
+      ],
+      "deprecated": true
+    },
+    {
+      "alias": "akshare",
+      "target_source_definition_ids": [
+        "legacy.akshare"
+      ],
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "deprecated": false
+    },
+    {
+      "alias": "sina",
+      "target_source_definition_ids": [
+        "legacy.sina"
+      ],
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "deprecated": false
+    },
+    {
+      "alias": "baostock",
+      "target_source_definition_ids": [
+        "legacy.baostock"
+      ],
+      "scopes": [
+        "financials",
+        "market"
+      ],
+      "deprecated": false
+    },
+    {
+      "alias": "tushare",
+      "target_source_definition_ids": [
+        "legacy.tushare"
+      ],
+      "scopes": [
+        "financials",
+        "market",
+        "forecasts"
+      ],
+      "deprecated": false
+    }
+  ]
+}

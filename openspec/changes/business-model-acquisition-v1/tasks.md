@@ -116,3 +116,12 @@
 - [x] 11.3 新增 registry 1.4.0 / CNINFO 1.3.0 及本轮访问与 schema 修订记录，更新默认 registry 与 CI，保持全部旧 registry 哈希及其他来源定义不变。运行 `python scripts/validate_source_registry.py --registry config/data_sources/business_model_sources.v1.4.json --expect-business-model-v1 4 --require-plan-traceability` 和 `python -m pytest tests/test_acquisition_registry.py -q`。
 - [x] 11.4 聚焦测试后执行全量 pytest、严格 OpenSpec、方法库/黄金清单结构校验、frontend npm ci/build、git diff --check；提交并推送后观察该确切提交的 verify CI 全部成功。自动化通过不替代联网或人工黄金验收。
 - [x] 11.5 在新隔离 namespace 经正式 runtime 执行 CNINFO metadata smoke 和短窗口 ad_hoc 正文采集，至少取得一个真实 PDF、核对 MIME/文件结构/磁盘哈希与正文可解析性，记录 run/attempt/snapshot/manifest 和来源结果。若失败或受限立即汇报并讨论，保留本 task 未完成；不扩大为全历史或声称完成 9.3/10.2/10.3。
+
+## 12. 历史审计发现的修复与正文归档
+
+- [x] 12.1 修复汇总及恢复、来源熔断、依赖、去重、validator、兼容输出的分页遗漏；显示 API 保留显式分页。用超过 500 条的持久记录回归及本次 2755 条只读历史审计验证全部计数与四次 timeout；不得重写旧结果。
+- [x] 12.2 版本化支持巨潮历史 HTML 公告，验证 2001 年年报摘要与 2002 年中报摘要的归档、哈希、编码和正文提取；错误/拦截页保持准确分类且不成为正文证据。
+- [x] 12.3 核对巨潮当前招股分类参数，保留发现总数与行证明；结合标题及归档正文区分招股说明书、附录、上市公告书和其他材料，不把分类查询命中等同于材料类型。
+- [x] 12.4 三项修复通过后，新增正式注册表版本及巨潮主采、上交所按需补缺策略；计划、checkpoint 前置条件和 OpenSpec 一致，旧版本及旧屏障不变。
+- [x] 12.5 聚焦回归、全量 pytest、registry/方法库/黄金清单结构、严格 OpenSpec、前端构建及一致性检查分别记录实际结果；自动化不替代真实联网或人工验收。
+- [ ] 12.6 从已冻结目录创建显式分批归档运行，先定期报告及更正版本、招股材料，再其余公告；逐资源保存成功/失败、原始和派生哈希与来源 lineage，核对 1284 个 canonical ID 的最终状态，记录剩余缺口，不将目录归档冒充 production baseline/incremental。

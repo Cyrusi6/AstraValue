@@ -503,7 +503,7 @@ def create_app(
         attempts = repository.list_attempts(
             run_id=run_id,
             source_definition_id=source_definition_id,
-            limit=100_000,
+            limit=None,
         )
         rows: list[dict[str, Any]] = []
         for attempt in attempts:
@@ -525,7 +525,7 @@ def create_app(
                     }
                     for item in repository.list_resource_observations(
                         attempt_id=attempt.attempt_id,
-                        limit=100_000,
+                        limit=None,
                     )
                 )
         rows.sort(

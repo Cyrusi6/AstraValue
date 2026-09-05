@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import date, datetime, time, timezone
 from typing import Any, Callable, Iterable, Mapping
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from zoneinfo import ZoneInfo
 
 from .base import (
@@ -158,7 +158,7 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
                 isinstance(payload, dict)
                 and "announcements" in payload
                 and payload["announcements"] is None
-                and work.parser_schema_version == "2"
+                and work.parser_schema_version in {"2", "3"}
                 and work.context.get("schema_id") == "cninfo.announcements"
             ):
                 return self._nullable_empty_page(payload, work)
@@ -238,6 +238,14 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
         url = adjunct if adjunct.startswith("https://") else urljoin(
             "https://static.cninfo.com.cn/", adjunct.lstrip("/")
         )
+        expected_mime = ("application/pdf",)
+        if (work.parser_schema_version == "3"
+                and work.context.get("schema_id") == "cninfo.announcements"):
+            suffix = urlsplit(url).path.lower().rsplit(".", 1)[-1]
+            if suffix in {"html", "htm"}:
+                expected_mime = ("text/html",)
+            elif suffix != "pdf":
+                raise ValueError("cninfo unsupported announcement attachment format")
         return _resource(
             canonical_id=f"cninfo:{announcement_id}",
             upstream_id=f"disclosure:{announcement_id}",
@@ -251,7 +259,7 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
             row_locator=f"page:{work.page}/announcements:{index}",
             required_fetch=str(work.context.get("fetch_policy", "required_attachment"))
             == "required_attachment",
-            metadata={"expected_mime_types": ("application/pdf",)},
+            metadata={"expected_mime_types": expected_mime},
         )
 
 

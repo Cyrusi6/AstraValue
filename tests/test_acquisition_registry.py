@@ -364,9 +364,9 @@ def test_v1_3_changes_only_the_observed_sse_schema_contract():
     )
 
 
-def test_default_v1_4_changes_only_cninfo_nullable_schema_and_owner_decision():
+def test_v1_4_changes_only_cninfo_nullable_schema_and_owner_decision():
     previous = SourceRegistryLoader().load_registry(SSE_SCHEMA_APPROVED_REGISTRY_PATH)
-    current = SourceRegistryLoader().load_registry()
+    current = SourceRegistryLoader().load_registry(DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.4.json"))
     assert current.registry.registry_version == "1.4.0"
     for source_id in ("sse.disclosures", "szse.disclosures", "moutai.ir"):
         assert current.definition(source_id) == previous.definition(source_id)

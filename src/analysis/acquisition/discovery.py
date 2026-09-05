@@ -78,13 +78,14 @@ class DiscoveryPageContext:
     source_definition_version: str
     observed_at: datetime
     retrieved_at: datetime
-    http_status: int
+    http_status: int | None
     mime_type: str
     page_number: int | None = None
     cursor: str | None = None
     request_summary: Mapping[str, Any] | None = None
     response_summary: Mapping[str, Any] | None = None
     observation_id: str | None = None
+    proof_kind: str = "http_response"
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,6 +324,7 @@ class DiscoveryPipeline:
             http_status=context.http_status,
             mime_type=context.mime_type,
             parser_id=normalized.parser_id,
+            proof_kind=context.proof_kind,
             parser_version=normalized.parser_version,
             schema_id=normalized.schema_id,
             schema_version=normalized.schema_version,
@@ -415,6 +417,7 @@ def validate_discovery_proof_set(
         )
     proves_no_data = bool(
         total_rows == 0
+        and all(item.proof_kind == "http_response" for item in ordered)
         and declared_totals == {0}
         and ordered[-1].terminal
         and all(item.schema_valid for item in ordered)

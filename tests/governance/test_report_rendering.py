@@ -388,7 +388,20 @@ def test_pdf_uses_exactly_the_same_html_view_and_report_hash(
         render_pdf(canonical_view, html_to_pdf=lambda _html: b"not-a-pdf")
 
 
-def test_report_outputs_are_utf8_redacted_and_stable() -> None:
+def test_report_outputs_are_utf8_redacted_and_stable(monkeypatch) -> None:
+    from types import SimpleNamespace
+    import openpyxl.writer.excel
+
+    class AdvancingClock:
+        year = 2025
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.year += 1
+            return datetime(cls.year, 1, 1, tzinfo=tz)
+
+    monkeypatch.setattr(openpyxl.writer.excel, "datetime",
+                        SimpleNamespace(datetime=AdvancingClock, timezone=timezone))
     bundle = _make_bundle(sensitive=True)
     view = build_governance_report_view(bundle.report, bundle.session)
     markdown_first = render_markdown(view)
