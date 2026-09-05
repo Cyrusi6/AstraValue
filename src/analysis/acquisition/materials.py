@@ -11,7 +11,7 @@ from .content import extract_announcement_text
 
 
 CLASSIFIER_ID = "announcement-material-type"
-CLASSIFIER_VERSION = "1.5.0"
+CLASSIFIER_VERSION = "1.6.0"
 _REPORT = r"(?:年度|半年度|中期|第一季度|第三季度|一季度|三季度|季度)(?:财务)?报告"
 
 
@@ -23,6 +23,7 @@ def _kind(value: str) -> str:
     patterns = [
         ("correction_notice", r"(?:关于.{0,70})?(?:更正|补充|修正).{0,12}(?:公告|通知)"),
         ("other_announcement", r"(?:股东大会.{0,24}会议(?:资料|材料)|(?:董事会|监事会).{0,32}?(?:会议)?决议公告|议案(?:等)?|业绩快报)"),
+        ("other_announcement", rf"(?:(?:董事会|独立董事).{{0,40}})?{_REPORT}的?工作(?:制度|规程)"),
         ("prospectus_appendix", r"招股说明书(?:及其)?(?:附录|附件|附表)"),
         ("prospectus_summary", r"招股说明书摘要"),
         ("prospectus", r"招股说明书"),
@@ -38,7 +39,7 @@ def _kind(value: str) -> str:
         notice = re.search(r"(?:延期|披露|编制|说明会|提示性|审核|审议|董事会).{0,24}(?:公告|通知|意见)", value)
         # A report's standard board assurance is body text, not a notice title.
         # Notice wording must introduce the report or immediately modify its name.
-        notice_suffix = re.match(r"(?:[（(]?摘要[）)]?)?(?:的)?(?:延期|披露|编制|说明会|提示性|审核|审议|董事会(?:审核|审议)).{0,24}(?:公告|通知|意见)", value[report.end():])
+        notice_suffix = re.match(r"(?:[（(]?摘要[）)]?)?(?:的)?(?:网上|网络|线上|业绩|集体){0,3}(?:延期|披露|编制|说明会|提示性|审核|审议|董事会(?:审核|审议)).{0,24}(?:公告|通知|意见)", value[report.end():])
         if (notice and notice.start() < report.start()) or notice_suffix:
             kind = "report_related_notice"
         matches.append((report.start(), len(patterns), kind))

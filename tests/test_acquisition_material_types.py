@@ -16,6 +16,8 @@ from analysis.acquisition.materials import classify_material
     ("2025年年度报告延期披露公告", "样本公司2025年年度报告延期披露公告", "report_related_notice"),
     ("关于披露2025年年度报告的提示性公告", "关于披露2025年年度报告的提示性公告", "report_related_notice"),
     ("2025年年度报告的董事会审核意见", "2025年年度报告的董事会审核意见", "report_related_notice"),
+    ("关于举行2011年年度报告网上集体说明会的公告", "关于举行2011年年度报告网上集体说明会的公告", "report_related_notice"),
+    ("2012年年度报告网上业绩说明会预告公告", "2012年年度报告网上业绩说明会预告公告", "report_related_notice"),
     ("2025年年度报告（英文版）", "ANNUAL REPORT 2025\nStock Code: 600519\nKWEICHOW MOUTAI CO., LTD.", "periodic_report"),
     ("2025年年度报告摘要（英文版）", "SUMMARY OF ANNUAL REPORT 2025", "periodic_summary"),
     ("董事会决议公告", "董事会决议公告\n" + "董事会审议相关事项。" * 60 + "招股说明书", "other_announcement"),
@@ -56,6 +58,8 @@ def test_legacy_web_label_and_financial_data_summary_do_not_override_actual_cove
     ("董事会决议公告", "董事会决议公告\n审议关于招股说明书的更正公告"),
     ("董事会决议公告", "董事会决议公告\n审议公司债券上市公告书"),
     ("2007年度业绩快报", "2007年度业绩快报\n本公司董事会保证公告内容真实。\n年度报告将按原计划披露。"),
+    ("独立董事年度报告工作制度", "独立董事年度报告工作制度\n为做好年度报告工作，制定本制度。"),
+    ("董事会审计委员会对公司年度财务报告的工作规程", "董事会审计委员会对公司年度财务报告的工作规程\n第一条"),
 ])
 def test_cover_notice_precedes_incidental_report_mentions(title, body):
     result = classify_material(title, text=body)
