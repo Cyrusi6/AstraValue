@@ -14,6 +14,10 @@ from analysis.acquisition.materials import classify_material
     ("2025年年度报告（修订版）", "样本公司2025年年度报告", "periodic_report"),
     ("2025年年度报告更正公告", "样本公司2025年年度报告更正公告", "correction_notice"),
     ("2025年年度报告延期披露公告", "样本公司2025年年度报告延期披露公告", "report_related_notice"),
+    ("关于披露2025年年度报告的提示性公告", "关于披露2025年年度报告的提示性公告", "report_related_notice"),
+    ("2025年年度报告的董事会审核意见", "2025年年度报告的董事会审核意见", "report_related_notice"),
+    ("2025年年度报告（英文版）", "ANNUAL REPORT 2025\nStock Code: 600519\nKWEICHOW MOUTAI CO., LTD.", "periodic_report"),
+    ("2025年年度报告摘要（英文版）", "SUMMARY OF ANNUAL REPORT 2025", "periodic_summary"),
     ("董事会决议公告", "董事会决议公告\n" + "董事会审议相关事项。" * 60 + "招股说明书", "other_announcement"),
 ])
 def test_material_identity_uses_title_and_cover_not_incidental_references(title, body, expected):
@@ -51,7 +55,16 @@ def test_legacy_web_label_and_financial_data_summary_do_not_override_actual_cove
     ("董事会决议公告", "董事会决议公告\n关于招股说明书的议案"),
     ("董事会决议公告", "董事会决议公告\n审议关于招股说明书的更正公告"),
     ("董事会决议公告", "董事会决议公告\n审议公司债券上市公告书"),
+    ("2007年度业绩快报", "2007年度业绩快报\n本公司董事会保证公告内容真实。\n年度报告将按原计划披露。"),
 ])
 def test_cover_notice_precedes_incidental_report_mentions(title, body):
     result = classify_material(title, text=body)
     assert result.material_type == result.title_type == result.content_type == "other_announcement"
+
+
+def test_quarterly_report_board_assurance_is_not_a_report_notice():
+    result = classify_material("2026年第一季度报告", text=(
+        "2026年第一季度报告\n证券代码：600519\n样本股份有限公司\n2026年第一季度报告\n"
+        "本公司董事会及全体董事保证本公告内容不存在任何虚假记载、误导性陈述或者重大遗漏。"))
+    assert result.material_type == result.title_type == result.content_type == "periodic_report"
+    assert result.evidence_status == "title_body_agree"

@@ -11,7 +11,7 @@ from .content import extract_announcement_text
 
 
 CLASSIFIER_ID = "announcement-material-type"
-CLASSIFIER_VERSION = "1.4.0"
+CLASSIFIER_VERSION = "1.5.0"
 _REPORT = r"(?:年度|半年度|中期|第一季度|第三季度|一季度|三季度|季度)(?:财务)?报告"
 
 
@@ -22,18 +22,24 @@ def _compact(value: str) -> str:
 def _kind(value: str) -> str:
     patterns = [
         ("correction_notice", r"(?:关于.{0,70})?(?:更正|补充|修正).{0,12}(?:公告|通知)"),
-        ("other_announcement", r"(?:股东大会.{0,24}会议(?:资料|材料)|(?:董事会|监事会).{0,32}?(?:会议)?决议公告|议案(?:等)?)"),
+        ("other_announcement", r"(?:股东大会.{0,24}会议(?:资料|材料)|(?:董事会|监事会).{0,32}?(?:会议)?决议公告|议案(?:等)?|业绩快报)"),
         ("prospectus_appendix", r"招股说明书(?:及其)?(?:附录|附件|附表)"),
         ("prospectus_summary", r"招股说明书摘要"),
         ("prospectus", r"招股说明书"),
         ("listing_announcement", r"(?:股票)?上市公告书"),
         ("issuance_notice", r"(?:股票.{0,12}发行公告|首次公开发行.{0,25}(?:发行|中签|配售).{0,12}公告)"),
+        ("periodic_summary", r"(?i:SUMMARYOF(?:THE)?ANNUALREPORT(?:19|20)\d{2}|ANNUALREPORT(?:19|20)\d{2}SUMMARY)"),
+        ("periodic_report", r"(?i:ANNUALREPORT(?:19|20)\d{2}|(?:19|20)\d{2}ANNUALREPORT)"),
     ]
     matches = [(m.start(), rank, kind) for rank, (kind, pattern) in enumerate(patterns)
                if (m := re.search(pattern, value))]
     if report := re.search(_REPORT, value):
         kind = "periodic_summary" if re.match(r"[（(]?摘要", value[report.end():]) else "periodic_report"
-        if re.search(r"(?:延期|披露|编制|说明会|提示性|审核|审议|董事会).{0,24}(?:公告|通知|意见)", value):
+        notice = re.search(r"(?:延期|披露|编制|说明会|提示性|审核|审议|董事会).{0,24}(?:公告|通知|意见)", value)
+        # A report's standard board assurance is body text, not a notice title.
+        # Notice wording must introduce the report or immediately modify its name.
+        notice_suffix = re.match(r"(?:[（(]?摘要[）)]?)?(?:的)?(?:延期|披露|编制|说明会|提示性|审核|审议|董事会(?:审核|审议)).{0,24}(?:公告|通知|意见)", value[report.end():])
+        if (notice and notice.start() < report.start()) or notice_suffix:
             kind = "report_related_notice"
         matches.append((report.start(), len(patterns), kind))
     # Resolve an explicit meeting/resolution heading before interpreting report
