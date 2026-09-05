@@ -4,6 +4,17 @@
 
 ## ADDED Requirements
 
+### Requirement: 公开大附件与流式总预算
+显式 registry 1.8.0 / CNINFO 1.7.0 SHALL 将响应、压缩和解压上限固定为 128 MiB、attempt 预算固定为 600 秒，保持 socket timeout 30 秒、直连、TLS、并发 1、5 秒间隔与无自动重试。默认 1.7.0 及旧计划 MUST 保留原限制；补抓 MUST 使用独立冻结输入和运行，保留旧失败。传输 SHALL 在门禁放行、响应头、流读取前后及最终组装后校验预算和租约；已经过期的响应 MUST 关闭且不得发布成功 envelope。阻塞读取仍服从 socket timeout，不声称精确毫秒取消。
+
+#### Scenario: 持续有数据但总预算已耗尽
+- **WHEN** 单次 socket 读取持续成功，但下一块、EOF 或组装完成时已超过 attempt deadline
+- **THEN** 传输 MUST 关闭响应并报告 timeout，不归档半份或超预算正文，也不自动重试
+
+#### Scenario: 大文件超过旧合同上限
+- **WHEN** 已批准目录的正常公开附件超出旧 64 MiB 限额
+- **THEN** 系统 SHALL 保留旧 policy_skipped，在显式新版本与独立补抓计划下校验新上限；原运行、旧配置与生产 checkpoint 不变
+
 ### Requirement: 已冻结目录的可验证本地输入
 已有目录正文归档 SHALL 在来源库只读核对已终结运行、公司、namespace、原始 discovery proof/observation/snapshot、字节哈希、长度和行定位后，生成携带原始响应字节与出处的不可变本地输入。新 namespace MUST 创建新的输入 observation/proof/resource 身份；原始出处仅作为显式 origin 引用，不能重绑定旧 observation。新输入 MUST 标记 proof_kind=retained_inventory、http_status=null、io_performed=false，总数仅指本地选择。空本地目录 MUST 拒绝，不能证明来源 no_data。
 

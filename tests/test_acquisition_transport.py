@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -407,3 +408,93 @@ def test_denied_by_bot_header_survives_transport_redaction(tmp_path):
     result = classify_response(status_code=response.status_code, headers=response.headers,
                                body_prefix=response.body, expected_mime=("application/pdf",))
     assert (result.outcome, result.reason_code) == ("restricted", "upstream_bot_challenge")
+
+
+@pytest.mark.parametrize("expired_during", ["gate", "headers", "body", "eof", "assembly"])
+def test_attempt_deadline_covers_stream_and_closes_response(monkeypatch, expired_during):
+    import analysis.acquisition.transport as transport_module
+
+    now, sent, reads, closed = [0.0], [], [], []
+
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            reads.append(1)
+            yield b"first"
+            reads.append(2)
+            if expired_during == "body":
+                now[0] = 3.0
+            yield b"second"
+            if expired_during == "eof":
+                now[0] = 3.0
+
+        def close(self):
+            closed.append(True)
+
+    class Gate:
+        @contextmanager
+        def hold(self, *_args, **_kwargs):
+            if expired_during == "gate":
+                now[0] = 3.0
+            yield
+
+    def handler(request):
+        sent.append(request)
+        if expired_during == "headers":
+            now[0] = 3.0
+        return httpx.Response(200, stream=Stream(), request=request)
+
+    if expired_during == "assembly":
+        original = transport_module.read_limited_body
+
+        def slow_assembly(*args, **kwargs):
+            result = original(*args, **kwargs)
+            now[0] = 3.0
+            return result
+
+        monkeypatch.setattr(transport_module, "read_limited_body", slow_assembly)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        transport = RegistryBoundHttpTransport(
+            _definition(), Gate(), client=client, clock=lambda: now[0],
+            address_resolver=lambda *_args: ("93.184.216.34",),
+        )
+        with pytest.raises(httpx.TimeoutException, match="attempt deadline"):
+            transport.request(_work(context={"deadline_monotonic": 3.0}))
+
+    assert len(sent) == (0 if expired_during == "gate" else 1)
+    assert closed == ([] if expired_during == "gate" else [True])
+    if expired_during in {"gate", "headers"}:
+        assert reads == []
+
+
+def test_stream_renews_lease_and_bounds_socket_timeout_by_remaining_budget():
+    now, checks, timeouts = [0.0], [], []
+
+    class Gate:
+        @contextmanager
+        def hold(self, *_args, **_kwargs):
+            now[0] = 2.0
+            yield
+
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            for _ in range(3):
+                now[0] += 0.1
+                yield b"x"
+
+    def handler(request):
+        timeouts.append(request.extensions["timeout"])
+        return httpx.Response(200, stream=Stream(), request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        transport = RegistryBoundHttpTransport(
+            _definition(), Gate(), client=client, clock=lambda: now[0],
+            address_resolver=lambda *_args: ("93.184.216.34",),
+        )
+        envelope = transport.request(_work(
+            context={"deadline_monotonic": 3.0},
+            execution_capability=_capability(lease_guard=lambda **_kwargs: checks.append(now[0])),
+        ))
+    assert envelope.body == b"xxx"
+    assert all(value == 1.0 for value in timeouts[0].values())
+    assert set(round(value, 1) for value in checks) >= {2.1, 2.2, 2.3}

@@ -38,6 +38,10 @@ registry 1.6.0 及后续版本的 CNINFO 首发检索 SHALL 使用经公开客�
 - **WHEN** 材料标题明确为年度报告工作制度、规程或网上集体/业绩说明会公告
 - **THEN** 制度与规程 SHALL 归其他公告，说明会 SHALL 归报告相关公告，不得因标题含年度报告而计入报告正文
 
+#### Scenario: ESG 正文的数据来源引用年报
+- **WHEN** 已归档正文前部以“数据来源于”或相应英文说明引用另一份年报
+- **THEN** 材料分类 SHALL 将其视为引用而非当前文档的年报封面；真正先出现的年报封面仍优先，旧派生版本保留
+
 ### Requirement: CNINFO nullable 空结果使用独立版本合同
 CNINFO 新公告 schema 2 SHALL 仅在 page 1、`announcements` 存在且为 null、`totalAnnouncement` 为严格整数 0、`hasMore` 为布尔 false 时允许零行；出现的 `totalRecordNum|totalSecurities|totalpages` MUST 为严格整数 0。响应 MUST 只包含这六类字段及可选的 null `classifiedAnnouncements|categoryList`，未知字段、错误标记和不支持形态不得生成 no_data。此解释 MUST 由冻结的 schema id/version 启用，旧 schema 1 重放仍拒绝 null。新 registry 1.4.0 SHALL 只升级 CNINFO definition 为 1.3.0、公告 schema 与 execution key，不扩大端点、请求类别、速率、保存或 LLM 权限，也不声明旧 checkpoint 兼容。
 

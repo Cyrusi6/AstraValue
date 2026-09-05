@@ -616,3 +616,26 @@ def test_registry_models_are_immutable_versions():
     assert isinstance(registry, SourceRegistry)
     with pytest.raises(Exception):
         registry.registry_version = "2.0.0"
+
+
+def test_large_attachment_registry_is_explicit_and_preserves_existing_authority():
+    loader = SourceRegistryLoader()
+    old = loader.load_registry(DEFAULT_REGISTRY_PATH)
+    large = loader.load_registry(DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.8.json"))
+    assert old.registry.registry_version == "1.7.0"
+    assert old.content_hash == "497038f52dc9b92faed3945cc99221e816fcaec4659ca417abb37f6c01bf2ee7"
+    assert large.registry.registry_version == "1.8.0"
+    cn, previous = large.definition("cninfo.disclosures"), old.definition("cninfo.disclosures")
+    assert cn.version == "1.7.0"
+    assert cn.response_limits.max_response_bytes == cn.response_limits.max_compressed_bytes == 128 * 1024**2
+    assert cn.response_limits.max_decompressed_bytes == previous.response_limits.max_decompressed_bytes
+    assert cn.retry_policy.attempt_deadline_seconds == 600
+    assert cn.retry_policy.request_timeout_seconds == previous.retry_policy.request_timeout_seconds == 30
+    assert cn.retry_policy.max_attempts == previous.retry_policy.max_attempts == 1
+    assert cn.initial_request_allowlist == previous.initial_request_allowlist
+    assert cn.redirect_allowlist == previous.redirect_allowlist
+    assert cn.rate_limit == previous.rate_limit
+    assert cn.live_access_review == previous.live_access_review
+    for source_id in ("sse.disclosures", "szse.disclosures", "moutai.ir"):
+        assert large.definition(source_id) == old.definition(source_id)
+    assert large.registry.legacy_definitions == old.registry.legacy_definitions

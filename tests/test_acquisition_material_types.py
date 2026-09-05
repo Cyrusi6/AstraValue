@@ -72,3 +72,19 @@ def test_quarterly_report_board_assurance_is_not_a_report_notice():
         "本公司董事会及全体董事保证本公告内容不存在任何虚假记载、误导性陈述或者重大遗漏。"))
     assert result.material_type == result.title_type == result.content_type == "periodic_report"
     assert result.evidence_status == "title_body_agree"
+
+
+@pytest.mark.parametrize("body", [
+    "关于本报告\n信息说明\n报告中的数据来源于《样本公司2025年年度报告》及相关统计。",
+    "About the Report\nAll data herein are derived from the 2025 Annual Report of Example Co.",
+])
+def test_data_source_citation_does_not_turn_esg_report_into_annual_report(body):
+    result = classify_material("2025年环境、社会及治理（ESG）报告", text=body)
+    assert result.material_type == result.title_type == result.content_type == "other_announcement"
+    assert result.archive_priority == 1
+
+
+def test_annual_report_cover_precedes_its_data_source_citation():
+    result = classify_material("2025年年度报告", text=(
+        "样本公司2025年年度报告\n历史数据来源于2024年年度报告。"))
+    assert result.material_type == result.content_type == "periodic_report"

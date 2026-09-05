@@ -2,6 +2,8 @@
 
 ### 2026-09-05 历史审计修订
 
+公开大附件使用显式 registry 1.8.0 / CNINFO 1.7.0，原始/压缩/解压上限均为 128 MiB，attempt 预算为 600 秒，socket timeout 30 秒；默认 1.7.0 不变。两份超出旧本地上限的正文以独立冻结输入和计划各补抓一次，旧失败、屏障与版本不回写。该技术配置沿用用户全目录归档授权，未新增人工签署。传输门禁等待之后重新校验 deadline 并限制 socket timeout；响应头、流读取前后、EOF、解压组装完成后均检查剩余预算与租约，超时不发布成功 envelope。阻塞 I/O 仍由 socket timeout 结束，不承诺精确毫秒中止。
+
 完整内部读取使用显式无分页上限，显示接口保留分页。汇总、恢复、durable halt、依赖、validator 与去重读取不得复用显示默认值；同 canonical 的成功 fetch 复用必须同时补齐新的 coverage links。
 
 新增 registry 1.5.0（HTML schema 3）、1.6.0（首发参数 category_sf_szsh）、1.7.0（CNINFO 1.6.0 primary、SSE 1.4.0 on_demand）保留之前合同。SSE 当前只有定期报告 DQBG 补缺能力；`acquire supplement` 接受 finalized 父运行的实际 required 缺口，生成保持来源身份的 ad_hoc reconcile，不清除巨潮屏障。旧版未声明 collection_role 时仍按主采解释。生产安全水位线前置条件按当前适用主采来源检查。

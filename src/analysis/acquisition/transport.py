@@ -168,6 +168,17 @@ class RegistryBoundHttpTransport:
                 + float(self.source_definition.retry_policy.attempt_deadline_seconds),
             )
         )
+
+        def remaining_seconds() -> float:
+            remaining = deadline - self._clock()
+            if remaining <= 0:
+                raise httpx.TimeoutException("attempt deadline reached during transport")
+            return remaining
+
+        def response_progress() -> None:
+            guard()
+            remaining_seconds()
+
         current_url = work.url
         redirect_urls: list[str] = []
         guard(force=True)
@@ -180,19 +191,7 @@ class RegistryBoundHttpTransport:
         )
         redirect_count = 0
         while True:
-            if self._clock() >= deadline:
-                raise httpx.TimeoutException("attempt deadline reached before request")
-            request = self._client.build_request(
-                work.method,
-                validated.url,
-                params=work.params or None,
-                json=work.json_body,
-                data=work.form_body,
-                headers=dict(work.headers),
-                timeout=float(
-                    self.source_definition.retry_policy.request_timeout_seconds
-                ),
-            )
+            remaining_seconds()
             with self.source_gate.hold(
                 work.source_definition_id,
                 validated.host,
@@ -205,12 +204,25 @@ class RegistryBoundHttpTransport:
                 # The gate may have blocked longer than the lease TTL.  This
                 # forced repository fence is the last operation before send.
                 guard(force=True)
+                request = self._client.build_request(
+                    work.method,
+                    validated.url,
+                    params=work.params or None,
+                    json=work.json_body,
+                    data=work.form_body,
+                    headers=dict(work.headers),
+                    timeout=min(
+                        float(self.source_definition.retry_policy.request_timeout_seconds),
+                        remaining_seconds(),
+                    ),
+                )
                 response = self._client.send(
                     request,
                     stream=True,
                     follow_redirects=False,
                 )
                 try:
+                    response_progress()
                     if response.is_redirect:
                         location = response.headers.get("location")
                         if not location:
@@ -259,12 +271,29 @@ class RegistryBoundHttpTransport:
                         if response.is_stream_consumed
                         else response.iter_raw()
                     )
+
+                    def guarded_chunks():
+                        iterator = iter(chunks)
+                        while True:
+                            response_progress()
+                            try:
+                                chunk = next(iterator)
+                            except StopIteration:
+                                response_progress()
+                                return
+                            response_progress()
+                            yield chunk
+
                     body = read_limited_body(
-                        chunks,
+                        guarded_chunks(),
                         self._limits,
                         content_encoding=response.headers.get("content-encoding"),
                         content_length=response.headers.get("content-length"),
                     )
+                    # Decompression/final assembly also consumes the budget.
+                    # Blocking reads keep their socket timeout; once control
+                    # returns, an expired attempt can never publish an envelope.
+                    response_progress()
                     if len(body) > work.max_response_bytes:
                         from .security import ResponseSizeExceeded
 

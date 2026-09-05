@@ -20,6 +20,8 @@ API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先�
 
 当前默认注册表为 `business_model_sources.v1.7.json`：巨潮 `1.6.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧 v1.0–v1.6 合同保留用于历史重放。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
 
+公开大附件可显式选择 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。默认配置和旧计划不变，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
+
 兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
 
 ```powershell
