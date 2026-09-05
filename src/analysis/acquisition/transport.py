@@ -223,7 +223,10 @@ class RegistryBoundHttpTransport:
                 )
                 try:
                     response_progress()
-                    if response.is_redirect:
+                    # HTTPX classifies every 3xx as is_redirect. 304 is a
+                    # validator response and has no Location or message body.
+                    not_modified = response.status_code == 304
+                    if response.is_redirect and not not_modified:
                         location = response.headers.get("location")
                         if not location:
                             raise SecurityPolicyError(
@@ -266,9 +269,8 @@ class RegistryBoundHttpTransport:
                                 execution_capability=work.execution_capability,
                             )
                         continue
-                    chunks = (
-                        (response.content,)
-                        if response.is_stream_consumed
+                    chunks = () if not_modified else (
+                        (response.content,) if response.is_stream_consumed
                         else response.iter_raw()
                     )
 
@@ -287,8 +289,10 @@ class RegistryBoundHttpTransport:
                     body = read_limited_body(
                         guarded_chunks(),
                         self._limits,
-                        content_encoding=response.headers.get("content-encoding"),
-                        content_length=response.headers.get("content-length"),
+                        # In a 304 these describe the selected representation,
+                        # not transferred bytes; there is no body to decode.
+                        content_encoding=None if not_modified else response.headers.get("content-encoding"),
+                        content_length=None if not_modified else response.headers.get("content-length"),
                     )
                     # Decompression/final assembly also consumes the budget.
                     # Blocking reads keep their socket timeout; once control

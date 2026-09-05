@@ -2,15 +2,17 @@ from dataclasses import replace
 from datetime import timedelta
 import json
 
+import httpx
 import pytest
 
 from analysis.acquisition.models import AcquisitionRunKind, SnapshotIntegrityEvent, SnapshotIntegrityStatus
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH, SourceRegistryLoader
 from analysis.acquisition.validators import content_contract_compatible, validate_observation_anchor
+from analysis.acquisition.transport import RegistryBoundHttpTransport
 from orchestrator_support import NOW, ScenarioAdapter, discovery_result, envelope, make_runtime, resource, targeted_plan
 
 
-@pytest.mark.parametrize("failure", [None, "same_200", "changed_200", "undeclared", "url", "hash", "quarantine", "inflight_quarantine", "unsent"])
+@pytest.mark.parametrize("failure", [None, "transport_304", "same_200", "changed_200", "undeclared", "url", "hash", "quarantine", "inflight_quarantine", "unsent"])
 def test_new_production_observation_may_conditionally_reuse_adhoc_content(tmp_path, failure):
     phase = 0
     validators = []
@@ -30,6 +32,21 @@ def test_new_production_observation_may_conditionally_reuse_adhoc_content(tmp_pa
         if failure in {"same_200", "changed_200"}:
             body = b"%PDF-1.4\nfixture\n%%EOF" if failure == "same_200" else b"%PDF-1.4\nchanged fixture\n%%EOF"
             return envelope(url=work.resource.url, body=body, content_type="application/pdf")
+        if failure == "transport_304":
+            # Exercise HTTPX -> bounded transport -> real executor -> storage;
+            # a hand-built envelope cannot detect transport 304 regressions.
+            def handler(request):
+                assert request.headers["if-modified-since"] == work.validators["last_modified"]
+                return httpx.Response(304, headers={"last-modified": work.validators["last_modified"]}, request=request)
+            with httpx.Client(transport=httpx.MockTransport(handler), trust_env=False) as client:
+                transport = RegistryBoundHttpTransport(
+                    current.loaded_registry.registry.definition("cninfo.disclosures"), current.source_gate,
+                    client=client, address_resolver=lambda *_: ("93.184.216.34",),
+                    wall_clock=lambda: NOW + timedelta(hours=1),
+                )
+                return transport.request(replace(work.query, headers={
+                    **work.query.headers, "If-Modified-Since": work.validators["last_modified"],
+                }))
         return envelope(url=work.resource.url, status=304, body=b"", content_type="application/pdf")
     adapter = ScenarioAdapter(lambda work: envelope(url=work.url),
         lambda _,work: discovery_result(work, resources=(chosen,), declared_total=1), fetch)
@@ -73,7 +90,7 @@ def test_new_production_observation_may_conditionally_reuse_adhoc_content(tmp_pa
     result = current.orchestrator.execute_run(second.run.run_id)
     assert current.repository.get_run(first.run.run_id) == old_run
     assert current.repository.get_raw_resource_snapshot(snapshot.snapshot_id) == snapshot
-    if failure in {None, "same_200", "changed_200"}:
+    if failure in {None, "transport_304", "same_200", "changed_200"}:
         expected = {"success":2} if failure == "changed_200" else {"success":1,"unchanged":1}
         assert result.outcome_counts == expected
         obs = next(o for a in result.attempt_ids for o in current.repository.list_resource_observations(attempt_id=a))

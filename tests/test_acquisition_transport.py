@@ -333,6 +333,22 @@ def test_redirect_is_checked_before_second_hop(tmp_path) -> None:
     assert envelope.redirect_chain == ("https://files.example/public/report.pdf",)
 
 
+@pytest.mark.parametrize("representation_headers", [{}, {"content-length": "999999999", "content-encoding": "gzip"}])
+def test_httpx_304_preserves_validators_without_redirect_or_representation_body(tmp_path, representation_headers):
+    seen = []
+    modified = "Thu, 03 Sep 2026 08:00:00 GMT"
+    def handler(request):
+        seen.append(str(request.url))
+        assert request.headers["if-modified-since"] == modified
+        return httpx.Response(304, headers={"last-modified": modified, **representation_headers}, request=request)
+    envelope = _transport(tmp_path, handler).request(_work(headers={"If-Modified-Since": modified}))
+    assert len(seen) == 1
+    assert envelope.status_code == 304 and envelope.body == b""
+    assert envelope.headers["last-modified"] == modified
+    assert envelope.redirect_chain == ()
+    assert envelope.final_url == seen[0]
+
+
 def test_unallowlisted_redirect_never_requests_target(tmp_path) -> None:
     seen = []
 

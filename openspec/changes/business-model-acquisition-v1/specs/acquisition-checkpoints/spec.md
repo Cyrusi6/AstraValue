@@ -7,6 +7,10 @@
 ### Requirement: 正文 validator 兼容与 checkpoint 兼容分离
 新定义 SHALL 以可选 `content_validator_compatible_from_versions` 显式授权同来源旧版正文的条件复用，未声明时只查当前版本，历史 registry canonical hash MUST 不变。复用 MUST 校验相同来源/上游、正文 canonical 与时间语义、确切资源 URL、同 namespace、原始与当前许可、完整字节哈希及未隔离状态；validator 只来自成功观测。兼容旧正文不代表兼容旧 checkpoint，亦不得将 ad_hoc 改成 production。
 
+#### Scenario: HTTP 客户端返回 304
+- **WHEN** HTTPX 返回无消息正文的 304，且表示元数据可能包含非零 Content-Length 或 Content-Encoding
+- **THEN** 传输 SHALL 保留状态与 validator 头、返回空消息正文，不进入 Location/重定向流程，也不按表示长度读取正文；执行器仍 MUST 单独校验条件请求与快照锚点
+
 #### Scenario: 新生产查询复用 ad_hoc 取得的正文
 - **WHEN** 全新 production discovery 再次发现相同正文，合格旧快照的 Last-Modified 条件请求获得 304
 - **THEN** 系统 SHALL 重新检查锚点并创建当前来源版本的新 attempt/observation，引用旧快照及其版本；原快照、旧 run 与 creating observation 不变，生产覆盖依据本次 HTTP discovery 与 fetch 证明
