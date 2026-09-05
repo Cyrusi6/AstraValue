@@ -116,3 +116,31 @@ def test_local_directory_keeps_challenge_halt_and_zero_io_remaining_items(tmp_pa
     assert result.outcome_counts == {"success": 1, "restricted": 1, "policy_skipped": 1}
     assert result.material_gap_count == 2
     runtime.close()
+
+
+def test_archive_report_refreshes_derived_versions_without_network_and_retains_old_projection(tmp_path, monkeypatch):
+    from scripts.archive_cninfo_inventory import report
+    bundle = origin_bundle(tmp_path)
+    runtime, adapter = destination(tmp_path, lambda w: envelope(url=w.resource.url,
+                                                    body=_html(), content_type="text/html"))
+    plan = plan_retained_inventory(runtime, bundle)
+    runtime.orchestrator.execute_run(plan.run.run_id)
+    output = tmp_path/"report"
+    output.mkdir()
+    state = {"batches": [{"run_id": plan.run.run_id}], "inventory_sha256": "a"*64}
+    first = report(runtime, bundle, state, output, derive=True)
+    assert first["fetch_counts"] == {"success": 2} and first["text_counts"] == {"parsed": 2}
+    path = next(output.glob("text-*.json"))
+    cached = json.loads(path.read_text(encoding="utf-8"))
+    cached["classifier_version"] = cached["material"]["classifier_version"] = "1.2.0"
+    path.write_text(json.dumps(cached), encoding="utf-8")
+    refreshed = report(runtime, bundle, state, output, derive=True)
+    assert all(r["material"]["classifier_version"] == "1.3.0" for r in refreshed["rows"])
+    assert (output/"derivation-history"/f"{path.stem}-1.2.0.json").exists()
+    assert len(adapter.fetch_calls) == 2 and not adapter.query_calls
+    def broken(_):
+        raise ValueError("corrupt run payload")
+    monkeypatch.setattr(runtime.repository, "get_run", broken)
+    with pytest.raises(ValueError, match="corrupt run"):
+        report(runtime, bundle, state, output)
+    runtime.close()

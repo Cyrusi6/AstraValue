@@ -10,7 +10,7 @@ registry 1.5.0 / CNINFO definition 1.4.0 / announcements schema 3 仅新增已�
 
 网络仍直连、TLS 验证、同来源并发 1、最小间隔 5 秒、无自动重试。遇到明确拦截保留状态并及时报告，同运行该来源后续零 I/O；独立修复工作继续。新版本不自动迁移旧 checkpoint 或清除旧失败。
 
-文本提取器 1.1.0 排除 HTML head 元数据并严格验证整份页面编码；材料分类器 1.2.0 保留实际封面与网站重复标题的差异，不把目录中的“财务数据摘要”误判成整份报告摘要。既有派生版本保留。
+文本提取器 1.1.0 排除 HTML head 元数据并严格验证整份页面编码；材料分类器 1.3.0 保留实际封面与网站重复标题的差异，不把目录中的“财务数据摘要”误判成整份报告摘要，并把权证、债券上市材料与首次上市公告分开。既有派生版本保留。
 
 本文件定义授权范围与版本语义。真实样本结果和三类验收门另记阶段日志；元数据遍历、正文归档、生产增量和人工黄金验收分别说明。
 
@@ -33,6 +33,7 @@ python scripts/archive_cninfo_inventory.py --inventory <verified-inventory.json>
   --db <archive-analysis.db> --data-root <archive-data> --output-dir <archive-results> `
   --batch-size 75 --prepare-only
 # 去掉 --prepare-only 执行或恢复；--report-only 读取当前明确状态。
+# --derive-only 仅刷新文本/分类派生版本，不重新下载；旧派生和旧缓存投影保留。
 ```
 
 所有运行文件保持 ignored。本轮目录覆盖的总数不等于公司历史绝对完整，归档完成也不代替 production baseline、两次 incremental 或人工黄金验收。

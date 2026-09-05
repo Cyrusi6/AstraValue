@@ -10,6 +10,7 @@ from analysis.acquisition.materials import classify_material
     ("招股说明书摘要", "样本公司首次公开发行股票招股说明书摘要", "prospectus_summary"),
     ("关于招股说明书的更正公告", "关于招股说明书的更正公告", "correction_notice"),
     ("可转换公司债券上市公告书", "样本公司可转换公司债券上市公告书", "other_financing"),
+    ("人民币普通股股票之认沽权证上市公告书", "关于样本公司人民币普通股股票之认沽权证上市公告书", "other_financing"),
     ("2025年年度报告（修订版）", "样本公司2025年年度报告", "periodic_report"),
     ("董事会决议公告", "董事会决议公告\n" + "董事会审议相关事项。" * 60 + "招股说明书", "other_announcement"),
 ])

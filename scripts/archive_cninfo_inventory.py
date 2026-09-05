@@ -13,10 +13,11 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from analysis.acquisition.content import extract_announcement_text
-from analysis.acquisition.materials import classify_material, classify_snapshot_material
+from analysis.acquisition.content import EXTRACTOR_VERSION, extract_announcement_text
+from analysis.acquisition.materials import CLASSIFIER_VERSION, classify_material, classify_snapshot_material
 from analysis.acquisition.models import AcquisitionPlan, canonical_json_bytes
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
+from analysis.acquisition.repository import AcquisitionNotFoundError
 from analysis.acquisition.retained_inventory import inventory_batch, plan_retained_inventory, validate_inventory
 from analysis.acquisition.runtime import AcquisitionRuntime
 
@@ -74,7 +75,7 @@ def report(runtime, bundle, state, output, *, derive=False):
     for batch in state["batches"]:
         try:
             run = repo.get_run(batch["run_id"])
-        except Exception:
+        except AcquisitionNotFoundError:
             continue
         finalized += any(e.event_type.value == "finalized" for e in repo.list_run_events(run.run_id))
         for attempt in repo.list_attempts(run_id=run.run_id, limit=None):
@@ -104,13 +105,22 @@ def report(runtime, bundle, state, output, *, derive=False):
                     byte_length=snapshot.byte_length, mime_type=snapshot.mime_type,
                     archive_relative_path=snapshot.archive_relative_path)
                 cache = output / f"text-{snapshot.snapshot_id}.json"
-                if derive and not cache.exists():
+                cached = json.loads(cache.read_text(encoding="utf-8")) if cache.exists() else {}
+                versions = {"extractor_version": EXTRACTOR_VERSION, "classifier_version": CLASSIFIER_VERSION}
+                if derive and any(cached.get(k) != v for k, v in versions.items()):
+                    if cached:
+                        old_version = cached.get("classifier_version") or cached.get("material", {}).get("classifier_version", "unknown")
+                        history = output / "derivation-history"
+                        history.mkdir(exist_ok=True)
+                        prior = history / f"{cache.stem}-{old_version}.json"
+                        if not prior.exists():
+                            write_json(prior, cached)
                     try:
                         extraction = extract_announcement_text(runtime, snapshot.snapshot_id)
                         material = classify_snapshot_material(runtime, snapshot.snapshot_id, title=resource.title)
-                        write_json(cache, dict(text_status="parsed", extraction=asdict(extraction), material=asdict(material)))
+                        write_json(cache, dict(**versions, text_status="parsed", extraction=asdict(extraction), material=asdict(material)))
                     except Exception as exc:
-                        write_json(cache, dict(text_status="requires_review", text_error=str(exc)))
+                        write_json(cache, dict(**versions, text_status="requires_review", text_error=str(exc)))
                 if cache.exists():
                     row.update(json.loads(cache.read_text(encoding="utf-8")))
                 elif not derive:
@@ -138,6 +148,7 @@ def main(argv=None):
     parser.add_argument("--batch-size", type=int, default=75)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--report-only", action="store_true")
+    parser.add_argument("--derive-only", action="store_true", help="只刷新版本化文本/分类派生，不请求来源")
     args = parser.parse_args(argv)
     if not 1 <= args.batch_size <= 100:
         parser.error("batch-size必须在1到100之间")
@@ -148,8 +159,8 @@ def main(argv=None):
     with AcquisitionRuntime.create(args.db, args.data_root, registry_path=args.registry,
                                    workspace_root=Path(__file__).resolve().parents[1]) as runtime:
         state = prepare(runtime, bundle, args.output_dir, args.batch_size)
-        current = report(runtime, bundle, state, args.output_dir)
-        if args.prepare_only or args.report_only:
+        current = report(runtime, bundle, state, args.output_dir, derive=args.derive_only)
+        if args.prepare_only or args.report_only or args.derive_only:
             emit(event="archive_prepared" if args.prepare_only else "archive_report",
                  **{k:v for k,v in current.items() if k != "rows"})
             return 0

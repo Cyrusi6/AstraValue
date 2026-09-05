@@ -11,7 +11,7 @@ from .content import extract_announcement_text
 
 
 CLASSIFIER_ID = "announcement-material-type"
-CLASSIFIER_VERSION = "1.2.0"
+CLASSIFIER_VERSION = "1.3.0"
 _REPORT = r"(?:年度|半年度|中期|第一季度|第三季度|一季度|三季度|季度)(?:财务)?报告"
 
 
@@ -22,10 +22,10 @@ def _compact(value: str) -> str:
 def _kind(value: str) -> str:
     if re.search(r"(?:更正|补充|修正).{0,12}(?:公告|通知)$", value):
         return "correction_notice"
+    if re.search(r"(?:可转债|可转换公司债券|公司债券|权证).{0,60}上市公告书", value):
+        return "other_financing"
     if re.search(r"关于.{0,70}(?:招股说明书|上市公告书)", value):
         return "ipo_related_notice"
-    if re.search(r"(?:可转债|可转换公司债券|公司债券).{0,60}上市公告书", value):
-        return "other_financing"
     patterns = [
         ("prospectus_appendix", r"招股说明书(?:及其)?(?:附录|附件|附表)"),
         ("prospectus_summary", r"招股说明书摘要"),
