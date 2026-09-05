@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
+import json
 
 import httpx
 import pytest
@@ -16,6 +17,8 @@ from analysis.acquisition.models import (
 )
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
 from analysis.acquisition.repository import AcquisitionRepository
+from analysis.acquisition.runtime import AcquisitionRuntime
+from analysis.acquisition.orchestrator import AcquisitionOrchestrator
 
 from orchestrator_support import (
     NOW,
@@ -566,6 +569,59 @@ def test_cninfo_v1_2_smoke_resolves_bootstrap_binding_into_form_body(tmp_path) -
         }
         assert adapter.fetch_calls == []
         assert result.material_gap_count == 0
+        assert result.checkpoint_advanced is False
+    finally:
+        runtime.close()
+
+
+@pytest.mark.parametrize("case", ["empty", "conflicting_count", "challenge"])
+def test_cninfo_nullable_v2_runs_through_retention_and_outcome_pipeline(tmp_path, case):
+    calls = []
+
+    class FixtureTransport:
+        def request(self, work):
+            calls.append(work)
+            if work.query_family == "company_bootstrap":
+                payload = {"stockList": [{"code": "600519", "orgId": "gssh0600519",
+                                          "zwjc": "Synthetic Company"}]}
+                headers = {}
+            else:
+                assert work.form_body["stock"] == "600519,gssh0600519"
+                payload = {"announcements": None, "totalAnnouncement": 0,
+                           "hasMore": False, "totalRecordNum": 0}
+                if case == "conflicting_count":
+                    payload["totalRecordNum"] = 1
+                headers = {"x-tengine-error": "denied by bot"} if case == "challenge" else {}
+            return envelope(url=work.url, body=json.dumps(payload).encode(), headers=headers)
+
+        def close(self):
+            pass
+
+    runtime = AcquisitionRuntime.create(tmp_path / "analysis.db", tmp_path / "data",
+                                        workspace_root=tmp_path)
+    runtime.orchestrator = AcquisitionOrchestrator(
+        runtime, transport_factory=lambda _definition: FixtureTransport())
+    try:
+        result = runtime.orchestrator.smoke_sources(ticker="600519", source_ids=["cninfo.disclosures"])
+        assert len(calls) == 2
+        assert calls[1].parser_schema_version == "2"
+        assert calls[1].context["schema_id"] == "cninfo.announcements"
+        run = runtime.repository.get_run(result.run_id)
+        assert run.http_route_policy == "direct-v1"
+        attempts = runtime.repository.list_attempts(run_id=run.run_id)
+        periodic = next(a for a in attempts if a.query_id == "cninfo.periodic_report")
+        proofs = runtime.repository.list_discovery_proofs(periodic.attempt_id)
+        if case == "empty":
+            assert result.outcome_counts == {"success": 1, "no_data": 1}
+            assert result.material_gap_count == 0
+            assert len(proofs) == 1 and proofs[0].terminal
+            assert proofs[0].declared_total == proofs[0].normalized_row_count == 0
+            assert proofs[0].replayable and proofs[0].schema_version == "2"
+        else:
+            expected = "restricted" if case == "challenge" else "parse_failed"
+            assert result.outcome_counts == {"success": 1, expected: 1}
+            assert result.material_gap_count > 0
+            assert proofs == []
         assert result.checkpoint_advanced is False
     finally:
         runtime.close()

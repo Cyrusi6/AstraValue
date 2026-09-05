@@ -4,6 +4,21 @@
 
 ## ADDED Requirements
 
+### Requirement: CNINFO nullable 空结果使用独立版本合同
+CNINFO 新公告 schema 2 SHALL 仅在 page 1、`announcements` 存在且为 null、`totalAnnouncement` 为严格整数 0、`hasMore` 为布尔 false 时允许零行；出现的 `totalRecordNum|totalSecurities|totalpages` MUST 为严格整数 0。响应 MUST 只包含这六类字段及可选的 null `classifiedAnnouncements|categoryList`，未知字段、错误标记和不支持形态不得生成 no_data。此解释 MUST 由冻结的 schema id/version 启用，旧 schema 1 重放仍拒绝 null。新 registry 1.4.0 SHALL 只升级 CNINFO definition 为 1.3.0、公告 schema 与 execution key，不扩大端点、请求类别、速率、保存或 LLM 权限，也不声明旧 checkpoint 兼容。
+
+#### Scenario: 有证明的 null 空结果
+- **WHEN** 新版已冻结公告请求取得通过状态、挑战和 JSON 校验的 page 1 响应，且全部 nullable 空结果条件满足
+- **THEN** 系统 SHALL 规范化为零行，冻结原始字节并生成唯一 terminal proof，只有完整证明闭合后才记录 no_data
+
+#### Scenario: 错误或矛盾响应不得吞成空集
+- **WHEN** null 公告响应包含正计数、布尔/字符串计数、缺失权威计数、hasMore 非 false、未知字段、错误标记或非第一页位置
+- **THEN** 系统 MUST 拒绝解析并保持材料缺口，不得生成 no_data 或越过失败位置推进水位线
+
+#### Scenario: 旧版本解释不可追溯变化
+- **WHEN** 对旧 schema 1 的已冻结 null 响应执行无网络重放
+- **THEN** 解析 MUST 继续失败，旧 run、快照、checkpoint 和注册表哈希保持不变
+
 ### Requirement: 版本化且不可变的来源定义
 系统 SHALL 以不可变版本保存每个 `SourceDefinition`，且每个版本 MUST 包含稳定的来源定义 ID、版本、真实上游身份、显示名称、权威级别、访问方式、请求与逐跳重定向的允许域名/路径、许可与使用限制、可保留内容类型、适用公司/市场/主题、刷新频率、增量与重叠回看策略、来源时区与发布时间字段语义、响应 schema/MIME、请求速率与最大并发、超时/重试边界、最大响应字节数、有效期、查询定义以及 LLM 处理策略。已被运行引用的版本不得原地修改；任何实质变化 MUST 创建新版本并保留旧版本。
 

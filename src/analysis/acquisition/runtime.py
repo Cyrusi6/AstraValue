@@ -209,6 +209,7 @@ class AcquisitionRuntime:
         bound_http_client = http_client or httpx.Client(
             timeout=httpx.Timeout(30.0),
             follow_redirects=False,
+            trust_env=False,
         )
         runtime = cls(
             db_path=database,

@@ -613,6 +613,10 @@ class AcquisitionOrchestrator:
         existing_final = self._final_event(run_id)
         if existing_final is not None:
             return self._result_from_final(run, existing_final)
+        if run.http_route_policy != "direct-v1":
+            raise AcquisitionExecutionError(
+                "http_route_policy_missing: 旧运行路由未知，不能按直连静默恢复；请创建新运行"
+            )
         for definition in self._frozen_definitions_for_run(run):
             try:
                 SourceRegistryLoader.assert_effective(definition, run.as_of)
@@ -2401,6 +2405,7 @@ class AcquisitionOrchestrator:
             "ticker": run.ticker,
             "items_path": query.pagination.items_path,
             "total_path": query.pagination.total_path,
+            "schema_id": query.discovery_schema.schema_id,
         }
         encoding = plan_item.request_encoding
         return QueryWork(

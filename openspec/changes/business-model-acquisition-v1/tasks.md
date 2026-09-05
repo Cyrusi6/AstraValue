@@ -108,3 +108,11 @@
 - [ ] 10.2 人工核对 600519 的公司锚点、每个适用来源 × 十项追踪主题 × 早/中/近期至少一项 coverage、共享物理查询与 M:N links、discovery proof/row lineage、required fetch、试点中实际观察到的全部非成功条目、至少 20 个 success/unchanged snapshot 和全部 same-URL 版本链；可观察结果是每项都有复核人、时间、run/attempt/observation/snapshot ID、原始发布时间/精度/available_at、磁盘 SHA-256 与 pass/fail 说明，不为了凑状态制造验证码/付费情形，也不保存受限原文到 Git。
 - [ ] 10.3 只有 10.2 全部签署后才运行 `python scripts/validate_acquisition_golden.py --strict` 并要求输出 `ACQUISITION_GOLDEN_OK`；任何未核对/受限项必须保持 pending/failed，不能由自动化或联网门替代。
 - [x] 10.4 最终分别汇总三门状态并追加 `阶段日志.md`：自动化、真实联网、人工黄金各自只能取实际观察结果；用 `rg -n "自动化测试门|真实联网样本门|人工黄金样本门|贵州茅台采集试点" 阶段日志.md` 可见四项独立记录，且不得出现“全部 A 股验证完成”或“商业模式分析完成”。
+
+## 11. 巨潮直连、nullable 空结果与公开正文验证
+
+- [x] 11.1 正式 runtime/transport 自建 HTTP 客户端禁用代理继承，run 冻结 direct-v1 并在恢复前验证；旧未知路由运行拒绝联网但可读。运行 `python -m pytest tests/test_acquisition_direct_route.py tests/test_acquisition_transport.py -q` 验证环境/系统代理隔离、冻结、重开及旧运行零 I/O。
+- [x] 11.2 实现冻结 CNINFO 公告 schema 2 的严格 nullable 分支，保留 schema 1 与数组形态，覆盖权威/辅助计数类型和值、hasMore、页位置、错误/未知字段、挑战与旧版本重放。运行 `python -m pytest tests/test_acquisition_cninfo_adapter.py tests/test_acquisition_orchestrator.py -q`，无原始在线响应进入 Git。
+- [x] 11.3 新增 registry 1.4.0 / CNINFO 1.3.0 及本轮访问与 schema 修订记录，更新默认 registry 与 CI，保持全部旧 registry 哈希及其他来源定义不变。运行 `python scripts/validate_source_registry.py --registry config/data_sources/business_model_sources.v1.4.json --expect-business-model-v1 4 --require-plan-traceability` 和 `python -m pytest tests/test_acquisition_registry.py -q`。
+- [ ] 11.4 聚焦测试后执行全量 pytest、严格 OpenSpec、方法库/黄金清单结构校验、frontend npm ci/build、git diff --check；提交并推送后观察该确切提交的 verify CI 全部成功。自动化通过不替代联网或人工黄金验收。
+- [ ] 11.5 在新隔离 namespace 经正式 runtime 执行 CNINFO metadata smoke 和短窗口 ad_hoc 正文采集，至少取得一个真实 PDF、核对 MIME/文件结构/磁盘哈希与正文可解析性，记录 run/attempt/snapshot/manifest 和来源结果。若失败或受限立即汇报并讨论，保留本 task 未完成；不扩大为全历史或声称完成 9.3/10.2/10.3。

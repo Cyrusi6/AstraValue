@@ -1001,6 +1001,9 @@ class AcquisitionRun(FrozenAcquisitionModel):
     company_anchor_quality: str | None = None
     storage_namespace_id: str | None = None
 
+    # Missing in historical payloads: never infer an earlier run's route.
+    http_route_policy: Literal["direct-v1"] | None = None
+
     @field_validator("ticker")
     @classmethod
     def validate_ticker(cls, value: str) -> str:

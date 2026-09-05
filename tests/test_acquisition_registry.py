@@ -14,6 +14,7 @@ from analysis.acquisition.registry import (
     INITIAL_REGISTRY_PATH,
     POLICY_APPROVED_REGISTRY_PATH,
     REVIEWED_REGISTRY_PATH,
+    SSE_SCHEMA_APPROVED_REGISTRY_PATH,
     SourceRegistryError,
     SourceRegistryLoader,
 )
@@ -337,11 +338,12 @@ def test_v1_2_registry_hash_and_internal_approval_remain_immutable():
     assert all(query.endpoint is None for query in ir.queries)
 
 
-def test_default_v1_3_changes_only_the_observed_sse_schema_contract():
+def test_v1_3_changes_only_the_observed_sse_schema_contract():
     previous = SourceRegistryLoader().load_registry(POLICY_APPROVED_REGISTRY_PATH)
-    current = SourceRegistryLoader().load_registry()
+    current = SourceRegistryLoader().load_registry(SSE_SCHEMA_APPROVED_REGISTRY_PATH)
 
     assert current.registry.registry_version == "1.3.0"
+    assert current.content_hash == "8052ba05005ec84e260b97716155550067cd653d02dac82b8e7d229be0258a9d"
     for source_id in ("cninfo.disclosures", "szse.disclosures", "moutai.ir"):
         assert current.definition(source_id) == previous.definition(source_id)
 
@@ -360,6 +362,29 @@ def test_default_v1_3_changes_only_the_observed_sse_schema_contract():
     assert query.discovery_schema.resource_fields["title"] == (
         "pageHelp.data[].title"
     )
+
+
+def test_default_v1_4_changes_only_cninfo_nullable_schema_and_owner_decision():
+    previous = SourceRegistryLoader().load_registry(SSE_SCHEMA_APPROVED_REGISTRY_PATH)
+    current = SourceRegistryLoader().load_registry()
+    assert current.registry.registry_version == "1.4.0"
+    for source_id in ("sse.disclosures", "szse.disclosures", "moutai.ir"):
+        assert current.definition(source_id) == previous.definition(source_id)
+    assert current.registry.legacy_definitions == previous.registry.legacy_definitions
+    old = previous.definition("cninfo.disclosures")
+    new = current.definition("cninfo.disclosures")
+    assert new.version == "1.3.0"
+    assert new.incremental_policy.checkpoint_compatible_from_versions == ()
+    for field in ("initial_request_allowlist", "redirect_allowlist", "rate_limit",
+                  "retry_policy", "response_limits", "retention_policy"):
+        assert getattr(new, field) == getattr(old, field)
+    for old_query, query in zip(old.queries, new.queries):
+        assert query.execution_key.endswith(".v1.3")
+        for field in ("endpoint", "parameter_template", "parameter_bindings", "fixed_headers",
+                      "request_encoding", "request_method", "pagination", "fetch_policy"):
+            assert getattr(query, field) == getattr(old_query, field)
+        expected = "1" if query.query_family == "company_bootstrap" else "2"
+        assert query.discovery_schema.schema_version == expected
 
 
 def test_pre_v1_2_post_queries_keep_legacy_form_encoding():

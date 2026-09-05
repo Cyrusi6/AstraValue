@@ -64,6 +64,7 @@ class RegistryBoundHttpTransport:
         self._client = client or httpx.Client(
             timeout=httpx.Timeout(timeout),
             follow_redirects=False,
+            trust_env=False,
         )
         self._address_resolver = address_resolver
         self._clock = clock

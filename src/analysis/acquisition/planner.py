@@ -184,6 +184,7 @@ class AcquisitionPlanner:
             company_anchor_date=company_start_date,
             company_anchor_quality=anchor_quality,
             storage_namespace_id=storage_namespace_id,
+            http_route_policy="direct-v1",
         )
 
         if selected_mode == AcquisitionMode.RECONCILE and reconcile_target and reconcile_target.get("plan_item_id"):

@@ -154,6 +154,14 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
             ]
             return rows, len(rows), 1, True, None
         if not isinstance(payload, dict) or not isinstance(payload.get("announcements"), list):
+            if (
+                isinstance(payload, dict)
+                and "announcements" in payload
+                and payload["announcements"] is None
+                and work.parser_schema_version == "2"
+                and work.context.get("schema_id") == "cninfo.announcements"
+            ):
+                return self._nullable_empty_page(payload, work)
             raise ValueError("cninfo announcements schema mismatch")
         rows = payload["announcements"]
         if not all(isinstance(item, dict) for item in rows):
@@ -168,6 +176,31 @@ class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
         page_count = (total + page_size - 1) // page_size if total else 1
         terminal = not rows or work.page >= page_count
         return rows, total, page_count, terminal, None if terminal else str(work.page + 1)
+
+    @staticmethod
+    def _nullable_empty_page(payload: dict[str, Any], work: QueryWork):
+        allowed = {
+            "announcements", "totalAnnouncement", "hasMore",
+            "totalRecordNum", "totalSecurities", "totalpages",
+            "classifiedAnnouncements", "categoryList",
+        }
+        if (
+            set(payload) - allowed
+            or work.page != 1
+            or work.cursor is not None
+            or work.context.get("total_path") != "totalAnnouncement"
+            or type(payload.get("totalAnnouncement")) is not int
+            or payload["totalAnnouncement"] != 0
+            or payload.get("hasMore") is not False
+        ):
+            raise ValueError("cninfo nullable empty response contract mismatch")
+        for name in ("totalRecordNum", "totalSecurities", "totalpages"):
+            if name in payload and (type(payload[name]) is not int or payload[name] != 0):
+                raise ValueError("cninfo nullable empty response count mismatch")
+        for name in ("classifiedAnnouncements", "categoryList"):
+            if name in payload and payload[name] is not None:
+                raise ValueError("cninfo nullable empty response contains unsupported groups")
+        return [], 0, 1, True, None
 
     def _normalize_row(self, row, index, work):
         if work.query_family == "company_bootstrap":

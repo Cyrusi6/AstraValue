@@ -1,5 +1,15 @@
 ## Context
 
+### 2026-09-05 巨潮直连与空结果修订
+
+依据 [来源可用性诊断](../../../docs/acquisition/source-availability-diagnosis-2026-09-05.md) 和用户本轮修复指令，正式 acquisition runtime 与独立 registry-bound transport 创建的 HTTP 客户端统一禁用环境/Windows 系统代理继承，使用直连且保持 TLS 证书验证。此选择适用于已批准来源，不提供自动代理切换。新运行在已有 JSON payload 中冻结 `http_route_policy=direct-v1`，无需 SQLite DDL 迁移；旧 payload 缺字段时读为 null，旧 finalized 结果及离线重放仍可读，未完成且路由未知的旧运行不得静默按新路由恢复，必须创建新运行。API、CLI 和 smoke 复用该规则；注入式测试客户端继续作为测试接缝，路由约定不冒充真实网络 trace。
+
+新增 registry 1.4.0，只将 CNINFO definition 升为 1.3.0；公告 schema 升为 2、execution key 升版、checkpoint 不声明跨版本兼容。其他来源及旧 registry 文件保持原版本。新公告 schema 仅在 page 1、announcements 存在且为 null、totalAnnouncement 为严格整数 0、hasMore 为布尔 false、出现的辅助计数均为严格整数 0 时解释为零行。仅接受已观察的八个顶层字段；classifiedAnnouncements/categoryList 若出现须为 null，错误标记、未知字段、矛盾计数、缺字段、错误类型和后续页均拒绝。正常数组分支及旧 schema 1 的重放行为保持原样。新分支仍须经过响应状态/挑战检查、归档、哈希和唯一 terminal proof 才能得到 no_data。
+
+用户要求失败时及时报告并讨论解决，且不能攻击来源。单次受限必须保留事实；受限访问路径的自动请求可以暂停，但这不结束修复任务或阻止其他已批准来源继续工作。优先修复并验证巨潮公开正文，保持低频、无密集重试；不增加扫描、漏洞利用、流量攻击或自动挑战规避。无法取得正文时报告来源、时间窗口、HTTP/解析结果和已取得的证据，不将失败改为无数据。
+
+本轮不改变金融方法、前端业务流程或旧报告。验收先覆盖代理环境隔离、路由冻结/恢复、nullable 正负例和旧版本重放，再执行全量自动化及对应提交 CI；最后在新 namespace 做 CNINFO metadata smoke 和明确标为 ad_hoc 的有限窗口正文验证。取得少量正文不代表完整 baseline、两次生产 incremental 或人工黄金门完成。回退须用显式旧 registry 和独立运行；不得改写旧证据。
+
 动机与范围见 [proposal.md](./proposal.md)，行为合同见本 change 的五份 [delta specs](./specs/)。现有实现已有可复用基础，也存在不能继续沿用的假设：
 
 - `SourceRecord`、`DocumentRecord`、`SyncResult` 与报告版本已经可序列化，SQLite 对同 ID 不同 payload 会拒绝覆盖；联网正式 PDF 已先校验 MIME/大小、计算 SHA-256 并归档，再进入解析。

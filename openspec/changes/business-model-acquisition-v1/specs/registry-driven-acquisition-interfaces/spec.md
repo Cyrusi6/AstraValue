@@ -4,6 +4,21 @@
 
 ## ADDED Requirements
 
+### Requirement: 正式采集统一直连并冻结路由约定
+正式 runtime 和 registry-bound transport 自建的 HTTP 客户端 MUST 使用直连、禁止继承环境与 Windows 系统代理且保留 TLS 验证。API、CLI、smoke 新计划 MUST 在 run 中冻结 `http_route_policy=direct-v1`，不得记录代理凭据。恢复执行 MUST 校验持久化约定，未完成旧运行缺失约定时 MUST 在租约、DNS、source gate 和 HTTP 前拒绝静默切换；旧 finalized 结果和离线重放仍可读取。
+
+#### Scenario: 系统代理不影响新运行
+- **WHEN** Windows 系统代理或 HTTP_PROXY/HTTPS_PROXY/ALL_PROXY/NO_PROXY 环境配置存在且创建正式采集客户端
+- **THEN** 对所有已批准来源的有效客户端路由 SHALL 仍为直连，环境变化不触发自动出口切换
+
+#### Scenario: 路由未知的旧运行保持证据原样
+- **WHEN** 未完成持久化 run 缺少路由约定且操作员要求恢复执行
+- **THEN** 系统 MUST 给出明确的旧运行路由未知错误并要求新运行，零外部 I/O 且不改写旧 run
+
+#### Scenario: 来源受限不结束独立修复工作
+- **WHEN** 某来源返回明确限制且其他已批准来源仍有可执行工作
+- **THEN** 系统 SHALL 保留并报告限制事实，继续其他未受影响工作；自动受限请求不被密集重试，无法取得目标正文时交由操作者讨论下一步，不将失败改写为无数据
+
 ### Requirement: AdapterManager 由注册表解析执行计划
 `AdapterManager` SHALL 从运行固定的注册表版本解析 adapter、来源定义和查询计划，而不是维护独立硬编码来源集合或按任意字符串构造 adapter。对于 `business_model` v1，baseline/incremental/reconcile 的执行时间与问题范围 MUST 只由 mode、company anchor、checkpoint、registry/question 版本和 as_of 决定；调用方的时间/问题筛选只用于只读展示。显式 ad-hoc 子集运行 MUST 标记 `run_kind=ad_hoc`，不得推进 production checkpoint、不得成为默认可消费批次，也不得声称完整。
 
