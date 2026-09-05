@@ -124,3 +124,48 @@ def test_checkpoint_history_rejects_another_scope_before_using_its_proofs(tmp_pa
             runtime.orchestrator._checkpoint_history_progress(
                 other, checkpoint, ref.source_definition_id, str(ref.version), set())
         assert (len(adapter.query_calls), len(adapter.fetch_calls)) == calls
+
+
+def test_sequential_reconciles_keep_the_other_gap_until_its_own_repair(tmp_path):
+    keys, repaired = {}, set()
+    def parsed(_, work):
+        name = keys.get(work.execution_key)
+        rows = () if name is None else (resource(name),)
+        return discovery_result(work, resources=rows, declared_total=len(rows))
+    def fetched(work):
+        name = work.resource.canonical_resource_id
+        if name.startswith("gap-") and name not in repaired:
+            return envelope(url=work.resource.url, status=502)
+        return envelope(url=work.resource.url, body=b"%PDF-1.4\n" + name.encode() + b"\n%%EOF",
+                        content_type="application/pdf")
+    adapter = ScenarioAdapter(lambda work: envelope(url=work.url), parsed, fetched)
+    with make_runtime(tmp_path, adapter) as runtime:
+        profile = runtime.build_profile("600519", listing_date=(NOW - timedelta(days=1200)).date())
+        base = runtime.planner.plan(profile, mode="baseline", as_of=NOW, storage_namespace_id=runtime.namespace_id)
+        items = tuple(p for p in base.physical_query_plan_items if p.query_id == "cninfo.periodic_report")
+        assert len(items) == 4
+        ids = {p.plan_item_id for p in items}
+        links = tuple(link for link in base.coverage_links if link.plan_item_id in ids)
+        cids = {link.coverage_entry_id for link in links}
+        plan = AcquisitionPlan(run=base.run, physical_query_plan_items=items, coverage_links=links,
+            coverage_entries=tuple(e for e in base.coverage_entries if e.coverage_entry_id in cids))
+        keys.update({items[1].execution_key: "gap-1", items[2].execution_key: "gap-2", items[3].execution_key: "suffix"})
+        baseline = runtime.orchestrator.execute_plan(plan)
+        assert baseline.material_gap_count == 2
+        old_events = runtime.repository.list_run_events(plan.run.run_id)
+        for index in (1, 2):
+            repaired.add(f"gap-{index}")
+            calls_before = len(adapter.query_calls)
+            repair = runtime.plan_company_run("600519", mode="reconcile", parent_run_id=plan.run.run_id,
+                                             as_of=NOW + timedelta(hours=index))
+            assert repair.run.reconcile_target["canonical_resource_id"] == f"gap-{index}"
+            outcome = runtime.orchestrator.execute_run(repair.run.run_id)
+            assert outcome.material_gap_count == 2 - index
+            checkpoint = runtime.repository.get_checkpoint(outcome.checkpoint_ids[0])
+            remaining_resources = {runtime.repository.get_checkpoint_barrier(b)["canonical_resource_id"]
+                                   for b in checkpoint.unresolved_barrier_ids}
+            assert remaining_resources == ({"gap-2"} if index == 1 else set())
+            expected = items[2].time_start if index == 1 else plan.run.as_of
+            assert checkpoint.source_safe_through.time_upper_bound == expected
+            assert all(work.execution_key != items[3].execution_key for work in adapter.query_calls[calls_before:])
+        assert runtime.repository.list_run_events(plan.run.run_id) == old_events

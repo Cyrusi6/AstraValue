@@ -138,4 +138,4 @@
 - [ ] 13.5 冻结生产方案、旧库备份与旧行/原始哈希清单；聚焦及全量测试、严格 OpenSpec、配置/一致性门和确切推送提交 CI 通过后，用新 production baseline 验证少量条件响应再完成全历史；不改旧运行或主库。
 - [ ] 13.6 完成新 baseline 及 9.3 两次 incremental 后，核对来源角色、HTTP discovery、复用/新增/变化/失败、覆盖与原子 checkpoint，并在阶段日志分别记录自动化、联网和人工黄金状态；未取得安全 checkpoint 时如实保留未完成。
 
-- [ ] 13.7 补强 checkpoint 连续性与历史完成区间的本地复核：只沿同 scope/source 的 CAS 父链使用完整 proof 和有效 required snapshots，保留未解决 barrier，禁止跨未证明空档或用旧完成区间覆盖本次失败；记录历史 plan ID 并保持最新 validator。验证中间补缺、损坏快照、隔离、重叠失败、来源隔离、旧行不可变及无额外历史 I/O，完成全量和确切提交 CI 后用于后续运行。
+- [x] 13.7 补强 checkpoint 连续性与历史完成区间的本地复核：只沿同 scope/source 的 CAS 父链使用完整 proof 和有效 required snapshots，保留未解决 barrier，禁止跨未证明空档或用旧完成区间覆盖本次失败；记录历史 plan ID 并保持最新 validator。验证中间补缺、损坏快照、隔离、重叠失败、来源隔离、旧行不可变及无额外历史 I/O，完成全量和确切提交 CI 后用于后续运行。
