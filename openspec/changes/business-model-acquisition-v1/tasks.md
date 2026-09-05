@@ -114,5 +114,5 @@
 - [x] 11.1 正式 runtime/transport 自建 HTTP 客户端禁用代理继承，run 冻结 direct-v1 并在恢复前验证；旧未知路由运行拒绝联网但可读。运行 `python -m pytest tests/test_acquisition_direct_route.py tests/test_acquisition_transport.py -q` 验证环境/系统代理隔离、冻结、重开及旧运行零 I/O。
 - [x] 11.2 实现冻结 CNINFO 公告 schema 2 的严格 nullable 分支，保留 schema 1 与数组形态，覆盖权威/辅助计数类型和值、hasMore、页位置、错误/未知字段、挑战与旧版本重放。运行 `python -m pytest tests/test_acquisition_cninfo_adapter.py tests/test_acquisition_orchestrator.py -q`，无原始在线响应进入 Git。
 - [x] 11.3 新增 registry 1.4.0 / CNINFO 1.3.0 及本轮访问与 schema 修订记录，更新默认 registry 与 CI，保持全部旧 registry 哈希及其他来源定义不变。运行 `python scripts/validate_source_registry.py --registry config/data_sources/business_model_sources.v1.4.json --expect-business-model-v1 4 --require-plan-traceability` 和 `python -m pytest tests/test_acquisition_registry.py -q`。
-- [ ] 11.4 聚焦测试后执行全量 pytest、严格 OpenSpec、方法库/黄金清单结构校验、frontend npm ci/build、git diff --check；提交并推送后观察该确切提交的 verify CI 全部成功。自动化通过不替代联网或人工黄金验收。
-- [ ] 11.5 在新隔离 namespace 经正式 runtime 执行 CNINFO metadata smoke 和短窗口 ad_hoc 正文采集，至少取得一个真实 PDF、核对 MIME/文件结构/磁盘哈希与正文可解析性，记录 run/attempt/snapshot/manifest 和来源结果。若失败或受限立即汇报并讨论，保留本 task 未完成；不扩大为全历史或声称完成 9.3/10.2/10.3。
+- [x] 11.4 聚焦测试后执行全量 pytest、严格 OpenSpec、方法库/黄金清单结构校验、frontend npm ci/build、git diff --check；提交并推送后观察该确切提交的 verify CI 全部成功。自动化通过不替代联网或人工黄金验收。
+- [x] 11.5 在新隔离 namespace 经正式 runtime 执行 CNINFO metadata smoke 和短窗口 ad_hoc 正文采集，至少取得一个真实 PDF、核对 MIME/文件结构/磁盘哈希与正文可解析性，记录 run/attempt/snapshot/manifest 和来源结果。若失败或受限立即汇报并讨论，保留本 task 未完成；不扩大为全历史或声称完成 9.3/10.2/10.3。
