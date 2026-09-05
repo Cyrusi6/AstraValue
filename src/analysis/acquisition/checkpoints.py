@@ -244,11 +244,25 @@ class CheckpointEngine:
                         for anchor in old.validator_anchors
                     }
                 )
+            blocked_start = min(
+                (item.plan_item.time_start for item in items if not item.complete),
+                default=None,
+            )
             for item in items:
                 for anchor in item.validator_anchors:
-                    validators[(anchor.canonical_resource_id, anchor.resource_url)] = anchor
+                    key = (anchor.canonical_resource_id, anchor.resource_url)
+                    known = validators.get(key)
+                    if known is None or (anchor.observed_at, anchor.snapshot_id) > (known.observed_at, known.snapshot_id):
+                        validators[key] = anchor
                 if not item.complete:
+                    continue
+                if safe is not None and item.plan_item.time_start > safe.time_upper_bound:
                     break
+                # A longer historical interval must not hide a newly failed
+                # overlapping recheck. Retain the old safe position, but do
+                # not advance through the unresolved interval.
+                if blocked_start is not None and item.plan_item.time_end > blocked_start:
+                    continue
                 candidate = CheckpointPosition(
                     time_upper_bound=item.plan_item.time_end,
                     canonical_resource_id=(

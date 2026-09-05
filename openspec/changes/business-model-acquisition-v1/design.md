@@ -8,6 +8,8 @@ OCR 只接受已提交、许可允许、未隔离且重算哈希正确的 PDF sn
 
 registry 1.9.0 / CNINFO 1.8.0 统一 128 MiB 原始/压缩/解压上限及 600 秒 attempt 预算，保持 30 秒 socket timeout、直连、TLS、并发 1、5 秒间隔及一次 attempt。新 `content_validator_compatible_from_versions` 仅声明正文条件复用，候选为 CNINFO 1.4.0–1.7.0；未声明时按当前版本处理，历史 canonical registry hash 不变。该字段不授权 checkpoint 迁移。兼容判断必须核对来源/上游/adapter、canonical 规则、发布时间语义、原始/当前许可、当前 URL allowlist；快照须处于同 namespace 且与此次 canonical、upstream ID 和确切 URL 匹配，长度、SHA、未隔离状态均有效。只使用成功观测的 validator，304 之前再次核对锚点；没有有效条件头时不得将 unsolicited 304 判为 unchanged。新观测使用新 run/attempt/definition 身份，显式引用旧 validator snapshot/version；原 creating observation 保留旧身份。200 响应记录完整正文 SHA-256/长度：同哈希复用兼容旧 snapshot；新哈希创建当前来源定义下的新 snapshot，通过新 observation 的 validator snapshot/version 记录跨定义前驱。各来源定义内部版本链独立保留。替换字节的 available_at 使用 retrieved_at，原 published_at 及 date/instant 精度保留，不把旧发布时间赋予新内容。
 
+checkpoint 后续区间复用只读取确切 CAS 父链的已终结同 scope/source 运行，重新核对 coverage、完整 discovery proof、required fetch 与字节/隔离。历史 partial 根查询不直接提升为 complete；本次精确修复提供缺失区间，未解决旧 barrier 作为显式阻塞输入。引擎检查连续性，不能跨无证明空档，也不能用旧宽区间盖过本次重叠失败。新 final event 记录复用的历史 plan IDs；validator 按 observed_at 选最新，旧 run/attempt/checkpoint/manifest 不修改。当前正在执行的基线继续使用其已加载代码，补强经验证和 CI 后供后续新运行使用。
+
 日期模板 `{start_date}` / `{end_date}` 按来源 `source_timezone` 转换后取日期；内部 time_start/time_end 与 instant 模板继续保存 UTC 时刻。CNINFO 的包含端点日期查询可以跨分区重叠，由 canonical 去重；不得因 UTC 日期落在前一日而漏查来源当地当天。已冻结旧计划和旧 proof 不回写。
 
 生产运行在 `cninfo-content-archive-20260905` 已绑定 namespace 追加，先保存 SQLite 一致性备份、旧行摘要与原始哈希清单。它重新查询全历史，生成真实 HTTP discovery proof；目录输入仍禁止 production。每个已知正文仍按限速接受当次条件请求确认，不能把本地已有文件等同于新网络观测。baseline 只有来源安全 checkpoint 确立后才执行两次独立 incremental，保留 overlap、各状态和原子水位线证据；上交所继续 on_demand，SZSE 不适用、IR 未启用的静态处置不伪称在线成功。默认主库和旧历史审计库不动，生产 partial 时保留缺口并按事实报告。

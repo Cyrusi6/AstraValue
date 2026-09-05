@@ -4,6 +4,21 @@
 
 ## ADDED Requirements
 
+### Requirement: 精确补缺后恢复可证明的连续区间
+系统 SHALL 只沿现有 checkpoint 的确切 CAS 父链读取同公司、namespace、问题集哈希与来源定义哈希的已终结 production 运行。接续已完成的后续区间前 MUST 重新验证原 coverage 完成状态、完整 discovery proof 以及全部 required fetch 的观测与有效快照；仅在本地验证，不重新制造网络观测或更改旧记录。旧 partial 区间 SHALL 由本次精确补缺证明覆盖，尚未解决的 barrier MUST 继续阻塞，未证明的时间空档不得越过。新 final event SHALL 保存实际复用的历史 plan item ID。
+
+#### Scenario: 中间窗口失败而后续窗口已完成
+- **WHEN** 旧基线中间窗口失败、后续区间已经完整保存，精确 reconcile 成功补齐中间窗口
+- **THEN** 系统 SHALL 从原安全位置接续本次补缺与重新核验的后续完整区间，直到下一个缺口；不重查已经核验的后续区间，也不改写旧基线的 partial 或失败记录
+
+#### Scenario: 历史正文损坏或缺少连续证据
+- **WHEN** 后续旧正文哈希不符、已隔离、proof 不闭合或存在未完成的时间空档
+- **THEN** 系统 MUST 不使用该区间推进 checkpoint，不将本地文件存在等同于完整覆盖
+
+#### Scenario: 重叠复核失败与旧 validator
+- **WHEN** 本次重叠区间失败，或当前重新确认的 validator 来自时间较早的历史窗口
+- **THEN** 旧完成区间 MUST 不掩盖本次失败或使水位越过该缺口；同资源 validator SHALL 选择观测时间最新的一项，不能由窗口排序覆盖为旧值
+
 ### Requirement: 正文 validator 兼容与 checkpoint 兼容分离
 新定义 SHALL 以可选 `content_validator_compatible_from_versions` 显式授权同来源旧版正文的条件复用，未声明时只查当前版本，历史 registry canonical hash MUST 不变。复用 MUST 校验相同来源/上游、正文 canonical 与时间语义、确切资源 URL、同 namespace、原始与当前许可、完整字节哈希及未隔离状态；validator 只来自成功观测。兼容旧正文不代表兼容旧 checkpoint，亦不得将 ad_hoc 改成 production。
 

@@ -2620,6 +2620,35 @@ class AcquisitionRepository:
             "source_checkpoints", "checkpoint_id", checkpoint_id, "SourceCheckpoint"
         )
 
+    def checkpoint_run_history(self, checkpoint_id: str) -> tuple[Any, ...]:
+        """Read the exact CAS ancestry, never infer history from recent runs."""
+        run_ids, seen = [], set()
+        child_version = None
+        identity = None
+        with self._connect(readonly=True) as connection:
+            while checkpoint_id:
+                if checkpoint_id in seen:
+                    raise CheckpointConflictError("checkpoint ancestry cycle")
+                seen.add(checkpoint_id)
+                row = connection.execute(
+                    "SELECT run_id,payload FROM source_checkpoints WHERE checkpoint_id=?",
+                    (checkpoint_id,),
+                ).fetchone()
+                if row is None:
+                    raise AcquisitionNotFoundError(checkpoint_id)
+                checkpoint = _load_model("SourceCheckpoint", row["payload"])
+                key = (checkpoint.ticker, checkpoint.source_definition_id,
+                       checkpoint.source_definition_version, checkpoint.question_set_version)
+                if identity is not None and key != identity:
+                    raise CheckpointConflictError("checkpoint ancestry identity mismatch")
+                identity = key
+                if child_version is not None and checkpoint.checkpoint_version != child_version - 1:
+                    raise CheckpointConflictError("checkpoint ancestry version gap")
+                child_version = checkpoint.checkpoint_version
+                run_ids.append(row["run_id"])
+                checkpoint_id = checkpoint.parent_checkpoint_id
+        return tuple(self.get_run(run_id) for run_id in dict.fromkeys(run_ids))
+
     def latest_checkpoint(
         self,
         ticker: str,

@@ -1923,6 +1923,7 @@ class AcquisitionOrchestrator:
             item for item in all_barriers if item.barrier_id not in resolved_ids
         ]
         checkpoint_builds = []
+        checkpoint_reused_plan_ids: set[str] = set()
         if run.run_kind == AcquisitionRunKind.PRODUCTION:
             definitions = {
                 (item.plan_item.source_definition_id, item.plan_item.source_definition_version)
@@ -1949,6 +1950,13 @@ class AcquisitionOrchestrator:
                     )
                     for value in executions.values()
                 ]
+                if previous is not None:
+                    historical_progress = self._checkpoint_history_progress(
+                        run, previous, definition_id, definition_version, resolved_ids,
+                    )
+                    progress.extend(historical_progress)
+                    checkpoint_reused_plan_ids.update(item.plan_item.plan_item_id
+                        for item in historical_progress if item.complete)
                 checkpoint_builds.append(
                     self.checkpoint_engine.build(
                         run=run,
@@ -2086,6 +2094,7 @@ class AcquisitionOrchestrator:
             metadata={
                 "manifest_id": manifest_id,
                 "opening_barrier_count": len(all_barriers),
+                "checkpoint_reused_plan_item_ids": sorted(checkpoint_reused_plan_ids),
                 "unresolved_barrier_count": len(gap_keys),
                 "causal_groups": causal_groups,
             },
@@ -3262,6 +3271,83 @@ class AcquisitionOrchestrator:
             retrieved_at=(None if envelope is None else envelope.retrieved_at),
             reason_code=classification.reason_code,
         )
+
+    def _checkpoint_history_progress(
+        self, run: AcquisitionRun, previous: Any, source_id: str,
+        source_version: str, newly_resolved_ids: set[str],
+    ) -> list[PlanProgress]:
+        """Revalidate completed ancestral intervals locally before reconnecting them.
+
+        Partial historical roots are never promoted from their old outcomes.
+        The current repair supplies the missing interval; unresolved historical
+        barriers remain explicit blockers even if a wider query succeeded.
+        """
+        progress = []
+        current_ref = next(ref for ref in run.source_definition_refs
+                           if ref.source_definition_id == source_id and str(ref.version) == str(source_version))
+        unresolved = set(previous.unresolved_barrier_ids) - newly_resolved_ids
+        blockers = set()
+        for barrier_id in unresolved:
+            row = self.repository.get_checkpoint_barrier(barrier_id)
+            opening = self.repository.get_attempt(row["opening_attempt_id"])
+            plan = self.repository.get_physical_query_plan_item(opening.physical_query_plan_item_id)
+            blockers.add(plan.parent_plan_item_id or plan.plan_item_id)
+        for ancestor in self.repository.checkpoint_run_history(previous.checkpoint_id):
+            if (ancestor.run_kind != AcquisitionRunKind.PRODUCTION
+                    or ancestor.ticker != run.ticker
+                    or ancestor.storage_namespace_id != run.storage_namespace_id
+                    or ancestor.question_set_id != run.question_set_id
+                    or ancestor.question_set_version != run.question_set_version
+                    or ancestor.question_set_content_hash != run.question_set_content_hash
+                    or current_ref not in ancestor.source_definition_refs):
+                raise AcquisitionExecutionError("checkpoint_history_scope_mismatch")
+            final = self._final_event(ancestor.run_id)
+            if final is None or not final.coverage_accounted:
+                raise AcquisitionExecutionError("checkpoint_history_not_finalized")
+            resolutions = {value.coverage_entry_id: value for value in
+                           self.repository.list_coverage_resolutions(ancestor.run_id)}
+            links_by_plan = defaultdict(list)
+            for link in self.repository.list_physical_query_coverage_links(run_id=ancestor.run_id):
+                links_by_plan[link.plan_item_id].append(link.coverage_entry_id)
+            for plan in self.repository.list_physical_query_plan_items(ancestor.run_id):
+                if (plan.attempt_kind != AttemptKind.DISCOVERY or plan.parent_plan_item_id
+                        or plan.source_definition_id != source_id
+                        or str(plan.source_definition_version) != str(source_version)):
+                    continue
+                if plan.plan_item_id in blockers:
+                    progress.append(PlanProgress(plan, False))
+                    continue
+                linked = links_by_plan[plan.plan_item_id]
+                if not linked or any(cid not in resolutions or
+                    resolutions[cid].status != CoverageResolutionStatus.COMPLETE for cid in linked):
+                    continue
+                execution = _PlanExecution(plan)
+                self._load_existing_discovery(execution)
+                if not execution.discovery_complete:
+                    continue
+                if any(not self._snapshot_is_valid(self.repository.get_raw_resource_snapshot(sid))
+                       for sid in execution.discovery_snapshot_ids):
+                    continue
+                anchors = []
+                valid = True
+                for resource in execution.resources.values():
+                    if not resource.required_fetch:
+                        continue
+                    observation = self._completed_resource_in_run(ancestor.run_id, resource)
+                    if observation is None:
+                        valid = False
+                        break
+                    if observation.etag or observation.last_modified:
+                        anchors.append(ValidatorAnchor(
+                            canonical_resource_id=resource.canonical_resource_id,
+                            resource_url=resource.resource_url, snapshot_id=observation.snapshot_id,
+                            etag=observation.etag, last_modified=observation.last_modified,
+                            observed_at=observation.observed_at,
+                        ))
+                if valid:
+                    progress.append(PlanProgress(plan, True,
+                        max(execution.resources) if execution.resources else None, tuple(anchors)))
+        return progress
 
     def _completed_resource_in_run(
         self, run_id: str, resource: DiscoveredResource,
