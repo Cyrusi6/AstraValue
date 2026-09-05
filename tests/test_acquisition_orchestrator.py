@@ -29,6 +29,107 @@ from orchestrator_support import (
 )
 
 
+def _source_history_plan(runtime, *, query_id=None, days=800):
+    profile = runtime.build_profile("600519", listing_date=(NOW - timedelta(days=days)).date())
+    base = runtime.planner.plan(profile, mode="baseline", as_of=NOW,
+                                storage_namespace_id=runtime.namespace_id)
+    plans = tuple(p for p in base.physical_query_plan_items
+                  if p.source_definition_id == "cninfo.disclosures"
+                  and (query_id is None or p.query_id == query_id))
+    ids = {p.plan_item_id for p in plans}
+    links = tuple(link for link in base.coverage_links if link.plan_item_id in ids)
+    coverage_ids = {link.coverage_entry_id for link in links}
+    plan = AcquisitionPlan(run=base.run, physical_query_plan_items=plans, coverage_links=links,
+                           coverage_entries=tuple(e for e in base.coverage_entries
+                                                  if e.coverage_entry_id in coverage_ids))
+    runtime.orchestrator.persist_plan(plan)
+    return plan
+
+
+def _terminals(runtime, run_id):
+    return [(attempt, event)
+            for attempt in runtime.repository.list_attempts(run_id=run_id)
+            for event in runtime.repository.list_attempt_events(attempt.attempt_id)
+            if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL]
+
+
+def _challenge_adapter(*, later_page=False):
+    def response(work):
+        if later_page and work.page == 2:
+            return envelope(url=work.url, content_type="text/html",
+                            headers={"x-tengine-error": "denied by bot"})
+        return envelope(url=work.url)
+
+    return ScenarioAdapter(response, lambda response, work: discovery_result(
+        work, resources=tuple(resource(f"item-{n}") for n in range(3)),
+        declared_total=6 if later_page else 3,
+        page_count=2 if later_page else 1, terminal=not later_page,
+    ), lambda work: envelope(url=work.query.url, content_type="text/html",
+                             headers={"x-tengine-error": "denied by bot",
+                                      "Set-Cookie": "private-secret"}))
+
+
+@pytest.mark.parametrize("later_page", [False, True])
+def test_source_halt_challenge_circuit_no_io_after_restricted_halted_barrier(tmp_path, later_page):
+    adapter = _challenge_adapter(later_page=later_page)
+    runtime = make_runtime(tmp_path / "halt", adapter)
+    plan = _source_history_plan(runtime, query_id="cninfo.periodic_report")
+    result = runtime.orchestrator.execute_run(plan.run.run_id)
+    assert len(adapter.query_calls) == (2 if later_page else 1)
+    assert len(adapter.fetch_calls) == (0 if later_page else 1)
+    assert result.coverage_accounted and result.result.value == "partial"
+    assert not result.default_consume_eligible
+    terms = _terminals(runtime, plan.run.run_id)
+    opening = next(attempt for attempt, event in terms if event.reason_code == "upstream_bot_challenge")
+    skips = [(attempt, event) for attempt, event in terms if event.reason_code == "source_access_halted"]
+    assert len(skips) == len(plan.physical_query_plan_items) + (2 if later_page else 1)
+    assert all(event.protocol_summary["halt_opening_attempt_id"] == opening.attempt_id
+               and event.protocol_summary["io_performed"] is False for _, event in skips)
+    assert len({event.protocol_summary["causal_group_id"] for _, event in skips}) == 1
+    barriers = runtime.repository.list_checkpoint_barriers(unresolved_only=True)
+    assert {row["opening_attempt_id"] for row in barriers} == {a.attempt_id for a, e in terms if e.outcome.value != "success"}
+    checkpoint = runtime.repository.latest_checkpoint("600519", "cninfo.disclosures", "1.0.0", plan.run.question_set_version)
+    assert checkpoint.source_safe_through is None
+    assert all(runtime.repository.find_raw_resource_snapshot(
+        resource_role="content", source_definition_id="cninfo.disclosures",
+        source_definition_version="1.0.0", canonical_resource_id=f"item-{n}",
+    ) is None for n in range(3))
+    assert "private-secret" not in str(runtime.repository.list_resource_observations())
+
+
+def test_halt_survives_lease_takeover_and_new_run_retries(tmp_path, monkeypatch):
+    import time
+    root = tmp_path / "takeover"
+    adapter = _challenge_adapter()
+    runtime = make_runtime(root, adapter, lease_ttl_seconds=1)
+    plan = _source_history_plan(runtime, query_id="cninfo.periodic_report")
+    terminal = runtime.orchestrator._terminal
+
+    def crash_after_terminal(*args, **kwargs):
+        fact = terminal(*args, **kwargs)
+        if fact.reason_code == "upstream_bot_challenge":
+            raise KeyboardInterrupt("fixture process loss")
+        return fact
+
+    monkeypatch.setattr(runtime.orchestrator, "_terminal", crash_after_terminal)
+    monkeypatch.setattr(runtime.repository, "release_lease", lambda *a, **kw: None)
+    with pytest.raises(KeyboardInterrupt):
+        runtime.orchestrator.execute_run(plan.run.run_id)
+    before = (len(adapter.query_calls), len(adapter.fetch_calls))
+    old_epoch = runtime.repository.get_lease(plan.run.run_id).lease_epoch
+    time.sleep(1.1)
+    recovered = make_runtime(root, adapter)
+    result = recovered.orchestrator.execute_run(plan.run.run_id)
+    assert result.lease_epoch > old_epoch and result.coverage_accounted
+    assert (len(adapter.query_calls), len(adapter.fetch_calls)) == before
+    assert len([e for _, e in _terminals(recovered, plan.run.run_id)
+                if e.reason_code == "upstream_bot_challenge"]) == 1
+    new_plan = _source_history_plan(recovered, query_id="cninfo.periodic_report")
+    recovered.orchestrator.execute_run(new_plan.run.run_id)
+    assert len(adapter.query_calls) == before[0] + 1
+    assert len(adapter.fetch_calls) == before[1] + 1
+
+
 class RegistryProtocolAdapter:
     def __init__(self) -> None:
         self.query_calls = []
@@ -94,6 +195,109 @@ class BootstrapTimeoutRegistryProtocolAdapter(RegistryProtocolAdapter):
         raise AssertionError(
             "a query with an unresolved bootstrap binding must perform zero HTTP"
         )
+
+
+def test_bootstrap_504_dependency_causal_group_for_all_history_plans(tmp_path):
+    adapter = BootstrapTimeoutRegistryProtocolAdapter()
+    runtime = make_runtime(tmp_path / "fanout", adapter, registry_path=DEFAULT_REGISTRY_PATH)
+    plan = _source_history_plan(runtime, days=25 * 365)
+    bootstrap = next(p for p in plan.physical_query_plan_items if p.query_family == "company_bootstrap")
+    dependents = [p for p in plan.physical_query_plan_items if p.plan_item_id != bootstrap.plan_item_id]
+    assert len(dependents) >= 100
+    assert all(p.prerequisite_plan_item_ids == (bootstrap.plan_item_id,) for p in dependents)
+    assert all(p.ordinal > bootstrap.ordinal for p in dependents)
+    result = runtime.orchestrator.execute_run(plan.run.run_id)
+    assert len(adapter.query_calls) == 1 and adapter.fetch_calls == []
+    assert result.coverage_accounted and not result.default_consume_eligible
+    terms = _terminals(runtime, plan.run.run_id)
+    skips = [(a, e) for a, e in terms if e.reason_code == "dependency_unavailable"]
+    assert len(skips) == len(dependents)
+    assert all(e.outcome.value == "policy_skipped" and e.protocol_summary["io_performed"] is False
+               for _, e in skips)
+    assert len({e.protocol_summary["causal_group_id"] for _, e in skips}) == 1
+    assert result.as_dict()["causal_groups"][0]["zero_io_attempt_count"] == len(dependents)
+    assert runtime.orchestrator.execute_run(plan.run.run_id).causal_groups == result.causal_groups
+    assert all(e.protocol_summary["prerequisites"][0]["reason_code"] == "http_504"
+               for _, e in skips)
+    barriers = runtime.repository.list_checkpoint_barriers(unresolved_only=True)
+    assert len(barriers) == len(plan.physical_query_plan_items)
+    checkpoint = runtime.repository.latest_checkpoint("600519", "cninfo.disclosures",
+        bootstrap.source_definition_version, plan.run.question_set_version)
+    assert checkpoint.source_safe_through is None
+
+
+@pytest.mark.parametrize("binding_case", ["missing", "ambiguous", "empty", "no_data"])
+def test_parameter_binding_invalid_distinct_from_dependency_unavailable(tmp_path, binding_case):
+    class BindingAdapter(RegistryProtocolAdapter):
+        def parse_retained_discovery(self, snapshot_id, work):
+            parsed = super().parse_retained_discovery(snapshot_id, work)
+            if work.query_family != "company_bootstrap":
+                return parsed
+            row = parsed.resources[0]
+            rows = (replace(row, metadata={"ticker": "600519"}),)
+            if binding_case == "empty":
+                rows = (replace(row, metadata={"ticker": "600519", "wire_stock": ""}),)
+            elif binding_case == "ambiguous":
+                rows = (row, replace(row, canonical_resource_id="second-company",
+                    row_locator="second", row_hash="a" * 64,
+                    metadata={"ticker": "600519", "wire_stock": "600519,another-org"}))
+            elif binding_case == "no_data":
+                rows = ()
+            return discovery_result(work, resources=rows, declared_total=len(rows))
+
+    adapter = BindingAdapter()
+    runtime = make_runtime(tmp_path / binding_case, adapter, registry_path=DEFAULT_REGISTRY_PATH)
+    result = runtime.orchestrator.smoke_sources(ticker="600519", source_ids=["cninfo.disclosures"], as_of=NOW)
+    assert len(adapter.query_calls) == 1
+    dependent = next(e for a, e in _terminals(runtime, result.run_id)
+                     if a.query_id == "cninfo.periodic_report")
+    assert dependent.reason_code == ("dependency_unavailable" if binding_case == "no_data"
+                                     else "parameter_binding_invalid")
+    assert dependent.protocol_summary["prerequisites"][0]["proof_ids"]
+
+
+def test_dependency_unavailable_without_terminal_proof_zero_downstream_io(tmp_path):
+    adapter = RegistryProtocolAdapter()
+    runtime = make_runtime(tmp_path / "missing-proof", adapter, registry_path=DEFAULT_REGISTRY_PATH)
+    plan = targeted_plan(runtime)
+    result = runtime.orchestrator.execute_run(plan.run.run_id)
+    assert result.coverage_accounted and adapter.query_calls == []
+    assert _terminals(runtime, plan.run.run_id)[0][1].reason_code == "dependency_unavailable"
+
+
+def test_dependency_causal_group_reconcile_includes_only_target_and_prerequisite(tmp_path):
+    class MissingBinding(RegistryProtocolAdapter):
+        def parse_retained_discovery(self, snapshot_id, work):
+            result = super().parse_retained_discovery(snapshot_id, work)
+            if work.query_family == "company_bootstrap":
+                return replace(result, resources=(replace(result.resources[0], metadata={"ticker": "600519"}),))
+            return result
+    adapter = MissingBinding()
+    runtime = make_runtime(tmp_path / "prerequisite-target", adapter, registry_path=DEFAULT_REGISTRY_PATH)
+    parent = _source_history_plan(runtime, days=30)
+    runtime.orchestrator.execute_run(parent.run.run_id)
+    repair = runtime.plan_company_run("600519", mode="reconcile", parent_run_id=parent.run.run_id, as_of=NOW)
+    target_query = repair.run.reconcile_target["query_id"]
+    assert target_query != "cninfo.company_bootstrap"
+    assert {p.query_id for p in repair.physical_query_plan_items} == {target_query, "cninfo.company_bootstrap"}
+    by_id = {p.plan_item_id: p for p in repair.physical_query_plan_items}
+    assert all(by_id[dependency].ordinal < p.ordinal
+               for p in repair.physical_query_plan_items for dependency in p.prerequisite_plan_item_ids)
+
+
+def test_dependency_causal_group_graph_rejects_cycle(tmp_path):
+    from analysis.acquisition.dependencies import order_dependency_plans
+    runtime = make_runtime(tmp_path / "cycle", RegistryProtocolAdapter(), registry_path=DEFAULT_REGISTRY_PATH)
+    plan = _source_history_plan(runtime, days=30)
+    definition = runtime.source_definition("cninfo.disclosures")
+    bootstrap, consumer = definition.queries[:2]
+    binding = next(iter(consumer.parameter_bindings.values())).model_copy(update={"source_query_id": consumer.query_id})
+    cyclic = definition.model_copy(update={"queries": (
+        bootstrap.model_copy(update={"parameter_bindings": {"fixture": binding}}),
+        *definition.queries[1:],
+    )})
+    with pytest.raises(ValueError, match="环"):
+        order_dependency_plans(plan.physical_query_plan_items, (cyclic,))
 
 
 def test_persist_before_io_coverage_matrix_ten_topic_traceability_shared_execution_no_duplicate_io(
@@ -367,7 +571,7 @@ def test_cninfo_v1_2_smoke_resolves_bootstrap_binding_into_form_body(tmp_path) -
         runtime.close()
 
 
-def test_cninfo_bootstrap_timeout_terminates_dependent_attempt_without_http(
+def test_cninfo_bootstrap_504_dependency_unavailable_zero_downstream_io(
     tmp_path,
 ) -> None:
     adapter = BootstrapTimeoutRegistryProtocolAdapter()
@@ -418,8 +622,8 @@ def test_cninfo_bootstrap_timeout_terminates_dependent_attempt_without_http(
             "http_504",
         )
         assert terminal_by_query["cninfo.periodic_report"] == (
-            AcquisitionOutcome.PARSE_FAILED,
-            "parameter_binding_missing",
+            AcquisitionOutcome.POLICY_SKIPPED,
+            "dependency_unavailable",
         )
         assert result.result.value == "partial"
         assert result.coverage_accounted is True

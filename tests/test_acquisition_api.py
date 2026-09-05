@@ -50,6 +50,23 @@ def _runtime(tmp_path, executor: FakeExecutor) -> AcquisitionRuntime:
     )
 
 
+def test_finalized_parent_and_incremental_requires_all_safe_checkpoints_zero_io(tmp_path):
+    from orchestrator_support import make_runtime, no_data_adapter, targeted_plan, NOW as CUTOFF
+    adapter = no_data_adapter()
+    runtime = make_runtime(tmp_path / "preconditions", adapter)
+    parent = targeted_plan(runtime)
+    client = TestClient(create_app(acquisition_runtime=runtime))
+    for payload in [
+        {"mode": "reconcile", "parent_run_id": parent.run.run_id},
+        {"mode": "incremental"},
+    ]:
+        response = client.post("/api/companies/600519/acquisition-runs",
+                               json={**payload, "as_of": CUTOFF.isoformat()})
+        assert response.status_code == 422, response.text
+        assert len(runtime.repository.list_runs()) == 1
+        assert runtime.repository.list_attempts() == [] and adapter.query_calls == []
+
+
 def _create(client: TestClient) -> str:
     response = client.post(
         "/api/companies/600519/acquisition-runs",

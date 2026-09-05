@@ -128,6 +128,31 @@ def _patch_runtime(monkeypatch, runtime):
     return calls
 
 
+def test_api_cli_same_target_shared_selector_exact_work_position(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+    from analysis.api import create_app
+    from orchestrator_support import later_barrier_runtime, NOW as CUTOFF
+    runtime, adapter, parent, expected, state = later_barrier_runtime(tmp_path / "shared")
+    _patch_runtime(monkeypatch, runtime)
+    calls_before = len(adapter.query_calls)
+    code = main(["acquire", "start", "600519", "--mode", "reconcile", "--from-run",
+                 parent.run.run_id, "--as-of", CUTOFF.isoformat(), "--plan-only",
+                 "--db", str(tmp_path / "shared" / "analysis.db"),
+                 "--data-root", str(tmp_path / "shared" / "data"), "--json"])
+    cli_target = json.loads(capsys.readouterr().out)["reconcile_target"]
+    assert code == EXIT_OK
+    response = TestClient(create_app(acquisition_runtime=runtime)).post(
+        "/api/companies/600519/acquisition-runs",
+        json={"mode": "reconcile", "parent_run_id": parent.run.run_id, "as_of": CUTOFF.isoformat()},
+    )
+    assert response.status_code == 201, response.text
+    api_target = response.json()["run"]["reconcile_target"]
+    assert api_target == cli_target
+    assert api_target["plan_item_id"] == expected.plan_item_id
+    assert json.loads(api_target["work_position"])["page"] == 3
+    assert len(adapter.query_calls) == calls_before
+
+
 def test_plan_only_builds_one_runtime_and_does_not_execute(monkeypatch, capsys):
     orchestrator = FakeOrchestrator()
     runtime = FakeRuntime(orchestrator)

@@ -182,12 +182,19 @@ def validate(db_path: Path, data_root: Path, *, run_id: str | None = None) -> di
             """SELECT 1 FROM barrier_resolutions r
                JOIN checkpoint_barriers b ON b.barrier_id=r.barrier_id
                JOIN acquisition_attempts a ON a.attempt_id=r.resolving_attempt_id
+               LEFT JOIN discovery_proofs p ON p.proof_id=r.proof_id
+               LEFT JOIN discovery_observations o ON o.observation_id=p.observation_id
                WHERE r.source_definition_id<>b.source_definition_id
                   OR r.source_definition_version<>b.source_definition_version
                   OR r.partition_key<>b.partition_key
                   OR r.work_position<>b.work_position
                   OR COALESCE(r.canonical_resource_id,'')<>COALESCE(b.canonical_resource_id,'')
-                  OR a.work_position<>b.work_position""",
+                  OR CASE WHEN r.proof_id IS NOT NULL AND json_valid(b.work_position)
+                          AND json_extract(b.work_position,'$.kind')='discovery'
+                     THEN o.attempt_id IS NOT r.resolving_attempt_id
+                          OR o.page_ordinal IS NOT json_extract(b.work_position,'$.page')
+                          OR o.cursor IS NOT json_extract(b.work_position,'$.cursor')
+                     ELSE a.work_position<>b.work_position END""",
         )
         _assert_zero(
             connection,

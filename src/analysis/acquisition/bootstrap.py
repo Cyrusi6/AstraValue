@@ -112,10 +112,9 @@ class InterProcessFileLock:
     def __enter__(self) -> "InterProcessFileLock":
         deadline = time.monotonic() + self.timeout_seconds
         self._stream = self.path.open("a+b")
-        self._stream.seek(0, os.SEEK_END)
-        if self._stream.tell() == 0:
-            self._stream.write(b"0")
-            self._stream.flush()
+        # Both native locks work on an empty file. Writing an initialization
+        # byte before acquiring the lock races with another process on Windows,
+        # where writes into a locked range fail with PermissionError.
         while True:
             try:
                 self._lock_nonblocking()

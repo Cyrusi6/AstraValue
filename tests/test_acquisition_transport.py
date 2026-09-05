@@ -393,3 +393,17 @@ def test_sensitive_query_and_headers_are_redacted_in_envelope(tmp_path) -> None:
     )
     assert "secret" not in envelope.request_url
     assert envelope.headers["set-cookie"] == "[REDACTED]"
+
+
+def test_denied_by_bot_header_survives_transport_redaction(tmp_path):
+    from analysis.acquisition.status_classifier import classify_response
+    def handler(request):
+        return httpx.Response(200, content=b"<html>blocked</html>", request=request,
+                              headers={"Content-Type": "text/html",
+                                       "X-Tengine-Error": "denied by bot",
+                                       "Set-Cookie": "private-challenge-cookie"})
+    response = _transport(tmp_path, handler).request(_work())
+    assert "private-challenge-cookie" not in str(response.headers)
+    result = classify_response(status_code=response.status_code, headers=response.headers,
+                               body_prefix=response.body, expected_mime=("application/pdf",))
+    assert (result.outcome, result.reason_code) == ("restricted", "upstream_bot_challenge")

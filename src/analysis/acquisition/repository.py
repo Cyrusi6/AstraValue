@@ -2515,11 +2515,22 @@ class AcquisitionRepository:
             raise AcquisitionNotFoundError(
                 f"opening attempt not found: {opening_attempt_id}"
             )
+        # A paginated attempt starts at one position but can fail on a later
+        # page. Its durable terminal event owns the actual blocking position.
+        terminal = connection.execute(
+            "SELECT payload FROM acquisition_attempt_events WHERE attempt_id=? "
+            "AND event_type='outcome_terminal'", (opening_attempt_id,),
+        ).fetchone()
+        opening_position = opening["work_position"]
+        if terminal is not None:
+            opening_position = json.loads(terminal["payload"]).get(
+                "protocol_summary", {}
+            ).get("work_position", opening_position)
         expected = {
             "source_definition_id": checkpoint["source_definition_id"],
             "source_definition_version": str(checkpoint["source_definition_version"]),
             "partition_key": opening["partition_key"],
-            "work_position": opening["work_position"],
+            "work_position": opening_position,
             "retry_group_id": opening["retry_group_id"],
         }
         if (
@@ -2783,7 +2794,7 @@ class AcquisitionRepository:
         observation_id = _value(data, "observation_id", "resource_observation_id")
         if proof_id is not None:
             proof = connection.execute(
-                "SELECT o.attempt_id FROM discovery_proofs p JOIN discovery_observations o "
+                "SELECT o.attempt_id, o.page_ordinal, o.cursor FROM discovery_proofs p JOIN discovery_observations o "
                 "ON o.observation_id=p.observation_id WHERE p.proof_id=?",
                 (proof_id,),
             ).fetchone()
@@ -2791,6 +2802,16 @@ class AcquisitionRepository:
                 raise BarrierResolutionError(
                     "barrier discovery proof does not belong to the resolving attempt"
                 )
+            try:
+                position = json.loads(barrier["work_position"])
+            except (ValueError, TypeError):
+                position = None
+            if isinstance(position, dict) and position.get("kind") == "discovery":
+                if (position.get("page") != proof["page_ordinal"]
+                        or position.get("cursor") != proof["cursor"]):
+                    raise BarrierResolutionError("discovery proof does not cover the exact barrier page/cursor")
+            elif resolving_plan["work_position"] != barrier["work_position"]:
+                raise BarrierResolutionError("discovery proof does not cover the exact barrier position")
         elif snapshot_id is not None and observation_id is not None:
             observation = connection.execute(
                 "SELECT attempt_id, snapshot_id FROM resource_observations "

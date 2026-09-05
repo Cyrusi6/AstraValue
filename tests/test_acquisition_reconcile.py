@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import json
+import pytest
 
 from analysis.acquisition.adapters.base import FetchWork, QueryWork
 from analysis.acquisition.models import SnapshotIntegrityEvent, SnapshotIntegrityStatus
@@ -13,7 +15,94 @@ from orchestrator_support import (
     make_runtime,
     resource,
     targeted_plan,
+    later_barrier_runtime,
 )
+
+
+def test_earliest_unresolved_barrier_exact_work_position_effective_overlap(tmp_path):
+    runtime, adapter, parent, expected, state = later_barrier_runtime(tmp_path / "exact")
+    before = tuple(runtime.repository.list_run_events(parent.run.run_id))
+    plan = runtime.plan_company_run("600519", mode="reconcile", as_of=NOW,
+                                    parent_run_id=parent.run.run_id)
+    target = plan.run.reconcile_target
+    assert target["selection_priority"] == 1
+    assert target["plan_item_id"] == expected.plan_item_id
+    assert json.loads(target["work_position"])["page"] == 3
+    overlap = runtime.source_definition(expected.source_definition_id).incremental_policy.overlap_days
+    assert target["effective_range"]["time_start"] == (expected.time_start - timedelta(days=overlap)).isoformat()
+    assert {p.query_id for p in plan.physical_query_plan_items} == {expected.query_id}
+    assert {p.source_definition_id for p in plan.physical_query_plan_items} == {expected.source_definition_id}
+    assert min(p.time_start for p in plan.physical_query_plan_items) > min(p.time_start for p in parent.physical_query_plan_items)
+    assert any(p.time_start == expected.time_start and p.time_end == expected.time_end
+               for p in plan.physical_query_plan_items)
+    state["blocked"] = False
+    runtime.orchestrator.execute_run(plan.run.run_id)
+    resolutions = runtime.repository.list_barrier_resolutions()
+    assert target["barrier_id"] in {row.barrier_id for row in resolutions}
+    assert all(row.work_position == target["work_position"] for row in resolutions)
+    assert tuple(runtime.repository.list_run_events(parent.run.run_id)) == before
+    import runpy
+    from pathlib import Path
+    validator = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/validate_acquisition_consistency.py"))
+    validator["validate"](runtime.db_path, runtime.data_root)
+
+
+def test_finalized_parent_rejected_before_child_plan_or_io(tmp_path):
+    from orchestrator_support import no_data_adapter
+    adapter = no_data_adapter()
+    runtime = make_runtime(tmp_path / "unfinalized", adapter)
+    parent = targeted_plan(runtime)
+    with pytest.raises(ValueError, match="finalized"):
+        runtime.plan_company_run("600519", mode="reconcile", parent_run_id=parent.run.run_id)
+    assert len(runtime.repository.list_runs()) == 1 and adapter.query_calls == []
+
+
+def test_shared_selector_latest_excludes_newer_unfinalized_run_no_gap_fallback(tmp_path):
+    from orchestrator_support import no_data_adapter
+    runtime = make_runtime(tmp_path / "latest", no_data_adapter())
+    parent = targeted_plan(runtime)
+    runtime.orchestrator.execute_run(parent.run.run_id)
+    unfinished = targeted_plan(runtime)
+    repair = runtime.plan_company_run("600519", mode="reconcile", as_of=NOW)
+    assert repair.run.parent_run_id == parent.run.run_id
+    assert repair.run.reconcile_target["selection_priority"] == 4
+    assert repair.run.reconcile_target["excluded_newer_unfinalized_runs"] == [
+        {"run_id": unfinished.run.run_id, "reason": "parent_not_finalized"}]
+
+
+def test_incremental_requires_all_safe_checkpoints_before_run_creation(tmp_path):
+    from orchestrator_support import no_data_adapter
+    runtime = make_runtime(tmp_path / "incremental", no_data_adapter())
+    parent = targeted_plan(runtime)
+    runtime.orchestrator.execute_run(parent.run.run_id)
+    count = len(runtime.repository.list_runs())
+    with pytest.raises(ValueError, match="sse.disclosures"):
+        runtime.plan_company_run("600519", mode="incremental", as_of=NOW)
+    assert len(runtime.repository.list_runs()) == count
+
+
+def test_shared_selector_unresolved_coverage_without_barrier_precedes_integrity(tmp_path, monkeypatch):
+    from orchestrator_support import no_data_adapter
+    runtime = make_runtime(tmp_path / "coverage-only", no_data_adapter())
+    parent = targeted_plan(runtime)
+    runtime.orchestrator.execute_run(parent.run.run_id)
+    monkeypatch.setattr(runtime.repository, "list_coverage_resolutions", lambda run_id: [])
+    selection = runtime.orchestrator.select_reconcile_target(parent.run.run_id, as_of=NOW)
+    assert selection.target["strategy"] == "unresolved_coverage"
+    assert selection.target["selection_priority"] == 2
+    assert selection.target["barrier_id"] is None
+
+
+def test_finalized_parent_with_active_lease_is_rejected(tmp_path, monkeypatch):
+    from orchestrator_support import no_data_adapter
+    runtime = make_runtime(tmp_path / "lease", no_data_adapter())
+    parent = targeted_plan(runtime)
+    runtime.orchestrator.execute_run(parent.run.run_id)
+    lease = runtime.repository.get_lease(parent.run.run_id).model_copy(update={"released_at": None})
+    monkeypatch.setattr(runtime.repository, "get_lease", lambda run_id: lease)
+    with pytest.raises(ValueError, match="active lease"):
+        runtime.plan_company_run("600519", mode="reconcile", parent_run_id=parent.run.run_id, as_of=NOW)
+    assert len(runtime.repository.list_runs()) == 1
 
 
 def test_gap_reconcile_resolves_exact_parent_barrier_without_mutating_parent(tmp_path) -> None:
@@ -39,7 +128,7 @@ def test_gap_reconcile_resolves_exact_parent_barrier_without_mutating_parent(tmp
     selection = runtime.orchestrator.select_reconcile_target(parent.run.run_id)
 
     assert parent_result.material_gap_count == 1
-    assert selection.target["strategy"] == "earliest_unresolved_gap"
+    assert selection.target["strategy"] == "earliest_unresolved_barrier"
     assert len(selection.target["unresolved_barrier_ids"]) == 1
     parent_item = parent.physical_query_plan_items[0]
     repair = targeted_plan(

@@ -74,6 +74,7 @@ from .models import (
     stable_acquisition_id,
 )
 from .repository import LeaseConflictError, StaleLeaseError
+from .reconcile import ReconcileSelection, select_reconcile_target
 from .registry import SourceRegistryError, SourceRegistryLoader
 from .security import SecurityPolicyError, sanitize_http_metadata
 from .snapshots import (
@@ -119,6 +120,7 @@ class AcquisitionExecutionResult:
     coverage_resolution_ids: tuple[str, ...]
     checkpoint_ids: tuple[str, ...]
     manifest_id: str | None = None
+    causal_groups: tuple[Mapping[str, Any], ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -134,6 +136,7 @@ class AcquisitionExecutionResult:
             "coverage_resolution_ids": list(self.coverage_resolution_ids),
             "checkpoint_ids": list(self.checkpoint_ids),
             "manifest_id": self.manifest_id,
+            "causal_groups": list(self.causal_groups),
         }
 
 
@@ -179,13 +182,6 @@ class _PlanExecution:
     @property
     def attempt_ids(self) -> tuple[str, ...]:
         return tuple(self.discovery_attempt_ids + self.fetch_attempt_ids)
-
-
-@dataclass(frozen=True, slots=True)
-class ReconcileSelection:
-    parent_run_id: str
-    start_at: datetime
-    target: Mapping[str, Any]
 
 
 def _utc(value: datetime) -> datetime:
@@ -442,6 +438,7 @@ class AcquisitionOrchestrator:
         )
         self._adapter_cache: dict[tuple[str, str], Any] = {}
         self._transport_cache: dict[tuple[str, str], Any] = {}
+        self._source_halts: dict[tuple[str, str, str], dict[str, Any]] = {}
 
     # Planning -------------------------------------------------------------
     def persist_plan(self, plan: AcquisitionPlan) -> AcquisitionPlan:
@@ -667,6 +664,7 @@ class AcquisitionOrchestrator:
             resume = self._close_abandoned_attempts(
                 run, lease.lease_epoch, token
             )
+            self._rebuild_source_halts(run.run_id)
             executions: dict[str, _PlanExecution] = {}
             for item in sorted(plan_items, key=lambda value: (value.ordinal, value.plan_item_id)):
                 if item.attempt_kind != AttemptKind.DISCOVERY or item.parent_plan_item_id:
@@ -810,6 +808,18 @@ class AcquisitionOrchestrator:
         query = self._query_definition(definition, plan_item.query_id)
         execution = _PlanExecution(plan_item=plan_item)
         self._load_existing_discovery(execution)
+        halt = self._source_halts.get(self._halt_key(run.run_id, plan_item))
+        if halt:
+            if not execution.discovery_complete:
+                self._account_halted_work(
+                    run, definition, plan_item, execution, halt,
+                    lease_epoch=lease_epoch, owner_token=owner_token,
+                )
+            self._execute_required_fetches(
+                run, definition, query, None, execution,
+                lease_epoch=lease_epoch, owner_token=owner_token, heartbeat=heartbeat,
+            )
+            return execution
         if execution.discovery_complete:
             adapter = self._adapter_for(definition)
             self._execute_required_fetches(
@@ -825,6 +835,17 @@ class AcquisitionOrchestrator:
             return execution
 
         policy_reason = self._runtime_policy_reason(definition)
+        preflight = None
+        preflight_summary: dict[str, Any] = {}
+        if policy_reason is not None:
+            preflight = AttemptClassification("policy_skipped", policy_reason)
+        elif query.parameter_bindings:
+            preflight, preflight_summary = self._dependency_state(run, plan_item, query)
+            if preflight is None:
+                try:
+                    self._resolve_query_parameter_bindings(run, plan_item, query)
+                except DiscoveryValidationError:
+                    preflight = AttemptClassification("parse_failed", "parameter_binding_invalid")
         start_page, start_cursor = self._resume_position(
             query, resume_attempt
         )
@@ -873,13 +894,12 @@ class AcquisitionOrchestrator:
                 supersedes=previous,
             )
             execution.discovery_attempt_ids.append(attempt.attempt_id)
-            if policy_reason is not None:
+            if preflight is not None:
                 fact = self._terminal(
                     attempt,
-                    AttemptClassification(
-                        AcquisitionOutcome.POLICY_SKIPPED, policy_reason
-                    ),
+                    preflight,
                     owner_token=owner_token,
+                    protocol_summary=preflight_summary,
                 )
                 barrier = barrier_for_attempt(
                     attempt=attempt,
@@ -948,6 +968,12 @@ class AcquisitionOrchestrator:
             pending_barriers.append(barrier)
             execution.reasons.append(fact.reason_code)
             if retry_delay is None:
+                if self._source_halts.get(self._halt_key(run.run_id, plan_item)):
+                    self._execute_required_fetches(
+                        run, definition, query, None, execution,
+                        lease_epoch=lease_epoch, owner_token=owner_token,
+                        heartbeat=heartbeat,
+                    )
                 return execution
             if attempts_made >= int(definition.retry_policy.max_attempts):
                 return execution
@@ -1278,6 +1304,14 @@ class AcquisitionOrchestrator:
             fetch_plan = self._ensure_fetch_plan(
                 execution.plan_item, resource, index
             )
+            halt = self._source_halts.get(self._halt_key(run.run_id, fetch_plan))
+            if halt:
+                heartbeat.renew(force=True)
+                self._account_halted_work(
+                    run, definition, fetch_plan, execution, halt,
+                    lease_epoch=lease_epoch, owner_token=owner_token, resource=resource,
+                )
+                continue
             self._execute_fetch(
                 run,
                 definition,
@@ -1981,6 +2015,7 @@ class AcquisitionOrchestrator:
             if coverage_accounted and material_gap_count == 0
             else AcquisitionRunResult.PARTIAL
         )
+        causal_groups = self._causal_group_summaries(run.run_id)
         final_event = AcquisitionRunEvent(
             run_id=run.run_id,
             event_type=AcquisitionRunEventType.FINALIZED,
@@ -1995,6 +2030,7 @@ class AcquisitionOrchestrator:
                 "manifest_id": manifest_id,
                 "opening_barrier_count": len(all_barriers),
                 "unresolved_barrier_count": len(gap_keys),
+                "causal_groups": causal_groups,
             },
         )
         checkpoints = [
@@ -2039,6 +2075,7 @@ class AcquisitionOrchestrator:
                 item.checkpoint.checkpoint_id for item in checkpoint_builds
             ),
             manifest_id=manifest_id,
+            causal_groups=causal_groups,
         )
 
     # Reconcile selection --------------------------------------------------
@@ -2048,92 +2085,9 @@ class AcquisitionOrchestrator:
         *,
         as_of: datetime | None = None,
     ) -> ReconcileSelection:
-        parent = self.repository.get_run(parent_run_id)
-        entries = self.repository.list_coverage_entries(parent_run_id)
-        resolutions = self.repository.list_coverage_resolutions(parent_run_id)
-        latest: dict[str, CoverageResolution] = {}
-        for item in resolutions:
-            latest[item.coverage_entry_id] = item
-        unresolved = [
-            item
-            for item in entries
-            if item.plan_disposition == CoveragePlanDisposition.REQUIRED
-            and (
-                item.coverage_entry_id not in latest
-                or latest[item.coverage_entry_id].status
-                in {
-                    CoverageResolutionStatus.PARTIAL,
-                    CoverageResolutionStatus.BLOCKED,
-                }
-            )
-        ]
-        parent_barriers = []
-        for row in self.repository.list_checkpoint_barriers(unresolved_only=True):
-            try:
-                opening = self.repository.get_attempt(row["opening_attempt_id"])
-            except Exception:
-                continue
-            if opening.run_id == parent_run_id:
-                parent_barriers.append(row)
-        quarantined_snapshot_ids: set[str] = set()
-        resolution_by_coverage = {
-            item.coverage_entry_id: item for item in resolutions
-        }
-        for resolution in resolutions:
-            for snapshot_id in resolution.snapshot_ids:
-                events = self.repository.list_snapshot_integrity_events(snapshot_id)
-                if events and _enum(events[-1].status) == "quarantined":
-                    quarantined_snapshot_ids.add(snapshot_id)
-        integrity_entries = []
-        for entry in entries:
-            resolution = resolution_by_coverage.get(entry.coverage_entry_id)
-            if resolution is not None and any(
-                snapshot_id in quarantined_snapshot_ids
-                for snapshot_id in resolution.snapshot_ids
-            ):
-                integrity_entries.append(entry)
-        selected = unresolved or integrity_entries or [
-            item
-            for item in entries
-            if item.plan_disposition == CoveragePlanDisposition.REQUIRED
-        ]
-        if not selected:
-            raise AcquisitionExecutionError("parent run没有可reconcile的required范围")
-        start_at = min(item.time_start for item in selected)
-        current_registry_refs = {
-            (item.source_definition_id, str(item.version))
-            for item in self._definitions()
-            if "business_model" in item.scopes
-        }
-        parent_refs = {
-            (item.source_definition_id, str(item.version))
-            for item in parent.source_definition_refs
-        }
-        registry_changed = current_registry_refs != parent_refs
-        if unresolved or parent_barriers:
-            strategy = "earliest_unresolved_gap"
-        elif integrity_entries:
-            strategy = "snapshot_integrity_failure"
-        else:
-            strategy = "earliest_completed_slice_periodic_history_recheck"
-        target = {
-            "parent_run_id": parent_run_id,
-            "strategy": strategy,
-            "start_at": start_at.isoformat(),
-            "as_of": _utc(as_of or self._now()).isoformat(),
-            "registry_compatibility_review_required": registry_changed,
-            "unresolved_coverage_entry_ids": tuple(
-                sorted(item.coverage_entry_id for item in unresolved)
-            ),
-            "unresolved_barrier_ids": tuple(
-                sorted(row["barrier_id"] for row in parent_barriers)
-            ),
-            "quarantined_snapshot_ids": tuple(sorted(quarantined_snapshot_ids)),
-        }
-        return ReconcileSelection(
-            parent_run_id=parent_run_id,
-            start_at=start_at,
-            target=target,
+        return select_reconcile_target(
+            self.repository, self._definitions(), parent_run_id,
+            as_of=_utc(as_of or self._now()), now=_utc(self._now()),
         )
 
     # Persistence helpers --------------------------------------------------
@@ -2206,6 +2160,109 @@ class AcquisitionOrchestrator:
         )
         return attempt
 
+    @staticmethod
+    def _halt_key(run_id: str, item: Any) -> tuple[str, str, str]:
+        return run_id, item.source_definition_id, str(item.source_definition_version)
+
+    def _project_source_halt(
+        self, attempt: AcquisitionAttempt, outcome: AcquisitionOutcome, reason: str,
+    ) -> None:
+        # A later discovery page retains partial_success and the stop cause.
+        if outcome not in {
+            AcquisitionOutcome.RESTRICTED, AcquisitionOutcome.LOGIN_REQUIRED,
+            AcquisitionOutcome.PAYWALLED,
+        } and reason not in {
+            "upstream_bot_challenge", "challenge_page_detected", "http_403",
+            "http_401", "http_402", "login_page_detected", "paywall_detected",
+        }:
+            return
+        key = self._halt_key(attempt.run_id, attempt)
+        self._source_halts.setdefault(key, {
+            "halt_opening_attempt_id": attempt.attempt_id,
+            "halt_opening_reason_code": reason,
+            "source_definition_id": attempt.source_definition_id,
+            "source_definition_version": str(attempt.source_definition_version),
+            "causal_group_id": stable_acquisition_id(
+                "source-halt", {"run_id": attempt.run_id, "attempt_id": attempt.attempt_id}
+            ),
+            "io_performed": False,
+        })
+
+    def _rebuild_source_halts(self, run_id: str) -> None:
+        for key in tuple(self._source_halts):
+            if key[0] == run_id:
+                del self._source_halts[key]
+        facts = []
+        for attempt in self.repository.list_attempts(run_id=run_id):
+            for event in self.repository.list_attempt_events(attempt.attempt_id):
+                if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL:
+                    facts.append((attempt, event))
+        for attempt, event in sorted(facts, key=lambda pair: (
+            pair[1].occurred_at, pair[0].attempt_id,
+        )):
+            self._project_source_halt(attempt, event.outcome, event.reason_code)
+
+    def _account_halted_work(
+        self, run: AcquisitionRun, definition: SourceDefinition,
+        plan_item: PhysicalQueryPlanItem, execution: _PlanExecution,
+        halt: Mapping[str, Any], *, lease_epoch: int, owner_token: str,
+        resource: DiscoveredResource | None = None,
+    ) -> None:
+        """Keep existing terminal facts, or account for one remaining work item."""
+        previous = self._latest_attempt(plan_item.plan_item_id)
+        terminal = None if previous is None else next((
+            event for event in self.repository.list_attempt_events(previous.attempt_id)
+            if event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL
+        ), None)
+        position = _work_position(
+            "discovery" if resource is None else "fetch",
+            **({"page": 1, "cursor": None} if resource is None else {
+                "canonical_resource_id": resource.canonical_resource_id,
+            }),
+        )
+        if terminal is not None and is_blocking_outcome(terminal.outcome):
+            attempt = previous
+            outcome, reason = terminal.outcome, terminal.reason_code
+            position = terminal.protocol_summary.get("work_position", attempt.work_position)
+        else:
+            attempt = self._start_attempt(
+                run, plan_item, attempt_kind=plan_item.attempt_kind,
+                lease_epoch=lease_epoch, owner_token=owner_token,
+                work_position=position,
+                retry_group_id=(previous.retry_group_id if previous else stable_acquisition_id(
+                    "retry-group", {"run_id": run.run_id, "plan_item_id": plan_item.plan_item_id}
+                )),
+                retry_ordinal=0 if previous is None else previous.retry_ordinal + 1,
+                resource=resource, supersedes=previous,
+                parent_discovery_attempt_id=(None if resource is None else
+                    self._parent_discovery_attempt_id(execution)),
+            )
+            classification = AttemptClassification("policy_skipped", "source_access_halted")
+            observation_ids = ()
+            if resource is not None:
+                observation = self._failed_resource_observation(
+                    attempt, resource, self._parent_discovery_attempt_id(execution),
+                    definition, classification,
+                )
+                self.repository.save_resource_observation(observation, owner_token=owner_token)
+                observation_ids = (observation.observation_id,)
+            fact = self._terminal(
+                attempt, classification, owner_token=owner_token,
+                protocol_summary=halt, resource_observation_ids=observation_ids,
+            )
+            outcome, reason = fact.outcome, fact.reason_code
+        ids = execution.discovery_attempt_ids if resource is None else execution.fetch_attempt_ids
+        if attempt.attempt_id not in ids:
+            ids.append(attempt.attempt_id)
+        execution.reasons.append(reason)
+        if resource is not None:
+            execution.failed_resource_ids.add(resource.canonical_resource_id)
+        execution.barriers.append(barrier_for_attempt(
+            attempt=attempt, plan_item=plan_item, work_position=position,
+            outcome=outcome, reason_code=reason,
+            canonical_resource_id=None if resource is None else resource.canonical_resource_id,
+        ))
+
     def _terminal(
         self,
         attempt: AcquisitionAttempt,
@@ -2216,6 +2273,7 @@ class AcquisitionOrchestrator:
         snapshot_ids: Iterable[str] = (),
         resource_observation_ids: Iterable[str] = (),
         work_position: str | None = None,
+        protocol_summary: Mapping[str, Any] | None = None,
     ) -> _AttemptFact:
         proof_tuple = tuple(dict.fromkeys(proof_ids))
         snapshot_tuple = tuple(dict.fromkeys(snapshot_ids))
@@ -2231,12 +2289,14 @@ class AcquisitionOrchestrator:
                 proof_ids=proof_tuple,
                 snapshot_ids=snapshot_tuple,
                 protocol_summary={
+                    **(protocol_summary or {}),
                     "work_position": work_position or attempt.work_position,
                     "resource_observation_ids": observation_tuple,
                 },
             ),
             owner_token=owner_token,
         )
+        self._project_source_halt(attempt, classification.outcome, classification.reason_code)
         return _AttemptFact(
             attempt=attempt,
             outcome=classification.outcome,
@@ -2369,6 +2429,59 @@ class AcquisitionOrchestrator:
             ),
         )
 
+    def _dependency_state(
+        self, run: AcquisitionRun, plan_item: PhysicalQueryPlanItem,
+        query: SourceQueryDefinition,
+    ) -> tuple[AttemptClassification | None, dict[str, Any]]:
+        source_plans = self.repository.list_physical_query_plan_items(run.run_id)
+        dependencies = []
+        unavailable = []
+        for query_id in sorted({binding.source_query_id for binding in query.parameter_bindings.values()}):
+            prerequisites = sorted((item for item in source_plans if (
+                self._halt_key(run.run_id, item) == self._halt_key(run.run_id, plan_item)
+                and item.query_id == query_id and item.attempt_kind == AttemptKind.DISCOVERY
+            )), key=lambda item: (item.ordinal, item.plan_item_id))
+            for prerequisite in prerequisites or [None]:
+                attempt = None if prerequisite is None else self._latest_attempt(prerequisite.plan_item_id)
+                terminal = None if attempt is None else next((
+                    event for event in self.repository.list_attempt_events(attempt.attempt_id)
+                    if event.event_type in {
+                        AcquisitionAttemptEventType.OUTCOME_TERMINAL,
+                        AcquisitionAttemptEventType.ABANDONED,
+                    }
+                ), None)
+                usable = terminal is not None and terminal.outcome in {
+                    AcquisitionOutcome.SUCCESS, AcquisitionOutcome.UNCHANGED,
+                }
+                if usable:
+                    try:
+                        self._proof_completion(prerequisite.plan_item_id)
+                    except DiscoveryValidationError:
+                        usable = False
+                cause = {
+                    "query_id": query_id,
+                    "plan_item_id": None if prerequisite is None else prerequisite.plan_item_id,
+                    "attempt_id": None if attempt is None else attempt.attempt_id,
+                    "proof_ids": () if terminal is None else terminal.proof_ids,
+                    "outcome": None if terminal is None or terminal.outcome is None else terminal.outcome.value,
+                    "reason_code": "terminal_proof_missing" if terminal is None else terminal.reason_code,
+                }
+                dependencies.append(cause)
+                if not usable:
+                    inherited = None if terminal is None else terminal.protocol_summary.get("causal_group_id")
+                    unavailable.append((cause, inherited))
+        cause, inherited = unavailable[0] if unavailable else (dependencies[0], None)
+        summary = {
+            "prerequisites": dependencies,
+            "causal_group_id": inherited or stable_acquisition_id("dependency-group", {
+                "run_id": run.run_id, "source_definition_id": plan_item.source_definition_id,
+                "source_definition_version": plan_item.source_definition_version, **cause,
+            }),
+            "io_performed": False,
+        }
+        return (AttemptClassification("policy_skipped", "dependency_unavailable")
+                if unavailable else None), summary
+
     def _resolve_query_parameter_bindings(
         self,
         run: AcquisitionRun,
@@ -2396,6 +2509,11 @@ class AcquisitionOrchestrator:
                 for source_attempt in self.repository.list_attempts(
                     plan_item_id=source_plan.plan_item_id
                 ):
+                    events = self.repository.list_attempt_events(source_attempt.attempt_id)
+                    if not any(event.event_type == AcquisitionAttemptEventType.OUTCOME_TERMINAL
+                               and event.outcome in {AcquisitionOutcome.SUCCESS, AcquisitionOutcome.UNCHANGED}
+                               for event in events):
+                        continue
                     for observation in self.repository.list_discovery_observations(
                         source_attempt.attempt_id
                     ):
@@ -2406,12 +2524,16 @@ class AcquisitionOrchestrator:
                             if str(metadata.get(binding.match_metadata_key, "")) != expected:
                                 continue
                             if binding.value_metadata_key not in metadata:
-                                continue
-                            values.append(metadata[binding.value_metadata_key])
+                                raise DiscoveryValidationError("parameter_binding_invalid", "binding字段缺失")
+                            value = metadata[binding.value_metadata_key]
+                            if (not isinstance(value, (str, int)) or isinstance(value, bool)
+                                    or not str(value).strip() or any(ord(c) < 32 for c in str(value))):
+                                raise DiscoveryValidationError("parameter_binding_invalid", "binding值格式非法")
+                            values.append(value)
             unique_values = list(dict.fromkeys(str(value) for value in values))
             if len(unique_values) != 1:
                 raise DiscoveryValidationError(
-                    "parameter_binding_missing",
+                    "parameter_binding_invalid",
                     "无法从已持久化discovery proof唯一解析请求参数"
                     f" {parameter_name} ({binding.source_query_id})",
                 )
@@ -3014,7 +3136,7 @@ class AcquisitionOrchestrator:
             response_byte_length=len(envelope.body),
             snapshot_id=None,
             request_summary={"url": envelope.request_url},
-            response_summary={"headers": dict(envelope.headers)},
+            response_summary={"headers": sanitize_http_metadata(envelope.headers)},
         )
 
     def _failed_resource_observation(
@@ -3048,7 +3170,7 @@ class AcquisitionOrchestrator:
             ),
             request_summary={},
             response_summary=(
-                {} if envelope is None else {"headers": dict(envelope.headers)}
+                {} if envelope is None else {"headers": sanitize_http_metadata(envelope.headers)}
             ),
             http_status=None if envelope is None else envelope.status_code,
             etag=None if envelope is None else envelope.headers.get("etag"),
@@ -3137,6 +3259,25 @@ class AcquisitionOrchestrator:
             raise AcquisitionExecutionError("required fetch缺少父discovery attempt")
         return execution.discovery_attempt_ids[-1]
 
+    def _causal_group_summaries(self, run_id: str) -> tuple[Mapping[str, Any], ...]:
+        groups = {}
+        for attempt in self.repository.list_attempts(run_id=run_id):
+            for event in self.repository.list_attempt_events(attempt.attempt_id):
+                group_id = event.protocol_summary.get("causal_group_id")
+                if event.event_type != AcquisitionAttemptEventType.OUTCOME_TERMINAL or not group_id:
+                    continue
+                group = groups.setdefault(group_id, {
+                    "causal_group_id": group_id,
+                    "source_definition_id": attempt.source_definition_id,
+                    "source_definition_version": attempt.source_definition_version,
+                    "reason_code": event.reason_code,
+                    "halt_opening_attempt_id": event.protocol_summary.get("halt_opening_attempt_id"),
+                    "prerequisites": event.protocol_summary.get("prerequisites", []),
+                    "zero_io_attempt_count": 0,
+                })
+                group["zero_io_attempt_count"] += int(event.protocol_summary.get("io_performed") is False)
+        return tuple(groups[key] for key in sorted(groups))
+
     def _attempt_facts(self, run_id: str) -> list[_AttemptFact]:
         facts: list[_AttemptFact] = []
         for attempt in self.repository.list_attempts(run_id=run_id):
@@ -3193,6 +3334,7 @@ class AcquisitionOrchestrator:
             ),
             checkpoint_ids=tuple(checkpoints),
             manifest_id=event.metadata.get("manifest_id"),
+            causal_groups=tuple(event.metadata.get("causal_groups", ())),
         )
 
 

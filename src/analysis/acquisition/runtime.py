@@ -524,28 +524,39 @@ class AcquisitionRuntime:
         if selected_mode == AcquisitionMode.INCREMENTAL:
             start_at = self._incremental_start(profile)
         elif selected_mode == AcquisitionMode.RECONCILE:
+            from .reconcile import select_reconcile_target
+            excluded = []
             if resolved_parent is None:
-                candidates = self.repository.list_runs(
-                    ticker=profile.ticker,
-                    run_kind=AcquisitionRunKind.PRODUCTION.value,
-                    limit=100,
-                )
-                candidates = [item for item in candidates if item.mode != AcquisitionMode.RECONCILE]
-                if not candidates:
+                offset = 0
+                while resolved_parent is None:
+                    candidates = self.repository.list_runs(
+                        ticker=profile.ticker, run_kind=AcquisitionRunKind.PRODUCTION.value,
+                        limit=100, offset=offset,
+                    )
+                    for candidate in candidates:
+                        if (candidate.mode == AcquisitionMode.RECONCILE or
+                                candidate.question_set_id != self.loaded_questions.question_set.question_set_id):
+                            continue
+                        if any(event.event_type.value == "finalized" for event in
+                               self.repository.list_run_events(candidate.run_id)):
+                            resolved_parent = candidate.run_id
+                            break
+                        excluded.append({"run_id": candidate.run_id, "reason": "parent_not_finalized"})
+                    if len(candidates) < 100:
+                        break
+                    offset += len(candidates)
+                if resolved_parent is None:
                     raise ValueError("reconcile找不到同公司可关联的父运行")
-                resolved_parent = candidates[0].run_id
             parent = self.repository.get_run(resolved_parent)
-            if parent.ticker != profile.ticker:
-                raise ValueError("reconcile父运行ticker不匹配")
-            entries = self.repository.list_coverage_entries(resolved_parent)
-            if not entries:
-                raise ValueError("reconcile父运行没有可复核覆盖项")
-            start_at = min(item.time_start for item in entries)
-            target = {
-                "parent_run_id": resolved_parent,
-                "strategy": "earliest_unresolved_gap_or_earliest_completed_slice",
-                "start_at": start_at.isoformat(),
-            }
+            if (parent.ticker != profile.ticker or parent.run_kind != AcquisitionRunKind.PRODUCTION
+                    or parent.question_set_id != self.loaded_questions.question_set.question_set_id):
+                raise ValueError("reconcile父运行ticker/scope不匹配")
+            selection = select_reconcile_target(
+                self.repository, self.loaded_registry.registry.definitions,
+                resolved_parent, as_of=cutoff, now=self.clock(),
+            )
+            start_at = selection.start_at
+            target = {**selection.target, "excluded_newer_unfinalized_runs": excluded}
         return self.create_plan(
             profile,
             mode=selected_mode,

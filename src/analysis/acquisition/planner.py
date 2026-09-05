@@ -4,6 +4,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from .dependencies import order_dependency_plans
+
 from .models import (
     AcquisitionMode,
     AcquisitionPlan,
@@ -184,6 +186,9 @@ class AcquisitionPlanner:
             storage_namespace_id=storage_namespace_id,
         )
 
+        if selected_mode == AcquisitionMode.RECONCILE and reconcile_target and reconcile_target.get("plan_item_id"):
+            return self._targeted_reconcile_plan(run, profile, business_definitions, reconcile_target)
+
         coverage: list[CoverageEntry] = []
         physical_by_key: dict[str, PhysicalQueryPlanItem] = {}
         links: list[PhysicalQueryCoverageLink] = []
@@ -330,12 +335,7 @@ class AcquisitionPlanner:
                 ),
             )
         )
-        plan_sorted = tuple(
-            sorted(
-                physical_by_key.values(),
-                key=lambda item: (item.ordinal, item.plan_item_id),
-            )
-        )
+        plan_sorted = order_dependency_plans(tuple(physical_by_key.values()), business_definitions)
         links_sorted = tuple(
             sorted(links, key=lambda item: item.identity)
         )
@@ -345,6 +345,52 @@ class AcquisitionPlanner:
             physical_query_plan_items=plan_sorted,
             coverage_links=links_sorted,
         )
+
+    def _targeted_reconcile_plan(self, run, profile, definitions, target):
+        definition = next(d for d in definitions if d.source_definition_id == target["source_definition_id"])
+        SourceRegistryLoader.assert_effective(definition, run.as_of)
+        if self._source_static_reason(definition, profile) is not None:
+            raise AcquisitionPlanningError("reconcile目标来源当前不可用")
+        queries = {q.query_id: q for q in definition.queries}
+        selected_ids = set()
+
+        def include(query_id):
+            if query_id in selected_ids:
+                return
+            selected_ids.add(query_id)
+            for binding in queries[query_id].parameter_bindings.values():
+                include(binding.source_query_id)
+
+        include(target["query_id"])
+        start = datetime.fromisoformat(target["effective_range"]["time_start"])
+        end = datetime.fromisoformat(target["effective_range"]["time_end"])
+        parent_start = datetime.fromisoformat(target["parent_time_start"])
+        topics = {topic.question_id: topic for topic in self.questions.question_set.topics}
+        coverage, plans, links = [], [], []
+        for query in definition.queries:
+            if query.query_id not in selected_ids:
+                continue
+            query_start = max(start, query.earliest_available_at or start)
+            # Preserve the parent slice separately from overlap so pagination
+            # and same-position barrier resolution retain identical semantics.
+            boundaries = [(query_start, end)]
+            if query.query_id == target["query_id"] and query_start < parent_start < end:
+                boundaries = [(query_start, parent_start), (parent_start, end)]
+            for lower, upper in boundaries:
+                for lower, upper in _window_slices(lower, upper, query.max_window_days):
+                    execution_key = self._physical_execution_key(profile, definition, query, lower, upper)
+                    plan = self._physical_plan_item(run.run_id, profile, definition, query,
+                                                    lower, upper, execution_key, len(plans))
+                    plans.append(plan)
+                    for question_id in query.question_ids:
+                        entry = self._coverage_entry(run.run_id, definition, topics[question_id],
+                            query.query_id, lower, upper, CoveragePlanDisposition.REQUIRED, None)
+                        coverage.append(entry)
+                        links.append(PhysicalQueryCoverageLink(plan_item_id=plan.plan_item_id,
+                                                              coverage_entry_id=entry.coverage_entry_id))
+        return AcquisitionPlan(run=run, coverage_entries=tuple(coverage),
+            physical_query_plan_items=order_dependency_plans(tuple(plans), definitions),
+            coverage_links=tuple(links))
 
     @staticmethod
     def _source_static_reason(

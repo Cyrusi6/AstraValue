@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import os
 import sqlite3
+import traceback
+import uuid
 from pathlib import Path
 
 import pytest
@@ -10,6 +13,7 @@ import pytest
 from analysis.acquisition.bootstrap import (
     BINDING_INTENT_SUFFIX,
     ROOT_MARKER_NAME,
+    InterProcessFileLock,
     StorageBootstrapper,
     StorageNamespaceMismatch,
     StorageRepairRequired,
@@ -24,7 +28,48 @@ def _bootstrap_worker(db: str, root: str, queue) -> None:
         ).bootstrap()
         queue.put(("ok", result.namespace.namespace_id, result.created))
     except Exception as exc:  # pragma: no cover - asserted in parent process
-        queue.put(("error", type(exc).__name__, str(exc)))
+        queue.put(("error", type(exc).__name__, str(exc), traceback.format_exc()))
+
+
+def _empty_file_lock_worker(identity: str, queue) -> None:
+    try:
+        with InterProcessFileLock(identity, timeout_seconds=0.1):
+            queue.put(("acquired",))
+    except Exception as exc:  # pragma: no cover - asserted in parent process
+        queue.put((type(exc).__name__, traceback.format_exc()))
+
+
+def test_empty_file_locked_by_another_process_times_out_then_reopens():
+    identity = f"empty-file-regression-{uuid.uuid4().hex}"
+    lock = InterProcessFileLock(identity)
+    context = multiprocessing.get_context("spawn")
+    queue = context.Queue()
+    process = context.Process(target=_empty_file_lock_worker, args=(identity, queue))
+    try:
+        with lock.path.open("x+b") as holder:
+            # Both operating systems allow locking a range beyond EOF. The
+            # contender must wait for the lock before attempting any writes.
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(holder.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(holder.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            process.start()
+            result = queue.get(timeout=20)
+            process.join(timeout=20)
+            assert process.exitcode == 0
+            assert result[0] == "BootstrapLockTimeout", result
+        with InterProcessFileLock(identity):
+            pass
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=20)
+        queue.close()
+        lock.path.unlink()
 
 
 def test_create_and_reopen_preserve_one_namespace(tmp_path):
@@ -185,6 +230,6 @@ def test_concurrent_bootstrap_single_winner_with_real_processes(tmp_path):
     for process in processes:
         process.join(timeout=20)
         assert process.exitcode == 0
-    assert all(item[0] == "ok" for item in results)
+    assert all(item[0] == "ok" for item in results), results
     assert len({item[1] for item in results}) == 1
     assert sorted(item[2] for item in results) == [False, True]

@@ -118,7 +118,9 @@ def classify_response(
     has_committed_segments: bool = False,
     policy_reason: str | None = None,
 ) -> AttemptClassification:
-    normalized_headers = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    normalized_headers = {
+        str(k).strip().lower(): str(v).strip() for k, v in (headers or {}).items()
+    }
     if policy_reason is not None:
         if policy_reason not in _POLICY_REASONS:
             raise ValueError(f"unknown policy reason: {policy_reason}")
@@ -159,6 +161,13 @@ def classify_response(
             has_committed_segments,
             "network_failed",
             f"http_{status_code}",
+        )
+
+    # An exact upstream signal takes precedence over body/MIME/schema checks.
+    # Unknown values must retain their normal parsing outcome.
+    if normalized_headers.get("x-tengine-error", "").lower() == "denied by bot":
+        return _partial_or(
+            has_committed_segments, "restricted", "upstream_bot_challenge"
         )
 
     lowered = body_prefix[:8192].lower()

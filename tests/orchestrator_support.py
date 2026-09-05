@@ -258,3 +258,33 @@ def targeted_plan(
     if persist:
         runtime.orchestrator.persist_plan(plan)
     return plan
+
+
+def later_barrier_runtime(root: Path):
+    """A completed early slice and a challenge on page 3 of a later slice."""
+    state = {"blocked": True, "execution_key": None}
+    def response(work):
+        if state["blocked"] and work.execution_key == state["execution_key"] and work.page == 3:
+            return envelope(url=work.url, content_type="text/html",
+                            headers={"x-tengine-error": "denied by bot"})
+        return envelope(url=work.url)
+    def parsed(response, work):
+        if work.execution_key != state["execution_key"]:
+            return discovery_result(work)
+        return discovery_result(work, resources=(resource(f"page-{work.page}", required_fetch=False),),
+                                declared_total=3, page_count=3, terminal=work.page == 3)
+    adapter = ScenarioAdapter(response, parsed)
+    runtime = make_runtime(root, adapter)
+    profile = runtime.build_profile("600519", listing_date=(NOW - timedelta(days=800)).date())
+    base = runtime.planner.plan(profile, mode="baseline", as_of=NOW,
+                                storage_namespace_id=runtime.namespace_id)
+    plans = tuple(p for p in base.physical_query_plan_items if p.query_id == "cninfo.periodic_report")
+    ids = {p.plan_item_id for p in plans}
+    links = tuple(link for link in base.coverage_links if link.plan_item_id in ids)
+    cids = {link.coverage_entry_id for link in links}
+    parent = AcquisitionPlan(run=base.run, physical_query_plan_items=plans, coverage_links=links,
+                             coverage_entries=tuple(e for e in base.coverage_entries if e.coverage_entry_id in cids))
+    selected = plans[1]
+    state["execution_key"] = selected.execution_key
+    runtime.orchestrator.execute_plan(parent)
+    return runtime, adapter, parent, selected, state

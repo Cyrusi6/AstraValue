@@ -153,3 +153,50 @@ def test_timeout_is_not_fabricated_from_an_interruption() -> None:
     timed_out = classify_exception(error, deadline_was_exceeded=True)
     assert interrupted.outcome == "network_failed"
     assert timed_out.outcome == "timeout"
+
+
+@pytest.mark.parametrize("name,value", [
+    ("x-tengine-error", "denied by bot"),
+    (" X-TENGINE-ERROR ", " DENIED BY BOT \t"),
+])
+def test_tengine_challenge_header_precedes_body_mime_and_schema(name, value):
+    result = classify_response(
+        status_code=200, headers={name: value, "Content-Type": "text/html"},
+        body_prefix=b'<input type="password">',
+        expected_mime=("application/pdf",), schema_valid=False,
+    )
+    assert result == AttemptClassification("restricted", "upstream_bot_challenge")
+
+
+@pytest.mark.parametrize("name,value", [
+    ("x-tengine-error", "denied by bots"),
+    ("x-tengine-error", "not denied by bot"),
+    ("x-unknown-error", "denied by bot"),
+    ("x-tengine-error", ""),
+])
+def test_unknown_challenge_header_keeps_unexpected_mime(name, value):
+    assert classify_response(
+        status_code=200, headers={name: value, "Content-Type": "text/html"},
+        body_prefix=b"<html>ordinary page</html>", expected_mime=("application/pdf",),
+    ) == AttemptClassification("parse_failed", "unexpected_mime")
+
+
+@pytest.mark.parametrize("status,outcome,reason", [
+    (429, "rate_limited", "upstream_rate_limited"),
+    (403, "restricted", "http_403"),
+    (504, "timeout", "http_504"),
+])
+def test_http_status_precedes_tengine_challenge_header(status, outcome, reason):
+    result = classify_response(
+        status_code=status, headers={"x-tengine-error": "denied by bot"},
+        expected_mime=("application/pdf",),
+    )
+    assert (result.outcome, result.reason_code) == (outcome, reason)
+
+
+def test_later_page_tengine_challenge_keeps_partial_cause():
+    result = classify_response(
+        status_code=200, headers={"x-tengine-error": "denied by bot"},
+        has_committed_segments=True,
+    )
+    assert result == AttemptClassification("partial_success", "upstream_bot_challenge")

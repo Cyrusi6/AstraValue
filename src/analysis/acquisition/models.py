@@ -1086,6 +1086,8 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     request_encoding: Literal["query", "form", "json"] = "query"
     fixed_headers: dict[str, str] = Field(default_factory=dict)
     parameter_binding_names: tuple[str, ...] = ()
+    prerequisite_query_ids: tuple[str, ...] = ()
+    prerequisite_plan_item_ids: tuple[str, ...] = ()
     endpoint: str
     normalized_parameters: dict[str, Any] = Field(default_factory=dict)
     partition_key: str
