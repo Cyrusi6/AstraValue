@@ -4,6 +4,12 @@
 
 ## ADDED Requirements
 
+### Requirement: 已有归档 namespace 的独立生产验收
+在用户授权复用已有正文时，系统 SHALL 允许在经备份与完整性核对的已绑定 namespace 追加新的 production baseline。新运行 MUST 重新形成全历史 HTTP discovery、资源观测和自己的 checkpoint，不得使用 retained_inventory 证明生产查询成功。baseline 安全水位线建立后 SHALL 执行两次独立 incremental 并核对 overlap、覆盖、变化与复用；旧 ad_hoc、旧失败和默认主库 MUST 保持不变。此路径作为本轮真实联网门的后续验收，不追溯改写旧试点结果。
+
+#### Scenario: 只有旧正文没有 production checkpoint
+- **WHEN** namespace 中存在完整正文但所有历史运行均为 ad_hoc
+- **THEN** 系统 SHALL 拒绝直接 incremental，先执行新的 production baseline；本地文件存在不能代替当前 HTTP 观测或安全 checkpoint
 ### Requirement: 正式采集统一直连并冻结路由约定
 正式 runtime 和 registry-bound transport 自建的 HTTP 客户端 MUST 使用直连、禁止继承环境与 Windows 系统代理且保留 TLS 验证。API、CLI、smoke 新计划 MUST 在 run 中冻结 `http_route_policy=direct-v1`，不得记录代理凭据。恢复执行 MUST 校验持久化约定，未完成旧运行缺失约定时 MUST 在租约、DNS、source gate 和 HTTP 前拒绝静默切换；旧 finalized 结果和离线重放仍可读取。
 

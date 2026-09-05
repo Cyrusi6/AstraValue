@@ -92,6 +92,7 @@ from .status_classifier import (
     classify_response,
 )
 from .transport import RegistryBoundHttpTransport
+from .validators import content_contract_compatible, content_versions, snapshot_matches_resource
 
 
 class AcquisitionExecutionError(RuntimeError):
@@ -1454,6 +1455,12 @@ class AcquisitionOrchestrator:
                 )
                 heartbeat.renew(force=True)
                 if envelope.status_code == 304:
+                    # The anchor can be quarantined or damaged while I/O is in
+                    # flight. Unsolicited 304s never establish unchanged.
+                    if anchor is not None and (not validators or not self._snapshot_is_valid(
+                        self.repository.get_raw_resource_snapshot(anchor.snapshot_id)
+                    ) or envelope.final_url != resource.resource_url):
+                        anchor = None
                     classification, _ = classify_fetch_result(
                         status_code=304,
                         existing_snapshot_valid=anchor is not None,
@@ -1479,7 +1486,12 @@ class AcquisitionOrchestrator:
                             redirect_chain=tuple(
                                 {"url": item} for item in envelope.redirect_chain
                             ),
-                            request_summary={"conditional": True},
+                            request_summary={
+                                "conditional": True,
+                                "validator_source_definition_version": self.repository.get_raw_resource_snapshot(
+                                    anchor.snapshot_id
+                                ).source_definition_version,
+                            },
                             response_summary={"headers": dict(envelope.headers)},
                             http_status=304,
                             etag=envelope.headers.get("etag") or anchor.etag,
@@ -1682,8 +1694,13 @@ class AcquisitionOrchestrator:
                                 "validator_source_snapshot_id": (
                                     None if anchor is None else anchor.snapshot_id
                                 ),
+                                "validator_source_definition_version": (
+                                    None if anchor_snapshot is None else anchor_snapshot.source_definition_version
+                                ),
                             },
-                            response_summary={"headers": dict(envelope.headers)},
+                            response_summary={"headers": dict(envelope.headers),
+                                              "body_sha256": calculated,
+                                              "body_byte_length": len(envelope.body)},
                             http_status=envelope.status_code,
                             etag=envelope.headers.get("etag"),
                             last_modified=envelope.headers.get("last-modified"),
@@ -3069,20 +3086,31 @@ class AcquisitionOrchestrator:
     ) -> tuple[ValidatorAnchor | None, dict[str, str]]:
         if force_unconditional:
             return None, {}
-        snapshot = self.repository.find_raw_resource_snapshot(
-            resource_role="content",
-            source_definition_id=definition.source_definition_id,
-            source_definition_version=definition.version,
-            canonical_resource_id=resource.canonical_resource_id,
+        candidates = self._content_snapshot_candidates(definition, resource)
+        if not candidates:
+            return None, {}
+        snapshot = max(candidates, key=lambda item: (item.created_at, item.snapshot_id))
+        previous = self.repository.get_source_definition_version(
+            snapshot.source_definition_id, snapshot.source_definition_version,
         )
-        if snapshot is None or not self._snapshot_is_valid(snapshot):
+        if (not content_contract_compatible(definition, previous)
+                or not snapshot_matches_resource(snapshot, resource, self.runtime.namespace_id)
+                or not (definition.allows_url(resource.resource_url)
+                        or definition.allows_url(resource.resource_url, redirect=True))
+                or not self._snapshot_is_valid(snapshot)):
             return None, {}
         observations = self.repository.list_resource_observations(
             snapshot_id=snapshot.snapshot_id,
             limit=None,
         )
         with_validator = [
-            item for item in observations if item.etag or item.last_modified
+            item for item in observations
+            if (item.etag or item.last_modified)
+            and item.attempt_outcome in {AcquisitionOutcome.SUCCESS, AcquisitionOutcome.UNCHANGED}
+            and item.http_status in {200, 304}
+            and item.original_url == resource.resource_url
+            and item.final_url == resource.resource_url
+            and item.source_definition_version in content_versions(definition)
         ]
         if not with_validator:
             return None, {}
@@ -3103,7 +3131,21 @@ class AcquisitionOrchestrator:
             validators["etag"] = anchor.etag
         if definition.incremental_policy.use_last_modified and anchor.last_modified:
             validators["last_modified"] = anchor.last_modified
-        return anchor, validators
+        return (anchor, validators) if validators else (None, {})
+
+    def _content_snapshot_candidates(
+        self, definition: SourceDefinition, resource: DiscoveredResource,
+    ) -> list[Any]:
+        candidates = []
+        for version in content_versions(definition):
+            snapshot = self.repository.find_raw_resource_snapshot(
+                resource_role="content", source_definition_id=definition.source_definition_id,
+                source_definition_version=version,
+                canonical_resource_id=resource.canonical_resource_id,
+            )
+            if snapshot is not None:
+                candidates.append(snapshot)
+        return candidates
 
     def _has_snapshot_candidate(
         self,
@@ -3117,15 +3159,7 @@ class AcquisitionOrchestrator:
         incompatible evidence.  Neither case may manufacture ``unchanged``.
         """
 
-        return (
-            self.repository.find_raw_resource_snapshot(
-                resource_role="content",
-                source_definition_id=definition.source_definition_id,
-                source_definition_version=definition.version,
-                canonical_resource_id=resource.canonical_resource_id,
-            )
-            is not None
-        )
+        return bool(self._content_snapshot_candidates(definition, resource))
 
     def _snapshot_is_valid(self, snapshot: Any) -> bool:
         events = self.repository.list_snapshot_integrity_events(snapshot.snapshot_id)

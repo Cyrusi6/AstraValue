@@ -1897,6 +1897,11 @@ class AcquisitionRepository:
             epoch_value = attempt_epoch["lease_epoch"] if attempt_epoch is not None else None
         epoch = int(epoch_value or 0)
         self._assert_lease(connection, run_id, epoch, owner_token=owner_token)
+        from .validators import validate_observation_anchor
+        try:
+            validate_observation_anchor(connection, dict(data))
+        except ValueError as exc:
+            raise AcquisitionStorageError(str(exc)) from exc
         self._insert_immutable(
             connection,
             "resource_observations",

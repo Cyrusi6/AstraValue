@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "engine": "rapidocr_onnxruntime",
+  "engine_version": "1.4.4",
+  "dpi": 200,
+  "low_confidence_threshold": 0.90,
+  "page_timeout_seconds": 300,
+  "tiling": "vertical-halves-overlap-20-percent",
+  "options": {
+    "intra_op_num_threads": 4,
+    "inter_op_num_threads": 1,
+    "max_side_len": 3500,
+    "det_limit_side_len": 1600,
+    "text_score": 0.0,
+    "print_verbose": false
+  }
+}

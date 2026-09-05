@@ -258,6 +258,15 @@ def test_same_url_mixed_disposition_new_hash_versions_and_unchanged_observation(
     assert changed.disposition == "changed"
     assert changed.snapshot.version == 2
     assert changed.snapshot.supersedes_snapshot_id == first.snapshot.snapshot_id
+    # Replacement bytes retain the disclosed date without acquiring the old
+    # version's historical point-in-time eligibility.
+    assert changed.snapshot.published_at == first.snapshot.published_at
+    assert changed.snapshot.published_at_precision == "date"
+    assert changed.snapshot.available_at == _content_request().retrieved_at
+    assert changed.snapshot.available_at_basis == "retrieved_at"
+    assert not is_point_in_time_eligible(
+        changed.snapshot.available_at, first.snapshot.available_at,
+    )
     assert len(repository.snapshots) == 2
     assert len(repository.resource_observations) == 3
     assert repository.resource_observations[1].etag == '"v2"'

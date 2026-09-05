@@ -120,6 +120,9 @@ def _strip_pre_v1_2_query_contract(definition: dict[str, Any]) -> None:
     for key in ("collection_role", "supplements_source_id"):
         if definition.get(key) is None:
             definition.pop(key, None)
+    incremental = definition.get("incremental_policy", {})
+    if incremental.get("content_validator_compatible_from_versions") is None:
+        incremental.pop("content_validator_compatible_from_versions", None)
 
     match = re.fullmatch(r"(\d+)\.(\d+)(?:\.\d+)?", str(definition.get("version", "")))
     if match is None or (int(match.group(1)), int(match.group(2))) >= (1, 2):
@@ -471,8 +474,18 @@ class SourceIncrementalPolicy(FrozenAcquisitionModel):
     use_last_modified: bool = True
     hash_is_final: bool = True
     checkpoint_compatible_from_versions: tuple[str, ...] = ()
+    content_validator_compatible_from_versions: tuple[str, ...] | None = None
     historical_reconcile_days: int | None = Field(default=None, gt=0)
     silent_replacement_limit: str | None = None
+
+    @field_validator("content_validator_compatible_from_versions")
+    @classmethod
+    def validate_content_versions(cls, values: tuple[str, ...] | None) -> tuple[str, ...] | None:
+        if values is not None and (len(values) != len(set(values)) or any(
+            not re.fullmatch(r"\d+\.\d+\.\d+", value) for value in values
+        )):
+            raise ValueError("正文validator兼容版本必须为不重复的语义版本")
+        return values
 
 
 class SourceApplicability(FrozenAcquisitionModel):

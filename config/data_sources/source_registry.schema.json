@@ -81,6 +81,7 @@
         "use_last_modified": {"type": "boolean"},
         "hash_is_final": {"const": true},
         "checkpoint_compatible_from_versions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "content_validator_compatible_from_versions": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}},
         "historical_reconcile_days": {"type": ["integer", "null"], "minimum": 1},
         "silent_replacement_limit": {"type": ["string", "null"]}
       }

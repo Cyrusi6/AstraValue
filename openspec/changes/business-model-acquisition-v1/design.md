@@ -1,5 +1,15 @@
 ## Context
 
+### 2026-09-06 本地 OCR 与生产运行修订
+
+用户已授权先抽样 OCR、补全剩余扫描件和历史复核，再统一默认 registry 1.9.0 并在既有归档 namespace 新建 production baseline、完成两次 incremental。下文带日期的修订保留当时决定；当前执行范围以本节为准，旧运行和既有人工黄金签署门槛不变。
+
+OCR 只接受已提交、许可允许、未隔离且重算哈希正确的 PDF snapshot。项目 Python 用 PyMuPDF 渲染页面，独立 Python 3.12 环境运行本地 RapidOCR/ONNX 中文模型，不上传材料。选择全部无原生文字页面，包括矢量字形轮廓页；已有原生文字逐页保留。新派生物分别冻结逐页布局 JSON 与整篇阅读文本，记录 parent snapshot/hash、PDF 一基页码（区别于印刷页码）、页面尺寸/rotation、DPI、模型哈希、依赖与引擎参数、文字框和置信度。页级结果可恢复且须重新校验输入/参数/输出哈希；失败与空结果显式记录，不能伪造空白页。低置信度、表格与签章页面保留复核标记，所有 OCR 输出均为机器派生；抽样通过不等于逐字人工验收或结构化财务抽取。原始 PDF、旧文本、旧派生版本与 manifest 不修改。
+
+registry 1.9.0 / CNINFO 1.8.0 统一 128 MiB 原始/压缩/解压上限及 600 秒 attempt 预算，保持 30 秒 socket timeout、直连、TLS、并发 1、5 秒间隔及一次 attempt。新 `content_validator_compatible_from_versions` 仅声明正文条件复用，候选为 CNINFO 1.4.0–1.7.0；未声明时按当前版本处理，历史 canonical registry hash 不变。该字段不授权 checkpoint 迁移。兼容判断必须核对来源/上游/adapter、canonical 规则、发布时间语义、原始/当前许可、当前 URL allowlist；快照须处于同 namespace 且与此次 canonical、upstream ID 和确切 URL 匹配，长度、SHA、未隔离状态均有效。只使用成功观测的 validator，304 之前再次核对锚点；没有有效条件头时不得将 unsolicited 304 判为 unchanged。新观测使用新 run/attempt/definition 身份，显式引用旧 validator snapshot/version；原 creating observation 保留旧身份。200 响应记录完整正文 SHA-256/长度：同哈希复用兼容旧 snapshot；新哈希创建当前来源定义下的新 snapshot，通过新 observation 的 validator snapshot/version 记录跨定义前驱。各来源定义内部版本链独立保留。替换字节的 available_at 使用 retrieved_at，原 published_at 及 date/instant 精度保留，不把旧发布时间赋予新内容。
+
+生产运行在 `cninfo-content-archive-20260905` 已绑定 namespace 追加，先保存 SQLite 一致性备份、旧行摘要与原始哈希清单。它重新查询全历史，生成真实 HTTP discovery proof；目录输入仍禁止 production。每个已知正文仍按限速接受当次条件请求确认，不能把本地已有文件等同于新网络观测。baseline 只有来源安全 checkpoint 确立后才执行两次独立 incremental，保留 overlap、各状态和原子水位线证据；上交所继续 on_demand，SZSE 不适用、IR 未启用的静态处置不伪称在线成功。默认主库和旧历史审计库不动，生产 partial 时保留缺口并按事实报告。
+
 ### 2026-09-05 历史审计修订
 
 公开大附件使用显式 registry 1.8.0 / CNINFO 1.7.0，原始/压缩/解压上限均为 128 MiB，attempt 预算为 600 秒，socket timeout 30 秒；默认 1.7.0 不变。两份超出旧本地上限的正文以独立冻结输入和计划各补抓一次，旧失败、屏障与版本不回写。该技术配置沿用用户全目录归档授权，未新增人工签署。传输门禁等待之后重新校验 deadline 并限制 socket timeout；响应头、流读取前后、EOF、解压组装完成后均检查剩余预算与租约，超时不发布成功 envelope。阻塞 I/O 仍由 socket timeout 结束，不承诺精确毫秒中止。
@@ -8,7 +18,7 @@
 
 新增 registry 1.5.0（HTML schema 3）、1.6.0（首发参数 category_sf_szsh）、1.7.0（CNINFO 1.6.0 primary、SSE 1.4.0 on_demand）保留之前合同。SSE 当前只有定期报告 DQBG 补缺能力；`acquire supplement` 接受 finalized 父运行的实际 required 缺口，生成保持来源身份的 ad_hoc reconcile，不清除巨潮屏障。旧版未声明 collection_role 时仍按主采解释。生产安全水位线前置条件按当前适用主采来源检查。
 
-HTML 正文先经过 HTTP/挑战/MIME/结构与严格中文解码校验，再冻结字节。PDF/HTML 文本仅从已提交且验证哈希的 content snapshot 派生，不运行页面脚本、不取子资源、不执行 OCR。材料分类独立保留 title_type/content_type/evidence_status，检索类别不能代替类型判断。
+HTML 正文先经过 HTTP/挑战/MIME/结构与严格中文解码校验，再冻结字节。PDF/HTML 原生文本仅从已提交且验证哈希的 content snapshot 派生，不运行页面脚本、不取子资源。缺文本 PDF 的本地 OCR 按 2026-09-06 修订执行。材料分类独立保留 title_type/content_type/evidence_status，检索类别不能代替类型判断。
 
 目录归档入口读取已终结历史库的原始 proof、observation、snapshot 与行记录，复制支持字节到带哈希的本地目录输入。新 proof 的 `proof_kind=retained_inventory`、`http_status=null`、`io_performed=false` 明确表示本地选择；原来源 namespace/run/proof/snapshot/row locator 单独保留，绝不把它记作新 HTTP 查询。正文仍由正式 executor 下载，使用当前来源合同、lease、直连、allowlist、限速、challenge halt 与归档校验。批次按材料优先级分组后每批最多 100 条；恢复不重跑已终态失败，整项归档遇到明确访问限制时停止后续批次。每批是 ad_hoc，不推进生产水位线、不声称查询历史重新完整。
 
@@ -196,7 +206,7 @@ discovery response 与正文资源共用 blob/snapshot 原子发布机制但以 
 
 `available_at` 是“该确切字节版本可证明公开”的安全时间，snapshot 保存该值及其 basis，但不吸收每次访问上下文。`content` 快照必须保存 canonical/upstream 身份及原始 published/precision/source timezone：官方不可变附件可使用经验证的发布瞬时值，只提供当地日期时使用下一本地日界并保存 `published_at_precision=date`，会被覆盖且无版本证明的网页使用 creating `ResourceObservation.retrieved_at` 计算 `available_at`。`discovery_response` 快照以 plan item/page/cursor/query-page canonical 为角色身份，上游材料身份和 published_at 可空；本次 observed/retrieved 时间保存在 creating `DiscoveryObservation`，后续观测同样只追加 observation，均不得修改 snapshot。归档策略不允许时只保存合规的状态/最小诊断摘要，不保存正文。
 
-派生物写入绑定 data root 下的相对路径 `raw/derived/<snapshot_id>/<extractor-id>/<output-hash>`，包含 extractor 版本与参数。若现有或未来流程生成文本/OCR/表格/页图，现有 FTS 继续是可重建索引，但必须索引指定 derived artifact；不得覆盖被 manifest 引用的 `.txt`。本 change 不新增业务文本、OCR 或表格抽取器。`EvidenceSnapshotManifest` 使用 canonical JSON 哈希，文件副本写入同一 data root 下的相对路径 `acquisition/evidence/`，SQLite 保存同一内容和哈希；backup、quarantine 同样只从绑定根解析，API 只返回元数据/相对标识，不返回原始字节或绝对本地路径。项目默认 data root 可以位于 `var/`，但 `var` 不是持久模型的一部分。
+派生物写入绑定 data root 下的相对路径 `raw/derived/<snapshot_id>/<extractor-id>/<output-hash>`，包含 extractor 版本与参数。若现有或未来流程生成文本/OCR/表格/页图，现有 FTS 继续是可重建索引，但必须索引指定 derived artifact；不得覆盖被 manifest 引用的 `.txt`。本 change 提供 PDF/HTML 原生文本与本地 OCR 补全；结构化财务表格抽取不在本轮范围。`EvidenceSnapshotManifest` 使用 canonical JSON 哈希，文件副本写入同一 data root 下的相对路径 `acquisition/evidence/`，SQLite 保存同一内容和哈希；backup、quarantine 同样只从绑定根解析，API 只返回元数据/相对标识，不返回原始字节或绝对本地路径。项目默认 data root 可以位于 `var/`，但 `var` 不是持久模型的一部分。
 
 完整性复核不修改不可变 snapshot：每次读取检查都追加 `SnapshotIntegrityEvent`。最新有效事件为 `quarantined` 时，新 manifest 与默认消费查询必须拒绝该 snapshot 并生成 reconcile 候选；历史报告和旧 manifest 引用仍保持原样。
 

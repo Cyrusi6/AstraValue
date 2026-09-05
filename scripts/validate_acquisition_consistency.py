@@ -167,6 +167,9 @@ def validate(db_path: Path, data_root: Path, *, run_id: str | None = None) -> di
                   OR o.source_definition_version<>a.source_definition_version
                   OR (o.disposition IS NOT NULL AND o.snapshot_id IS NULL)""",
         )
+        from analysis.acquisition.validators import validate_observation_anchor
+        for row in connection.execute("SELECT payload FROM resource_observations"):
+            validate_observation_anchor(connection, json.loads(row[0]))
         _assert_zero(
             connection,
             "snapshot/blob身份不一致",

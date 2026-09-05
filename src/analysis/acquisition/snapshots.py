@@ -647,6 +647,9 @@ class SnapshotService:
             resource_role=ResourceRole.CONTENT,
             canonical_resource_id=request.canonical_resource_id,
         )
+        compatible_anchor = self._compatible_content_anchor(request)
+        if same is None and compatible_anchor is not None and compatible_anchor.sha256 == archived.sha256:
+            same = compatible_anchor
         blob = _content_blob(archived)
         if same is not None:
             observation = self._content_observation(
@@ -674,7 +677,10 @@ class SnapshotService:
             published_at_precision=request.published_at_precision,
             source_timezone=request.source_timezone,
             retrieved_at=request.retrieved_at,
-            immutable_version_proven=request.immutable_version_proven,
+            # A new hash for a known canonical URL disproves the old byte
+            # version's publication-time claim for these replacement bytes.
+            immutable_version_proven=request.immutable_version_proven
+            and latest is None and compatible_anchor is None,
         )
         version = 1 if latest is None else int(latest.version) + 1
         observation_id = request.observation_id or acquisition_new_id()
@@ -713,7 +719,7 @@ class SnapshotService:
             source_timezone=request.source_timezone,
         )
         disposition = (
-            ResourceDisposition.NEW if latest is None else ResourceDisposition.CHANGED
+            ResourceDisposition.NEW if latest is None and compatible_anchor is None else ResourceDisposition.CHANGED
         )
         observation = self._content_observation(
             request,
@@ -743,6 +749,30 @@ class SnapshotService:
             disposition=disposition.value,
             created_snapshot=True,
         )
+
+    def _compatible_content_anchor(self, request: ContentSnapshotRequest) -> RawResourceSnapshot | None:
+        if not request.validator_source_snapshot_id:
+            return None
+        from .validators import content_contract_compatible, snapshot_matches_resource
+        anchor = self.repository.get_raw_resource_snapshot(request.validator_source_snapshot_id)
+        if anchor.source_definition_version == request.source_definition_version:
+            return None
+        current = self.repository.get_source_definition_version(request.source_definition_id, request.source_definition_version)
+        previous = self.repository.get_source_definition_version(anchor.source_definition_id, anchor.source_definition_version)
+        resource = self.repository.get_discovered_resource(request.discovered_resource_id)
+        if (not content_contract_compatible(current, previous)
+                or not snapshot_matches_resource(anchor, resource, self.blob_store.storage_namespace_id)
+                or request.final_url != anchor.canonical_url):
+            return None
+        events = self.repository.list_snapshot_integrity_events(anchor.snapshot_id)
+        if events and max(events, key=lambda e: (e.checked_at, e.integrity_event_id)).status.value == "quarantined":
+            return None
+        try:
+            self.blob_store.read_verified(anchor.archive_relative_path,
+                expected_sha256=anchor.sha256, expected_length=anchor.byte_length)
+        except SnapshotPipelineError:
+            return None
+        return anchor
 
     def freeze_discovery_response(
         self,
@@ -1113,7 +1143,7 @@ def decide_available_at(
             published_at_precision="instant",
             source_timezone=source_timezone,
         )
-    if precision == "date" and published_at is not None and immutable_version_proven:
+    if precision == "date" and published_at is not None:
         if isinstance(published_at, datetime):
             local_date = (
                 published_at.replace(tzinfo=source_zone)
@@ -1127,18 +1157,19 @@ def decide_available_at(
             time.min,
             tzinfo=source_zone,
         ).astimezone(timezone.utc)
-        published_marker = datetime.combine(
+        normalized_published = datetime.combine(
             local_date,
             time.min,
             tzinfo=source_zone,
         ).astimezone(timezone.utc)
-        return PointInTimeDecision(
-            available_at=next_boundary,
-            available_at_basis="source_date_next_boundary",
-            published_at=published_marker,
-            published_at_precision="date",
-            source_timezone=source_timezone,
-        )
+        if immutable_version_proven:
+            return PointInTimeDecision(
+                available_at=next_boundary,
+                available_at_basis="source_date_next_boundary",
+                published_at=normalized_published,
+                published_at_precision="date",
+                source_timezone=source_timezone,
+            )
     return PointInTimeDecision(
         available_at=retrieved,
         available_at_basis="retrieved_at",

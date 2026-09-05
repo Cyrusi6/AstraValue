@@ -4,6 +4,21 @@
 
 ## ADDED Requirements
 
+### Requirement: 正文 validator 兼容与 checkpoint 兼容分离
+新定义 SHALL 以可选 `content_validator_compatible_from_versions` 显式授权同来源旧版正文的条件复用，未声明时只查当前版本，历史 registry canonical hash MUST 不变。复用 MUST 校验相同来源/上游、正文 canonical 与时间语义、确切资源 URL、同 namespace、原始与当前许可、完整字节哈希及未隔离状态；validator 只来自成功观测。兼容旧正文不代表兼容旧 checkpoint，亦不得将 ad_hoc 改成 production。
+
+#### Scenario: 新生产查询复用 ad_hoc 取得的正文
+- **WHEN** 全新 production discovery 再次发现相同正文，合格旧快照的 Last-Modified 条件请求获得 304
+- **THEN** 系统 SHALL 重新检查锚点并创建当前来源版本的新 attempt/observation，引用旧快照及其版本；原快照、旧 run 与 creating observation 不变，生产覆盖依据本次 HTTP discovery 与 fetch 证明
+
+#### Scenario: 旧正文不具备兼容条件
+- **WHEN** 版本未声明、canonical/URL/时间语义冲突、许可禁止、字节缺失或锚点被隔离
+- **THEN** 系统 MUST 不发送该锚点的条件头；无有效条件请求的 304 MUST 保留失败屏障，不能制造 unchanged
+
+#### Scenario: 条件请求返回完整正文
+- **WHEN** 合格旧版正文的条件请求返回 200
+- **THEN** 系统 SHALL 记录实际正文 SHA-256 和长度；同哈希复用旧 snapshot 并追加当前版本 unchanged observation，新哈希创建当前来源版本 snapshot 和 changed observation，以 validator snapshot/version 记录跨版本前驱。各来源定义内部版本链独立保留；替换字节的 available_at MUST 使用 retrieved_at，同时保留原发布日期及其精度，不能取得旧正文的历史可用时间。
+
 ### Requirement: 主采安全水位线与补充来源隔离
 incremental 的安全 checkpoint 前置条件 SHALL 应用于已启用适用主采来源，按需来源不属于默认必需分区。按需补缺和已有目录归档 SHALL 使用 ad_hoc，不能推进 production checkpoint，也不能清除另一来源的 barrier。新来源版本没有显式声明的兼容关系时 MUST 保持需 baseline 或 reconcile 的前置条件。
 

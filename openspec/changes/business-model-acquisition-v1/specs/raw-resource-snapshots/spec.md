@@ -4,8 +4,23 @@
 
 ## ADDED Requirements
 
+### Requirement: 本地 OCR 补全与逐页原文对应
+系统 SHALL 仅从许可允许、未隔离且完整性有效的已提交 PDF snapshot 补全缺失文本页，先视觉抽样核对正文、表格、签章及不同页面形态再批量执行。原始 PDF、原生文本和旧派生物 MUST 保留。新布局 JSON 与阅读文本 SHALL 冻结 parent snapshot/hash、PDF 一基页码、页面尺寸/旋转、渲染 DPI、模型/依赖/参数、文字框坐标、置信度和输出哈希。机器 OCR 不得冒充原生文字或已人工验收的财务事实。
+
+#### Scenario: 有文字轮廓但没有文本层或图片对象
+- **WHEN** PDF 页面可见文字但原生提取为空，即使没有图片对象
+- **THEN** 系统 SHALL 渲染该完整页面并执行本地 OCR，保留该页的原始坐标和页码，不因无图片对象漏处理
+
+#### Scenario: 中断后复用逐页结果
+- **WHEN** OCR 批次中断后恢复
+- **THEN** 系统 SHALL 只复用 snapshot/hash、页码、渲染与引擎参数及输出哈希均匹配的已提交页级派生物，保留旧失败/版本并继续剩余页
+
+#### Scenario: 空结果或低置信度
+- **WHEN** 页面 OCR 无文字、执行失败或出现低置信度文字框
+- **THEN** 系统 SHALL 保留机器可读复核状态与原页，不把零识别认定为空白，不删除低置信度内容，也不声称全文逐字准确
+
 ### Requirement: 公开大附件与流式总预算
-显式 registry 1.8.0 / CNINFO 1.7.0 SHALL 将响应、压缩和解压上限固定为 128 MiB、attempt 预算固定为 600 秒，保持 socket timeout 30 秒、直连、TLS、并发 1、5 秒间隔与无自动重试。默认 1.7.0 及旧计划 MUST 保留原限制；补抓 MUST 使用独立冻结输入和运行，保留旧失败。传输 SHALL 在门禁放行、响应头、流读取前后及最终组装后校验预算和租约；已经过期的响应 MUST 关闭且不得发布成功 envelope。阻塞读取仍服从 socket timeout，不声称精确毫秒取消。
+显式 registry 1.8.0 / CNINFO 1.7.0 SHALL 将响应、压缩和解压上限固定为 128 MiB、attempt 预算固定为 600 秒，保持 socket timeout 30 秒、直连、TLS、并发 1、5 秒间隔与无自动重试。旧 registry 1.7.0 及其冻结计划 MUST 保留原限制；当前默认 registry 1.9.0 / CNINFO 1.8.0 沿用上述大附件预算；补抓 MUST 使用独立冻结输入和运行，保留旧失败。传输 SHALL 在门禁放行、响应头、流读取前后及最终组装后校验预算和租约；已经过期的响应 MUST 关闭且不得发布成功 envelope。阻塞读取仍服从 socket timeout，不声称精确毫秒取消。
 
 #### Scenario: 持续有数据但总预算已耗尽
 - **WHEN** 单次 socket 读取持续成功，但下一块、EOF 或组装完成时已超过 attempt deadline
@@ -35,7 +50,7 @@
 
 #### Scenario: 正文可归档但没有可提取文字
 - **WHEN** PDF 原始文件有效但文本层为空
-- **THEN** 原始归档 SHALL 保留，文本状态 SHALL 明确 requires_review，不得伪造文本；本轮不执行 OCR
+- **THEN** 原始归档 SHALL 保留，原生文本状态 SHALL 明确 requires_review；用户授权的本地 OCR SHALL 另建派生版本并保留其机器识别属性
 
 ### Requirement: 版本化历史 HTML 正文与派生文本
 CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 HTML MIME，旧 schema 的重放行为 MUST 保持原样。系统 MUST 先按 HTTP、挑战信号和 MIME 分类，再做有界 HTML 结构/编码检查；错误页、不完整页面和明确拦截不得成为正文快照。原始字节归档及哈希复核后，文本提取 SHALL 仅接受 content snapshot ID，按声明的中文编码严格解码并冻结带提取器版本与哈希的派生文本，不执行脚本或加载外部资源。
@@ -169,7 +184,7 @@ CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 
 - **THEN** 系统 SHALL 终止流并把 fetch attempt 记为 `policy_skipped: response_size_exceeded`，不得发布 blob/snapshot 或针对同一超限响应自动重试；若这是已有成功页后的 discovery page，聚合 discovery attempt SHALL 按统一规则为 `partial_success`
 
 ### Requirement: 派生文本和索引版本化
-若现有或后续流程从原始快照生成文本、OCR、表格或页图，该派生物 MUST 记录父快照 ID、提取器名称/版本、参数、输出哈希和创建时间。提取器变化或输出哈希变化 MUST 创建新派生版本；搜索索引只可视为可重建缓存，不得覆盖或代表冻结证据，也不得改变旧证据清单引用的派生版本。本 change 只把现有文本/OCR 输出纳入版本约束，不新增业务文本/表格抽取能力。
+若现有或后续流程从原始快照生成文本、OCR、表格或页图，该派生物 MUST 记录父快照 ID、提取器名称/版本、参数、输出哈希和创建时间。提取器变化或输出哈希变化 MUST 创建新派生版本；搜索索引只可视为可重建缓存，不得覆盖或代表冻结证据，也不得改变旧证据清单引用的派生版本。本 change 的 PDF/HTML 原生文本及本地 OCR 同样遵守以上版本约束；结构化财务表格抽取不在本轮范围。
 
 #### Scenario: OCR 版本升级
 - **WHEN** 同一 PDF 使用新 OCR 版本产生不同文本

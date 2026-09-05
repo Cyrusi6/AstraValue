@@ -95,6 +95,8 @@
 
 ## 9. 真实联网样本门（独立门 2）
 
+2026-09-06 后续验收路径：用户授权在既有 `cninfo-content-archive-20260905` namespace 追加 production baseline，先备份并核对旧证据；9.3 改为读取该新 baseline 在统一 registry 1.9.0 下的适用主采安全 checkpoint，再以同一 DB/data root 连续执行两次独立 incremental。旧 9.2 试点及拒绝证据保留；以下早期命令路径仅为原验收记录，不要求重跑旧受限 namespace。
+
 - [x] 9.1 在任何联网前逐项只读技术复核巨潮、SSE、SZSE、贵州茅台 IR 的 exact request/redirect domain/path、访问方式、响应 schema、时间字段精度、discovery/正文保留、响应大小/速率/重试、许可/LLM 条款与检查日期，并由有权人工复核人签署新的 definition/registry 版本。Codex 辅助技术审核先冻结 v1.1 四源 `rejected/disabled`；随后 AstraValue 项目创作者/负责人以用户声明签署仅限个人、本地、低频、非商业研究的内部策略，创建 v1.2 并批准巨潮、SSE、SZSE 指定公开协议的自动访问、本地归档、派生文本和 LLM 处理，贵州茅台 IR 继续 `rejected/pending_policy/disabled`。该签署是项目内部访问策略审批，不是来源方授权或法律意见；登录、验证码、付费墙、challenge、401/403 或明确许可限制仍 MUST 立即停止。运行 `python scripts/validate_source_registry.py --registry config/data_sources/business_model_sources.v1.2.json --expect-business-model-v1 4 --require-plan-traceability` 必须通过，且 v1.1/v1.0 兼容 hash 不变；依据见 `docs/acquisition/source-access-policy-review-2026-09-04.md` 与 `docs/acquisition/source-access-policy-approval-2026-09-04.md`。
 - [x] 9.2 在 4.12–4.15 和 8.9 完成后，选择一个此前不存在的全新隔离 namespace，对 `600519` 执行 `python -m analysis.cli acquire start 600519 --mode baseline --db var/pilots/business-model-acquisition-v1-live-hardening/analysis.db --data-root var/pilots/business-model-acquisition-v1-live-hardening/data --json`；不得 execute/resume/修改旧 v1.3 run `5ed1c835-db47-40cb-98a4-ab71e325d029`。观察新 run 从证据支持起点到 as_of 的 physical query/coverage links、discovery proof、required fetch、逐来源真实状态与 causal groups；即使遇到 challenge/bootstrap failure，也必须无需人工中止便产生 final event，所有剩余工作有实际或零 I/O terminal 状态，checkpoint 停在最早 barrier，`coverage_accounted`/缺口/消费资格解释一致。默认数据库/原始目录哈希必须不变，试点文件与输出 JSON 不得加入 Git。
 - [ ] 9.3 读取 9.2 新 baseline 的 checkpoints；只有每个 enabled 且适用来源均存在兼容非空 `source_safe_through` 时，才把 `python -m analysis.cli acquire start 600519 --mode incremental --db var/pilots/business-model-acquisition-v1-live-hardening/analysis.db --data-root var/pilots/business-model-acquisition-v1-live-hardening/data --json` 原样连续执行两次，并观察 overlap、逐资源 `unchanged`/新增/变化、独立 run ID 和原子水位线。若任一安全 checkpoint 缺失，命令必须在创建 run/attempt 与 I/O 前退出 2、列出缺失来源，task 保持 unchecked 且在线门保持 pending；不得用无安全起点的运行凑满两次。任何 failure/partial/runtime policy skip 后的 checkpoint 必须停在失败位置。
@@ -126,3 +128,12 @@
 - [x] 12.5 聚焦回归、全量 pytest、registry/方法库/黄金清单结构、严格 OpenSpec、前端构建及一致性检查分别记录实际结果；自动化不替代真实联网或人工验收。
 - [x] 12.6 从已冻结目录创建显式分批归档运行，先定期报告及更正版本、招股材料，再其余公告；逐资源保存成功/失败、原始和派生哈希与来源 lineage，核对 1284 个 canonical ID 的最终状态，记录剩余缺口，不将目录归档冒充 production baseline/incremental。
 - [x] 12.7 修复流式读取总预算检查及租约续期，验证门禁/响应头/正文/EOF/组装超时均不发布成功响应；新增显式 registry 1.8.0 大附件有界配置，保留默认与全部旧版本，独立补抓两份本地超限正文并如实记录结果。
+
+## 13. 本地文本补全、历史复核与生产运行
+
+- [x] 13.1 冻结本地 OCR 环境、模型和参数；视觉抽样核对正文、密集财务表、签章及矢量字形页，记录数字/标点/负号误差和 PDF 页码映射，不以抽样冒充逐字验收。
+- [ ] 13.2 实现只接受有效 content snapshot 的可恢复本地 OCR；补全 31 份无原生文字 PDF 及 12 份局部缺页 PDF，冻结逐页布局与阅读文本，保留原生页、失败/空结果和低置信度复核状态；测试哈希/许可/隔离、页码、恢复及旧派生不可变。
+- [x] 13.3 本地复核两份历史 HTML 的目录标题与正文类型、报告期覆盖及 2001 年三季报制度适用性；区分已证实、冲突和待核，不将查询无结果认定为未披露。
+- [x] 13.4 实现显式跨版本正文 validator 兼容与 304 新观测，统一 registry 1.9.0 / CNINFO 1.8.0；测试旧 registry 哈希、版本/URL/许可/哈希/隔离负例、条件复用和新内容，保持 checkpoint 兼容单独控制。
+- [ ] 13.5 冻结生产方案、旧库备份与旧行/原始哈希清单；聚焦及全量测试、严格 OpenSpec、配置/一致性门和确切推送提交 CI 通过后，用新 production baseline 验证少量条件响应再完成全历史；不改旧运行或主库。
+- [ ] 13.6 完成新 baseline 及 9.3 两次 incremental 后，核对来源角色、HTTP discovery、复用/新增/变化/失败、覆盖与原子 checkpoint，并在阶段日志分别记录自动化、联网和人工黄金状态；未取得安全 checkpoint 时如实保留未完成。

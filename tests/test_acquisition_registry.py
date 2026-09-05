@@ -620,7 +620,7 @@ def test_registry_models_are_immutable_versions():
 
 def test_large_attachment_registry_is_explicit_and_preserves_existing_authority():
     loader = SourceRegistryLoader()
-    old = loader.load_registry(DEFAULT_REGISTRY_PATH)
+    old = loader.load_registry(DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.7.json"))
     large = loader.load_registry(DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.8.json"))
     assert old.registry.registry_version == "1.7.0"
     assert old.content_hash == "497038f52dc9b92faed3945cc99221e816fcaec4659ca417abb37f6c01bf2ee7"
