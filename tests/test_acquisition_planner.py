@@ -42,6 +42,36 @@ def _planner() -> AcquisitionPlanner:
     return AcquisitionPlanner(registry, questions)
 
 
+@pytest.mark.parametrize("mode", ["baseline", "incremental"])
+@pytest.mark.parametrize(
+    ("cutoff", "expected_last_date"),
+    [(datetime(2026, 9, 6, 15, 59, tzinfo=timezone.utc), "2026-09-06"),
+     (datetime(2026, 9, 6, 16, 0, tzinfo=timezone.utc), "2026-09-07")],
+)
+def test_source_local_dates_cover_midnight_in_baseline_and_incremental(mode, cutoff, expected_last_date):
+    loader = SourceRegistryLoader()
+    questions = loader.load_questions()
+    registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
+    start = datetime(2026, 8, 23, 16, tzinfo=timezone.utc)
+    plan = AcquisitionPlanner(registry, questions).plan(
+        _profile(), mode=mode, as_of=cutoff,
+        **({"start_at": start} if mode == "incremental" else {}),
+    )
+    queries = sorted(
+        (item for item in plan.physical_query_plan_items
+         if item.query_id == "cninfo.periodic_report"),
+        key=lambda item: item.time_start,
+    )
+    # CNINFO's calendar-day request must include the day at the source,
+    # including after Shanghai midnight while UTC is still the previous day.
+    expected_first_date = "2026-08-24" if mode == "incremental" else "2001-08-27"
+    assert queries[0].normalized_parameters["seDate"].split("~")[0] == expected_first_date
+    assert queries[-1].normalized_parameters["seDate"].split("~")[1] == expected_last_date
+    assert queries[-1].time_end == cutoff
+    if mode == "incremental":
+        assert queries[0].time_start == start
+
+
 def test_default_reviewed_registry_fails_closed_with_static_coverage_only():
     loader = SourceRegistryLoader()
     questions = loader.load_questions()

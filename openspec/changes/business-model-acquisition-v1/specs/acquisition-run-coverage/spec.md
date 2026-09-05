@@ -4,6 +4,14 @@
 
 ## ADDED Requirements
 
+### Requirement: 日期请求遵循来源时区
+计划中的日期模板 SHALL 在来源 `source_timezone` 下从边界时刻取日期；内部时刻边界 MUST 保留其精确 UTC 时刻。包含端点的上游日期查询允许分区间重复命中，既有 canonical 去重继续适用；不得改写旧冻结计划或由未查询的当地日期推进水位线。
+
+#### Scenario: 来源当地午夜已过但 UTC 尚在前一天
+- **WHEN** baseline 或 incremental 的截至时间在北京时间 00:00，UTC 仍在前一日 16:00
+- **THEN** CNINFO 请求的结束日期 MUST 包含北京时间的当天，公司招股日或 checkpoint 起点也 MUST 按来源当地日期渲染
+
+
 ### Requirement: 内部决策与审计导出读取完整持久记录
 运行汇总、恢复、熔断投影、依赖、重试谱系、资源去重、validator 和完整导出 MUST 遍历全部匹配的持久记录，不得使用显示接口的默认分页或较大固定上限推断完整性。显示 API SHALL 保留显式分页。修复只改变新计算的读取结果，不得重写旧已终结运行或已发布诊断输出。
 

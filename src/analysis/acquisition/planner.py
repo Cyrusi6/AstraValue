@@ -471,6 +471,7 @@ class AcquisitionPlanner:
             query,
             start,
             end,
+            definition.source_timezone,
         )
         identity = {
             "source_definition_id": definition.source_definition_id,
@@ -498,13 +499,15 @@ class AcquisitionPlanner:
         query: SourceQueryDefinition,
         start: datetime,
         end: datetime,
+        source_timezone: str,
     ) -> dict[str, Any]:
+        source_zone = ZoneInfo(source_timezone)
         replacements = {
             "ticker": profile.ticker,
             "market": profile.market.lower(),
             "plate": "sh" if profile.market == "SSE" else "sz",
-            "start_date": start.date().isoformat(),
-            "end_date": end.date().isoformat(),
+            "start_date": start.astimezone(source_zone).date().isoformat(),
+            "end_date": end.astimezone(source_zone).date().isoformat(),
             "start_at": start.isoformat(),
             "end_at": end.isoformat(),
         }
@@ -530,6 +533,7 @@ class AcquisitionPlanner:
             query,
             start,
             end,
+            definition.source_timezone,
         )
         plan_identity = {
             "run_id": run_id,
