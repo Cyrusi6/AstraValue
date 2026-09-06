@@ -1,8 +1,22 @@
 ## Context
 
+### 2026-09-06 MinerU 精准解析替换
+
+根据用户明确指令，当前公告扫描件解析器改为 MinerU 精准解析 API v4，显式 model_version=vlm、is_ocr=true、language=ch，开启表格与公式输出。本节覆盖下方历史本地 OCR 的实现选择；原始 PDF、旧派生和运行历史继续保留。移除 RapidOCR worker、独立模型配置及隐式 Tesseract 调用。HTML 和 PDF 原生提取仍可用；云解析只接受显式选择的已提交 PDF snapshot，不自动上传任意手工文件。
+
+密钥从进程环境或显式 .env.local 的 MINERU_API/MINERU_API_TOKEN 读取，不执行 dotenv 内容，不写入 Git、公开日志或证据参数。仅向 mineru.net/api/v4 发送 Bearer；通过 file-urls/batch 为每个 snapshot 申请上传任务，向官方返回且经精确主机校验的 HTTPS 存储地址 PUT 已校验字节，再轮询 extract-results/batch。上传/结果存储请求不携带 Bearer。MinerU 是解析服务，不是独立公告来源，不改变来源注册表或生产 checkpoint。
+
+配置冻结于 announcement_parser.mineru.v1.json。单文件上限 200 MB/200 页；超限明确要求拆分，禁止静默只读前 200 页。本次 43 份已归档 PDF 共 1177 页均在单文件限制内。串行上传允许服务处理先前任务；轮询间隔 10 秒，有界等待且保留远端任务。优先直连；按用户网络规则，只在发送前连接失败时切换 Clash 127.0.0.1:7897。未知 POST/PUT 结果不自动重发；显式 --retry-upload-once 仅在同任务仍 waiting-file 时允许对原上传地址补传一次，持久计数防止循环补传；采集来源继续执行既有直连合同。
+
+每个任务按 namespace/snapshot/原始哈希/解析配置冻结身份，磁盘锁防止并发重复提交。私有可恢复状态保存 batch/data ID 和短期签名链接；对外事件只保存脱敏状态。中断后使用同一任务，已完成结果复核全部派生哈希后零网络复用。提交响应丢失而任务身份未知时显式报告不确定状态；HTTP 401/403/429、额度、远端失败和超时不降级到轻量 API 或本地 OCR。
+
+结果 ZIP 有压缩/展开大小和路径检查，不执行任何内容；冻结原始 ZIP、Markdown、逐页布局和阅读文本为新 DerivedArtifact，记录父快照、配置、服务返回版本、任务和输出哈希。请求 vlm 与实际返回的 vlm/hybrid 后端分别冻结。返回 origin.pdf 仅为派生物，字节变化时须通过逐页渲染比对，不替换原始公告。layout.json 的零基 page_idx 必须无重复地覆盖原 PDF 每页且尺寸匹配，content_list 的页码和坐标必须合法。保留原生文字、表格 HTML、内容块、丢弃块和一基 PDF 页码。返回缺页不能发布完成文本；解析为空仍保留需视觉复核，远端未提供置信度时保存 null，全部机器输出保留人工未核状态。
+
+本轮先验证少量正文、表格与签章样本，再重解析旧 43 份扫描/混合文档并生成新的完整公告阅读索引。旧 334 页复核队列和黄金签署不回写。验收分别记录离线合同、实际 API 结果、视觉抽样与人工黄金门；无需重跑采集基线或增量。
+
 ### 2026-09-06 本地 OCR 与生产运行修订
 
-用户已授权先抽样 OCR、补全剩余扫描件和历史复核，再统一默认 registry 1.9.0 并在既有归档 namespace 新建 production baseline、完成两次 incremental。下文带日期的修订保留当时决定；当前执行范围以本节为准，旧运行和既有人工黄金签署门槛不变。
+用户已授权先抽样 OCR、补全剩余扫描件和历史复核，再统一默认 registry 1.9.0 并在既有归档 namespace 新建 production baseline、完成两次 incremental。下文带日期的修订保留当时决定；该历史阶段执行范围记录于本节，当前解析选择以上方 MinerU 修订为准，旧运行和既有人工黄金签署门槛不变。
 
 OCR 只接受已提交、许可允许、未隔离且重算哈希正确的 PDF snapshot。项目 Python 用 PyMuPDF 渲染页面，独立 Python 3.12 环境运行本地 RapidOCR/ONNX 中文模型，不上传材料。选择全部无原生文字页面，包括矢量字形轮廓页；已有原生文字逐页保留。新派生物分别冻结逐页布局 JSON 与整篇阅读文本，记录 parent snapshot/hash、PDF 一基页码（区别于印刷页码）、页面尺寸/rotation、DPI、模型哈希、依赖与引擎参数、文字框和置信度。页级结果可恢复且须重新校验输入/参数/输出哈希；失败与空结果显式记录，不能伪造空白页。低置信度、表格与签章页面保留复核标记，所有 OCR 输出均为机器派生；抽样通过不等于逐字人工验收或结构化财务抽取。原始 PDF、旧文本、旧派生版本与 manifest 不修改。
 
@@ -22,7 +36,7 @@ checkpoint 后续区间复用只读取确切 CAS 父链的已终结同 scope/sou
 
 新增 registry 1.5.0（HTML schema 3）、1.6.0（首发参数 category_sf_szsh）、1.7.0（CNINFO 1.6.0 primary、SSE 1.4.0 on_demand）保留之前合同。SSE 当前只有定期报告 DQBG 补缺能力；`acquire supplement` 接受 finalized 父运行的实际 required 缺口，生成保持来源身份的 ad_hoc reconcile，不清除巨潮屏障。旧版未声明 collection_role 时仍按主采解释。生产安全水位线前置条件按当前适用主采来源检查。
 
-HTML 正文先经过 HTTP/挑战/MIME/结构与严格中文解码校验，再冻结字节。PDF/HTML 原生文本仅从已提交且验证哈希的 content snapshot 派生，不运行页面脚本、不取子资源。缺文本 PDF 的本地 OCR 按 2026-09-06 修订执行。材料分类独立保留 title_type/content_type/evidence_status，检索类别不能代替类型判断。
+HTML 正文先经过 HTTP/挑战/MIME/结构与严格中文解码校验，再冻结字节。PDF/HTML 原生文本仅从已提交且验证哈希的 content snapshot 派生，不运行页面脚本、不取子资源。缺文本 PDF 按上方 MinerU 精准解析修订执行。材料分类独立保留 title_type/content_type/evidence_status，检索类别不能代替类型判断。
 
 目录归档入口读取已终结历史库的原始 proof、observation、snapshot 与行记录，复制支持字节到带哈希的本地目录输入。新 proof 的 `proof_kind=retained_inventory`、`http_status=null`、`io_performed=false` 明确表示本地选择；原来源 namespace/run/proof/snapshot/row locator 单独保留，绝不把它记作新 HTTP 查询。正文仍由正式 executor 下载，使用当前来源合同、lease、直连、allowlist、限速、challenge halt 与归档校验。批次按材料优先级分组后每批最多 100 条；恢复不重跑已终态失败，整项归档遇到明确访问限制时停止后续批次。每批是 ad_hoc，不推进生产水位线、不声称查询历史重新完整。
 
@@ -210,7 +224,7 @@ discovery response 与正文资源共用 blob/snapshot 原子发布机制但以 
 
 `available_at` 是“该确切字节版本可证明公开”的安全时间，snapshot 保存该值及其 basis，但不吸收每次访问上下文。`content` 快照必须保存 canonical/upstream 身份及原始 published/precision/source timezone：官方不可变附件可使用经验证的发布瞬时值，只提供当地日期时使用下一本地日界并保存 `published_at_precision=date`，会被覆盖且无版本证明的网页使用 creating `ResourceObservation.retrieved_at` 计算 `available_at`。`discovery_response` 快照以 plan item/page/cursor/query-page canonical 为角色身份，上游材料身份和 published_at 可空；本次 observed/retrieved 时间保存在 creating `DiscoveryObservation`，后续观测同样只追加 observation，均不得修改 snapshot。归档策略不允许时只保存合规的状态/最小诊断摘要，不保存正文。
 
-派生物写入绑定 data root 下的相对路径 `raw/derived/<snapshot_id>/<extractor-id>/<output-hash>`，包含 extractor 版本与参数。若现有或未来流程生成文本/OCR/表格/页图，现有 FTS 继续是可重建索引，但必须索引指定 derived artifact；不得覆盖被 manifest 引用的 `.txt`。本 change 提供 PDF/HTML 原生文本与本地 OCR 补全；结构化财务表格抽取不在本轮范围。`EvidenceSnapshotManifest` 使用 canonical JSON 哈希，文件副本写入同一 data root 下的相对路径 `acquisition/evidence/`，SQLite 保存同一内容和哈希；backup、quarantine 同样只从绑定根解析，API 只返回元数据/相对标识，不返回原始字节或绝对本地路径。项目默认 data root 可以位于 `var/`，但 `var` 不是持久模型的一部分。
+派生物写入绑定 data root 下的相对路径 `raw/derived/<snapshot_id>/<extractor-id>/<output-hash>`，包含 extractor 版本与参数。若现有或未来流程生成文本/OCR/表格/页图，现有 FTS 继续是可重建索引，但必须索引指定 derived artifact；不得覆盖被 manifest 引用的 `.txt`。本 change 提供 PDF/HTML 原生文本与 MinerU 精准解析；结构化财务表格抽取不在本轮范围。`EvidenceSnapshotManifest` 使用 canonical JSON 哈希，文件副本写入同一 data root 下的相对路径 `acquisition/evidence/`，SQLite 保存同一内容和哈希；backup、quarantine 同样只从绑定根解析，API 只返回元数据/相对标识，不返回原始字节或绝对本地路径。项目默认 data root 可以位于 `var/`，但 `var` 不是持久模型的一部分。
 
 完整性复核不修改不可变 snapshot：每次读取检查都追加 `SnapshotIntegrityEvent`。最新有效事件为 `quarantined` 时，新 manifest 与默认消费查询必须拒绝该 snapshot 并生成 reconcile 候选；历史报告和旧 manifest 引用仍保持原样。
 

@@ -139,3 +139,10 @@
 - [x] 13.6 完成新 baseline 及 9.3 两次 incremental 后，核对来源角色、HTTP discovery、复用/新增/变化/失败、覆盖与原子 checkpoint，并在阶段日志分别记录自动化、联网和人工黄金状态；未取得安全 checkpoint 时如实保留未完成。
 
 - [x] 13.7 补强 checkpoint 连续性与历史完成区间的本地复核：只沿同 scope/source 的 CAS 父链使用完整 proof 和有效 required snapshots，保留未解决 barrier，禁止跨未证明空档或用旧完成区间覆盖本次失败；记录历史 plan ID 并保持最新 validator。验证中间补缺、损坏快照、隔离、重叠失败、来源隔离、旧行不可变及无额外历史 I/O，完成全量和确切提交 CI 后用于后续运行。
+
+## 14. MinerU 精准解析替换（用户 2026-09-06 新指令）
+
+- [x] 14.1 新增版本化 MinerU 精准 API v4/vlm 配置和客户端；仅从环境或 .env.local 读取密钥，验证 Bearer 域隔离、签名上传、响应/ZIP 上限、错误脱敏及直连连接失败时 Clash 回退。运行 `python -m pytest tests/test_acquisition_mineru.py -q`。
+- [x] 14.2 移除本地 RapidOCR worker 和隐式 Tesseract，接入显式 snapshot 解析 CLI、持久任务恢复与新版本派生，验证许可/隔离/哈希、页码/表格/原生文本、失败/不确定状态、重复执行零网络与旧证据不可变。
+- [x] 14.3 用真实 API 先检查正文、表格及签章样本，再处理原 43 份扫描/混合 PDF，逐项核对页数与结果哈希、生成新版 1284 条阅读索引；保留旧原文、旧行/派生、历史失败和人工 pending，不重跑生产采集。
+- [ ] 14.4 聚焦及全量测试、严格 OpenSpec、来源/方法/黄金结构校验、diff 与旧证据一致性检查通过；提交推送并核对确切提交 CI，阶段日志分别记录自动化/API/人工验收结果。

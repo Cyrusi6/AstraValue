@@ -4,20 +4,28 @@
 
 ## ADDED Requirements
 
-### Requirement: 本地 OCR 补全与逐页原文对应
-系统 SHALL 仅从许可允许、未隔离且完整性有效的已提交 PDF snapshot 补全缺失文本页，先视觉抽样核对正文、表格、签章及不同页面形态再批量执行。原始 PDF、原生文本和旧派生物 MUST 保留。新布局 JSON 与阅读文本 SHALL 冻结 parent snapshot/hash、PDF 一基页码、页面尺寸/旋转、渲染 DPI、模型/依赖/参数、文字框坐标、置信度和输出哈希。机器 OCR 不得冒充原生文字或已人工验收的财务事实。
+### Requirement: MinerU 精准解析与逐页原文对应
+系统 SHALL 使用 MinerU 精准解析 API v4，显式选择 vlm 模型并开启扫描识别、表格与公式，替换旧本地 OCR 流程。云解析 SHALL 只接受显式选择、许可允许派生及 LLM 处理、未隔离且完整性有效的已提交 PDF snapshot。原始 PDF、原生文本、旧派生物和人工签署 MUST 保留。新派生 SHALL 冻结父快照、API/服务/提取器版本、配置、任务 ID、ZIP/Markdown/逐页布局/阅读文本和哈希；不得伪造置信度或已核对的财务事实。
 
-#### Scenario: 有文字轮廓但没有文本层或图片对象
-- **WHEN** PDF 页面可见文字但原生提取为空，即使没有图片对象
-- **THEN** 系统 SHALL 渲染该完整页面并执行本地 OCR，保留该页的原始坐标和页码，不因无图片对象漏处理
+#### Scenario: 使用本地保存的密钥上传归档公告
+- **WHEN** 用户通过 .env.local 或环境变量配置 MINERU_API/MINERU_API_TOKEN 并选择 PDF snapshot
+- **THEN** 系统 MUST 在云 I/O 前校验许可、隔离、字节长度、哈希及官方单文件限制，只向固定 MinerU API 主机发送 Bearer，向已校验的官方签名地址上传对应字节；凭据和签名地址不得出现在 Git、公开日志或派生证据参数中
 
-#### Scenario: 中断后复用逐页结果
-- **WHEN** OCR 批次中断后恢复
-- **THEN** 系统 SHALL 只复用 snapshot/hash、页码、渲染与引擎参数及输出哈希均匹配的已提交页级派生物，保留旧失败/版本并继续剩余页
+#### Scenario: 解析过程中断后恢复
+- **WHEN** 任务已取得 batch ID 或结果已冻结后进程中断
+- **THEN** 系统 SHALL 校验任务与 namespace/snapshot/hash/config 身份，继续查询原任务或验证全部缓存派生物后复用，默认不重新提交或重复上传；显式补传只可在同任务仍 waiting-file 时对原地址执行至多一次，认证或参数被明确拒绝后允许后续显式调用重新提交；提交结果未知且无 batch ID 时 SHALL 显式报告不确定状态
 
-#### Scenario: 空结果或低置信度
-- **WHEN** 页面 OCR 无文字、执行失败或出现低置信度文字框
-- **THEN** 系统 SHALL 保留机器可读复核状态与原页，不把零识别认定为空白，不删除低置信度内容，也不声称全文逐字准确
+#### Scenario: 页码覆盖或布局合同异常
+- **WHEN** 返回 ZIP 路径不安全、展开大小超限、结果缺页/重复页、内容页码越界或页面尺寸不匹配
+- **THEN** 系统 MUST 拒绝发布完成阅读文本，保留原始公告与已有诊断状态，不能只解析前部后声称全文完成
+
+#### Scenario: 空页面、表格、签章及原生文字
+- **WHEN** MinerU 返回完整页面结构并包含空结果、表格或图像内容
+- **THEN** 系统 SHALL 保留零基服务页码与一基 PDF 页码映射、原生文字、内容块与表格 HTML；空结果、数字和图像须明确保留复核状态，未返回置信度时 SHALL 保存 null
+
+#### Scenario: API 限流、认证失败或任务失败
+- **WHEN** 服务拒绝凭据、限流、额度不足、网络超时或远端解析失败
+- **THEN** 系统 SHALL 记录脱敏失败/待处理状态并保留可恢复任务；不得自动切换轻量 API、本地 OCR 或伪造空正文成功
 
 ### Requirement: 公开大附件与流式总预算
 显式 registry 1.8.0 / CNINFO 1.7.0 SHALL 将响应、压缩和解压上限固定为 128 MiB、attempt 预算固定为 600 秒，保持 socket timeout 30 秒、直连、TLS、并发 1、5 秒间隔与无自动重试。旧 registry 1.7.0 及其冻结计划 MUST 保留原限制；当前默认 registry 1.9.0 / CNINFO 1.8.0 沿用上述大附件预算；补抓 MUST 使用独立冻结输入和运行，保留旧失败。传输 SHALL 在门禁放行、响应头、流读取前后及最终组装后校验预算和租约；已经过期的响应 MUST 关闭且不得发布成功 envelope。阻塞读取仍服从 socket timeout，不声称精确毫秒取消。
@@ -50,7 +58,7 @@
 
 #### Scenario: 正文可归档但没有可提取文字
 - **WHEN** PDF 原始文件有效但文本层为空
-- **THEN** 原始归档 SHALL 保留，原生文本状态 SHALL 明确 requires_review；用户授权的本地 OCR SHALL 另建派生版本并保留其机器识别属性
+- **THEN** 原始归档 SHALL 保留，原生文本状态 SHALL 明确 requires_review；用户授权的 MinerU 精准解析 SHALL 另建派生版本并保留其机器识别属性
 
 ### Requirement: 版本化历史 HTML 正文与派生文本
 CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 HTML MIME，旧 schema 的重放行为 MUST 保持原样。系统 MUST 先按 HTTP、挑战信号和 MIME 分类，再做有界 HTML 结构/编码检查；错误页、不完整页面和明确拦截不得成为正文快照。原始字节归档及哈希复核后，文本提取 SHALL 仅接受 content snapshot ID，按声明的中文编码严格解码并冻结带提取器版本与哈希的派生文本，不执行脚本或加载外部资源。
@@ -150,7 +158,7 @@ CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 
 - **THEN** 系统 SHALL 复用 blob 和已有快照引用，并且 SHALL 以新 ResourceObservation 保留 `unchanged` disposition 及本次 validator/观测时间
 
 ### Requirement: 供未来 Codex 使用的冻结证据清单门禁
-任何未来拟提交给 Codex 或其他 LLM 的材料批次 MUST 先生成不可变 `EvidenceSnapshotManifest`，固定 run ID、问题清单版本、允许 LLM 的来源定义版本、原始资源快照 ID、所用派生文本/页图版本与哈希、`as_of`、排除项和清单哈希。门禁 MUST 逐项验证归档存在、哈希匹配、point-in-time 合格、许可允许且未隔离；任一验证失败时不得部分静默放行。本 change 只实现 manifest 构建与校验合同，不实现实际 LLM 调用、文本抽取或定性推断。
+任何未来拟提交给 Codex 或其他 LLM 作研究推断的材料批次 MUST 先生成不可变 `EvidenceSnapshotManifest`，固定 run ID、问题清单版本、允许 LLM 的来源定义版本、原始资源快照 ID、所用派生文本/页图版本与哈希、`as_of`、排除项和清单哈希。门禁 MUST 逐项验证归档存在、哈希匹配、point-in-time 合格、许可允许且未隔离；任一验证失败时不得部分静默放行。本 change 的研究消费入口实现 manifest 构建与校验，不调用 Codex 作定性推断；用户授权的 MinerU 文档解析作为独立派生步骤遵守本能力的云解析约束。
 
 #### Scenario: 合格材料取得未来 LLM 消费资格
 - **WHEN** 所有选中材料均已归档、哈希匹配、`available_at` 不晚于 `as_of` 且 `llm_processing=allowed`
@@ -184,7 +192,7 @@ CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 
 - **THEN** 系统 SHALL 终止流并把 fetch attempt 记为 `policy_skipped: response_size_exceeded`，不得发布 blob/snapshot 或针对同一超限响应自动重试；若这是已有成功页后的 discovery page，聚合 discovery attempt SHALL 按统一规则为 `partial_success`
 
 ### Requirement: 派生文本和索引版本化
-若现有或后续流程从原始快照生成文本、OCR、表格或页图，该派生物 MUST 记录父快照 ID、提取器名称/版本、参数、输出哈希和创建时间。提取器变化或输出哈希变化 MUST 创建新派生版本；搜索索引只可视为可重建缓存，不得覆盖或代表冻结证据，也不得改变旧证据清单引用的派生版本。本 change 的 PDF/HTML 原生文本及本地 OCR 同样遵守以上版本约束；结构化财务表格抽取不在本轮范围。
+若现有或后续流程从原始快照生成文本、OCR、表格或页图，该派生物 MUST 记录父快照 ID、提取器名称/版本、参数、输出哈希和创建时间。提取器变化或输出哈希变化 MUST 创建新派生版本；搜索索引只可视为可重建缓存，不得覆盖或代表冻结证据，也不得改变旧证据清单引用的派生版本。本 change 的 PDF/HTML 原生文本及 MinerU 精准解析同样遵守以上版本约束；结构化财务表格抽取不在本轮范围。
 
 #### Scenario: OCR 版本升级
 - **WHEN** 同一 PDF 使用新 OCR 版本产生不同文本

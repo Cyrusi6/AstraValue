@@ -1079,20 +1079,13 @@ def _extract_text(
         ocr_used = False
         with fitz.open(path) as document:
             pages = []
-            ocr_available = True
             for index, page in enumerate(document, 1):
                 page_text = page.get_text("text")
-                if len(page_text.strip()) < 20 and ocr_available:
-                    try:
-                        text_page = page.get_textpage_ocr(language="chi_sim+eng", dpi=180, full=True)
-                        page_text = page.get_text("text", textpage=text_page)
-                        ocr_used = True
-                    except Exception as exc:
-                        ocr_available = False
-                        warnings.append(f"OCR不可用，扫描页保留为空: {exc}")
+                if not page_text.strip():
+                    warnings.append("扫描页待通过已归档快照的 MinerU 精准解析流程补全")
                 pages.append(f"--- page {index} ---\n{page_text}")
         if not any(item.split("\n", 1)[-1].strip() for item in pages):
-            warnings.append("PDF未提取到可检索文本，请人工补充OCR文本")
+            warnings.append("PDF未提取到原生文本，待 MinerU 精准解析")
         return "\n\n".join(pages), len(pages), ocr_used, sorted(set(warnings))
     text = path.read_text(encoding="utf-8", errors="replace")
     if suffix in {".html", ".htm"}:

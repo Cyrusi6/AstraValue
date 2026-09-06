@@ -10,6 +10,8 @@
 
 ## 公司业务与商业模式资料采集（v1）
 
+已归档扫描公告的文字与表格解析使用 MinerU 精准解析 API v4（`vlm`），本地密钥读取 `.env.local` 的 `MINERU_API`。新入口为 `scripts/parse_announcement_mineru.py`，支持远端任务恢复及带 PDF 页码的不可变结果；见 [解析配置与用法](docs/acquisition/mineru-precision-parser.md)。原本地 OCR 执行流程已移除，历史结果继续保留。
+
 这部分只建立可审计的资料采集底座；业务问题仍以 [`docs/methodology/steps/01_business_model.md`](docs/methodology/steps/01_business_model.md) 的 `content_status: skeleton` 文件为边界。本功能不抽取业务结论，不调用 Codex，不判断护城河、定价权、战略可信度或投资价值。
 
 所有会写入或联网的采集命令都必须显式提供匹配的 `--db` 和 `--data-root`。首次运行使用 `baseline` 完成从证据锚点开始的历史计划；有安全 checkpoint 后使用 `incremental`，它按来源水位线和固定 overlap window 检查新增及变化；缺口、迟到修订、完整性问题或不兼容注册表变化使用 `reconcile`。调用方不能用时间或问题筛选缩小 production baseline 后仍声称完整。
@@ -18,9 +20,9 @@
 
 API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先定位最早未解决 barrier，再考虑无 barrier 的未解决 coverage、隔离快照和最早已完成时间片。输出包含精确页/游标、来源、查询、父时间片和固定 overlap 范围；计划只包含该目标及所需前置查询。`--from-latest-run` 会列出被排除的较新未终结 run；任何适用且 enabled 的主采来源缺少安全 checkpoint 时，incremental 在创建 run 和联网前拒绝。
 
-当前默认注册表为 `business_model_sources.v1.7.json`：巨潮 `1.6.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧 v1.0–v1.6 合同保留用于历史重放。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
+当前默认注册表为 `business_model_sources.v1.9.json`：巨潮 `1.8.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧 v1.0–v1.8 合同保留用于历史重放。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
 
-公开大附件可显式选择 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。默认配置和旧计划不变，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
+公开大附件从 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）起支持，当前默认 1.9 沿用：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。旧配置和旧计划保留，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
 
 兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
 

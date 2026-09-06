@@ -1,0 +1,21 @@
+{
+  "schema_version": "announcement-parser-v1",
+  "provider": "mineru-precision",
+  "api_base": "https://mineru.net/api/v4",
+  "model_version": "vlm",
+  "language": "ch",
+  "is_ocr": true,
+  "enable_table": true,
+  "enable_formula": true,
+  "max_file_bytes": 200000000,
+  "max_pages": 200,
+  "max_zip_bytes": 268435456,
+  "max_uncompressed_bytes": 1073741824,
+  "request_timeout_seconds": 60,
+  "poll_interval_seconds": 10,
+  "poll_timeout_seconds": 1800,
+  "fallback_proxy": "http://127.0.0.1:7897",
+  "upload_hosts": ["mineru.oss-cn-shanghai.aliyuncs.com", "oss-mineru.openxlab.org.cn"],
+  "download_hosts": ["cdn-mineru.openxlab.org.cn", "mineru.oss-cn-shanghai.aliyuncs.com", "oss-mineru.openxlab.org.cn"],
+  "documentation": "https://mineru.net/apiManage/docs"
+}

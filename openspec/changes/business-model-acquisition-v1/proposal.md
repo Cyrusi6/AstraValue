@@ -6,7 +6,7 @@ AstraValue 已具备正式公告下载、哈希归档和部分 point-in-time 快
 
 ### Scope
 
-- 按 2026-09-06 用户指令补全本地无文本 PDF 页面：先视觉抽样核对 OCR，再处理全扫描及局部缺文本页；保留原始 PDF、原生文本、PDF 一基页码、文字框坐标、模型/参数与派生哈希，不将 OCR 数字直接提升为财务事实。
+- 按 2026-09-06 用户最新指令，将本地 RapidOCR/Tesseract 流程替换为 MinerU 精准解析 API v4（vlm）；密钥从本地环境读取，上传已校验且许可允许的归档 PDF，保留远端任务恢复、原始 ZIP/Markdown/逐页布局/表格和派生哈希。重解析原 43 份扫描/混合公告，保留原 PDF、原生文本、旧派生和人工未核状态。
 - 统一生产 registry 1.9.0 / CNINFO 1.8.0，显式声明正文 validator 兼容版本，严格验证旧正文后经当次真实条件响应复用；在既有正文归档 namespace 追加新的 production baseline 和两次安全 incremental，旧 ad_hoc 目录与所有历史证据保持不变。
 - 新增版本化 `SourceDefinition` 注册表，明确上游身份、权威级别、访问方式、许可与使用限制、适用主题、刷新频率、增量策略及 LLM 处理许可；`business_model` v1 范围固定为巨潮资讯、上海证券交易所、深圳证券交易所和一个贵州茅台官方投资者关系站点定义，其中 IR 定义在 exact allowlist 与许可人工核对前保持 `pending_policy/disabled`，既有财务 adapter 仅以 legacy 定义保持兼容。
 - 新增 `AcquisitionRun`、区分 `discovery|fetch` 的物理执行 `AcquisitionAttempt`、物理查询计划与业务问题覆盖的多对多关联、可过期执行租约、来源级 checkpoint、水位线、覆盖清单和不可变 `RawResourceSnapshot`；attempt 只引用实际执行的物理计划项，使一次传输查询可在不重复联网的前提下证明来源 × 业务问题 × 时间范围的每个单元状态，并能在进程崩溃后安全接管。
