@@ -6,8 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
-from .models import AcquisitionRunEventType, AttemptKind, CoveragePlanDisposition
+from .models import AcquisitionMode, AcquisitionRunEventType, AttemptKind, CoveragePlanDisposition
 from .repository import AcquisitionNotFoundError
+from .registry import canonical_json_sha256
+
+
+RANGE_POLICY_VERSION = "bounded-parent-range-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,7 +30,94 @@ def _position_key(value: str) -> tuple:
         return ("", 0, value, "")
 
 
-def select_reconcile_target(repository, definitions, parent_run_id, *, as_of, now=None):
+def _aware_time(value):
+    parsed = datetime.fromisoformat(value)
+    if parsed.utcoffset() is None:
+        raise ValueError("reconcile父范围时间必须包含时区")
+    return parsed
+
+
+def _parent_range_floor(repository, parent, plans, selected, frozen_definitions):
+    """Validate a frozen repair range against its persisted discovery graph."""
+    try:
+        target = parent.reconcile_target
+        lower = _aware_time(target["effective_range"]["time_start"])
+        upper = _aware_time(target["effective_range"]["time_end"])
+        if not lower <= selected.time_start < selected.time_end <= upper <= parent.as_of:
+            raise ValueError("目标不在父恢复范围内")
+        policy_fields = {"range_policy_version", "range_floor", "range_floor_source"}
+        if policy_fields.intersection(target):
+            if target.get("range_policy_version") != RANGE_POLICY_VERSION:
+                raise ValueError("未知或不完整range_policy_version")
+            if _aware_time(target["range_floor"]) != lower:
+                raise ValueError("range_floor与effective_range矛盾")
+            ancestor = repository.get_run(parent.parent_run_id)
+            expected_source = (f"parent_effective_range:{ancestor.run_id}"
+                               if ancestor.mode == AcquisitionMode.RECONCILE
+                               else "source_overlap_and_earliest_available_at")
+            if target["range_floor_source"] != expected_source:
+                raise ValueError("range_floor_source与父运行关系矛盾")
+        if (target["parent_run_id"] != parent.parent_run_id or
+                target["resolved_parent_run_id"] != parent.parent_run_id or
+                _aware_time(target["start_at"]) != lower or
+                _aware_time(target["as_of"]) != parent.as_of):
+            raise ValueError("父target身份或时间矛盾")
+
+        # The target names a plan in the preceding run, not in this parent.
+        origin = next(p for p in repository.list_physical_query_plan_items(parent.parent_run_id)
+                      if p.plan_item_id == target["plan_item_id"])
+        if (origin.attempt_kind != AttemptKind.DISCOVERY or
+                any(getattr(origin, field) != target[field] for field in (
+                    "source_definition_id", "source_definition_version", "query_id", "partition_key")) or
+                origin.time_start != _aware_time(target["parent_time_start"]) or
+                origin.time_end != _aware_time(target["parent_time_end"]) or
+                not lower <= origin.time_start < upper <= origin.time_end):
+            raise ValueError("父target与原计划矛盾")
+        definition = next(d for d in frozen_definitions
+                          if d.source_definition_id == selected.source_definition_id
+                          and str(d.version) == selected.source_definition_version)
+        if definition.source_definition_id != target["source_definition_id"]:
+            raise ValueError("父target来源不一致")
+        queries = {q.query_id: q for q in definition.queries}
+        allowed = set()
+
+        def include(query_id):
+            if query_id in allowed:
+                return
+            allowed.add(query_id)
+            for binding in queries[query_id].parameter_bindings.values():
+                include(binding.source_query_id)
+
+        include(target["query_id"])
+        intervals = {query_id: [] for query_id in allowed}
+        for plan in plans.values():
+            if plan.attempt_kind != AttemptKind.DISCOVERY:
+                continue
+            query = queries[plan.query_id]
+            if (plan.query_id not in allowed or
+                    plan.source_definition_id != definition.source_definition_id or
+                    plan.source_definition_version != str(definition.version) or
+                    plan.partition_key != query.partition_key or
+                    plan.pagination_fingerprint != canonical_json_sha256(query.pagination) or
+                    not lower <= plan.time_start < plan.time_end <= upper):
+                raise ValueError("父discovery计划与冻结来源或范围矛盾")
+            intervals[plan.query_id].append((plan.time_start, plan.time_end))
+        # Reject a fabricated floor, missing prefix/suffix, gap or overlap.
+        for query_id, slices in intervals.items():
+            cursor = max(lower, queries[query_id].earliest_available_at or lower)
+            for start, end in sorted(slices):
+                if start != cursor:
+                    raise ValueError("父discovery范围不连续")
+                cursor = end
+            if not slices or cursor != upper:
+                raise ValueError("父discovery计划未覆盖冻结范围")
+        return lower
+    except (KeyError, TypeError, AttributeError, StopIteration, ValueError) as exc:
+        raise ValueError(f"reconcile父恢复范围无效: {exc}") from exc
+
+
+def select_reconcile_target(repository, definitions, parent_run_id, *, as_of, now=None,
+                            frozen_definitions=()):
     parent = repository.get_run(parent_run_id)
     if not any(event.event_type == AcquisitionRunEventType.FINALIZED
                for event in repository.list_run_events(parent_run_id)):
@@ -123,6 +214,15 @@ def select_reconcile_target(repository, definitions, parent_run_id, *, as_of, no
     start = plan.time_start - timedelta(days=definition.incremental_policy.overlap_days)
     if query.earliest_available_at is not None:
         start = max(start, query.earliest_available_at)
+    floor_source = "source_overlap_and_earliest_available_at"
+    if parent.mode == AcquisitionMode.RECONCILE:
+        if str(definition.version) != plan.source_definition_version:
+            raise ValueError("reconcile父恢复范围缺少当前兼容来源版本")
+        floor = _parent_range_floor(repository, parent, plans, plan, frozen_definitions)
+        start = max(start, floor)
+        if start > plan.time_start:
+            raise ValueError("reconcile父恢复范围不得截断精确目标")
+        floor_source = f"parent_effective_range:{parent_run_id}"
     if end <= plan.time_start or start >= end:
         raise ValueError("reconcile effective range为空或as_of早于目标")
     refs = {(d.source_definition_id, str(d.version)) for d in definitions if "business_model" in d.scopes}
@@ -143,6 +243,8 @@ def select_reconcile_target(repository, definitions, parent_run_id, *, as_of, no
         "canonical_resource_id": None if barrier is None else barrier.get("canonical_resource_id"),
         "quarantined_snapshot_id": snapshot_id,
         "effective_range": {"time_start": start.isoformat(), "time_end": end.isoformat()},
+        "range_policy_version": RANGE_POLICY_VERSION,
+        "range_floor": start.isoformat(), "range_floor_source": floor_source,
         "overlap_days": definition.incremental_policy.overlap_days,
         "start_at": start.isoformat(), "as_of": cutoff.isoformat(),
         "registry_compatibility_review_required": refs != {

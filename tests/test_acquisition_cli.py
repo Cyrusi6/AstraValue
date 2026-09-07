@@ -128,11 +128,17 @@ def _patch_runtime(monkeypatch, runtime):
     return calls
 
 
-def test_api_cli_same_target_shared_selector_exact_work_position(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("repeat_repair", [False, True])
+def test_api_cli_same_target_shared_selector_exact_work_position(tmp_path, monkeypatch, capsys, repeat_repair):
     from fastapi.testclient import TestClient
     from analysis.api import create_app
     from orchestrator_support import later_barrier_runtime, NOW as CUTOFF
     runtime, adapter, parent, expected, state = later_barrier_runtime(tmp_path / "shared")
+    if repeat_repair:
+        parent = runtime.plan_company_run("600519", mode="reconcile", as_of=CUTOFF,
+                                          parent_run_id=parent.run.run_id)
+        runtime.orchestrator.execute_run(parent.run.run_id)
+        expected = next(p for p in parent.physical_query_plan_items if p.execution_key == expected.execution_key)
     _patch_runtime(monkeypatch, runtime)
     calls_before = len(adapter.query_calls)
     code = main(["acquire", "start", "600519", "--mode", "reconcile", "--from-run",
@@ -148,6 +154,9 @@ def test_api_cli_same_target_shared_selector_exact_work_position(tmp_path, monke
     assert response.status_code == 201, response.text
     api_target = response.json()["run"]["reconcile_target"]
     assert api_target == cli_target
+    assert api_target["range_policy_version"] == "bounded-parent-range-v1"
+    if repeat_repair:
+        assert api_target["range_floor"] == parent.run.reconcile_target["range_floor"]
     assert api_target["plan_item_id"] == expected.plan_item_id
     assert json.loads(api_target["work_position"])["page"] == 3
     assert len(adapter.query_calls) == calls_before

@@ -2175,6 +2175,7 @@ class AcquisitionOrchestrator:
         return select_reconcile_target(
             self.repository, self._definitions(), parent_run_id,
             as_of=_utc(as_of or self._now()), now=_utc(self._now()),
+            frozen_definitions=self._frozen_definitions_for_run(self.repository.get_run(parent_run_id)),
         )
 
     # Persistence helpers --------------------------------------------------

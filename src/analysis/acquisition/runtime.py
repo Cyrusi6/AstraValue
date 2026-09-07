@@ -555,6 +555,7 @@ class AcquisitionRuntime:
             selection = select_reconcile_target(
                 self.repository, self.loaded_registry.registry.definitions,
                 resolved_parent, as_of=cutoff, now=self.clock(),
+                frozen_definitions=self.frozen_source_definitions(parent),
             )
             start_at = selection.start_at
             target = {**selection.target, "excluded_newer_unfinalized_runs": excluded}
