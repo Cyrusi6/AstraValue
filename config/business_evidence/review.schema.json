@@ -1,0 +1,240 @@
+{
+  "$defs": {
+    "Citation": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_id": {
+          "minLength": 1,
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "derived_artifact_id": {
+          "minLength": 1,
+          "title": "Derived Artifact Id",
+          "type": "string"
+        },
+        "page_number": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Page Number"
+        },
+        "section": {
+          "minLength": 1,
+          "title": "Section",
+          "type": "string"
+        },
+        "quote": {
+          "minLength": 8,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "derived_artifact_id",
+        "page_number",
+        "section",
+        "quote"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "CorrectionInput": {
+      "additionalProperties": false,
+      "properties": {
+        "previous_record_id": {
+          "minLength": 1,
+          "title": "Previous Record Id",
+          "type": "string"
+        },
+        "replacement_record_id": {
+          "minLength": 1,
+          "title": "Replacement Record Id",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "citation": {
+          "$ref": "#/$defs/Citation"
+        }
+      },
+      "required": [
+        "previous_record_id",
+        "replacement_record_id",
+        "reason",
+        "citation"
+      ],
+      "title": "CorrectionInput",
+      "type": "object"
+    },
+    "FactInput": {
+      "additionalProperties": false,
+      "properties": {
+        "record_id": {
+          "minLength": 1,
+          "title": "Record Id",
+          "type": "string"
+        },
+        "company_id": {
+          "pattern": "^\\d{6}$",
+          "title": "Company Id",
+          "type": "string"
+        },
+        "subject": {
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        },
+        "subject_role": {
+          "enum": [
+            "company",
+            "subsidiary",
+            "investee",
+            "third_party"
+          ],
+          "title": "Subject Role",
+          "type": "string"
+        },
+        "period": {
+          "minLength": 1,
+          "title": "Period",
+          "type": "string"
+        },
+        "metric": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Metric",
+          "type": "string"
+        },
+        "dimensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Dimensions",
+          "type": "object"
+        },
+        "basis": {
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "event_stage": {
+          "enum": [
+            "reported",
+            "planned",
+            "approved",
+            "in_progress",
+            "completed",
+            "company_claim",
+            "reclassification"
+          ],
+          "title": "Event Stage",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "decimal",
+            "text"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        },
+        "value": {
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "question_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Question Ids",
+          "type": "array"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        },
+        "revision": {
+          "default": "original",
+          "minLength": 1,
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_id",
+        "company_id",
+        "subject",
+        "subject_role",
+        "period",
+        "metric",
+        "dimensions",
+        "basis",
+        "event_stage",
+        "value_type",
+        "value",
+        "unit",
+        "question_ids",
+        "citations"
+      ],
+      "title": "FactInput",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "reviewer": {
+      "minLength": 1,
+      "title": "Reviewer",
+      "type": "string"
+    },
+    "records": {
+      "items": {
+        "$ref": "#/$defs/FactInput"
+      },
+      "minItems": 1,
+      "title": "Records",
+      "type": "array"
+    },
+    "corrections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CorrectionInput"
+      },
+      "title": "Corrections",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "reviewer",
+    "records"
+  ],
+  "title": "ReviewBatch",
+  "type": "object"
+}

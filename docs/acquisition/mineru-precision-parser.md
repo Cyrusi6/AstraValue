@@ -35,3 +35,7 @@ python scripts/build_mineru_reading_index.py `
 ```
 
 阅读目录包括完整公告索引、逐页待复核队列，以及每份公告的 Markdown/图片、逐页文本和布局。旧阅读目录继续保留；新索引中的 `effective_parser` 明确区分原生文字与 MinerU 结果。
+
+同 namespace 中相同原 PDF SHA-256、配置与 extractor 版本的另一快照，现在可复用已经完成的解析，不再申请远端任务或上传。消费者仍创建以自身 snapshot 为父的新派生，`parse_reuse` 保存原 bundle、layout、text、Markdown 的 ID；文本/Markdown 字节必须一致，layout 只替换本地快照与 bundle 身份。双方 PDF、许可、完整性、隔离及配置均检查，manifest 消费也重新验证。原始公告、旧派生、任务及来源身份不变。
+
+内容锁阻止相同字节并行提交；若原任务只提交未完成，返回 `mineru_same_content_parse_pending_resume_producer`，应先恢复原 snapshot 的解析，再处理重复 snapshot。配置不同、损坏或隔离的材料不能复用。正文抓取仍以合法条件请求识别变化：有效 304 不下载正文；不同 URL 未提供可靠内容标识时，首次取得字节后才能确认是否完全相同。

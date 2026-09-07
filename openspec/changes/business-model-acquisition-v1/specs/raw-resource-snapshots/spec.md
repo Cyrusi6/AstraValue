@@ -4,6 +4,17 @@
 
 ## ADDED Requirements
 
+### Requirement: 相同正文的解析复用保留各自谱系
+MinerU SHALL 对相同 namespace、原始 PDF SHA-256、配置和 extractor 版本使用内容锁，并复用已经完成的同内容解析。consumer MUST 新建以自身 snapshot 为父的派生，以 `parse_reuse` 固定单跳 producer bundle 及各派生 ID；原 parent、snapshot、来源观测与旧文件不得修改。双方 PDF、原始及派生字节、许可、namespace、配置和隔离状态 MUST 验证。text/Markdown 必须与 producer 一致，layout 仅更换 consumer 快照/bundle 身份。缓存读取及 manifest 消费 MUST 复核同一关系；不同字节/配置不复用，在途同内容任务先恢复 producer，不另行上传。
+
+#### Scenario: 两个 URL 取得相同 PDF
+- **WHEN** 两个快照的来源身份分别保留、字节与解析配置相同，且第一份已解析完成
+- **THEN** 第二份 SHALL 零 allocate/upload 生成自身派生引用，保留原 producer 关系，正文事实不会把镜像计作独立证明
+
+#### Scenario: producer 被隔离或派生被伪造
+- **WHEN** producer 原文/派生损坏、已隔离，或 consumer 派生输出与声明的原解析不一致
+- **THEN** 复用及正式 manifest 消费 MUST 拒绝，不由已有缓存掩盖异常
+
 ### Requirement: 正文选择排除具有正式资源引用
 独立审计正文排除 SHALL 进入 `EvidenceManifestExclusion(object_type=resource, object_id=discovered_resource_id, reason_code=excluded_standalone_audit_pdf)`，按资源 ID 去重排序，并在 coverage summary 按理由计数。构建和重新消费前 MUST 验证目录行、父 discovery attempt、本运行 namespace 与冻结 registry/definition 哈希、原 required fetch 和选择理由一致。只有此明确选择理由可作为非阻断排除，不得泛化为任意 policy_skipped。未含该排除的旧 manifest 哈希 MUST 保持。
 

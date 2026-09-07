@@ -1,15 +1,15 @@
 # 公告正文选择与业务证据筛选
 
-默认注册表为 `business_model_sources.v1.10.json`。四个业务来源冻结 `business_model_no_standalone_audit_pdf_v1`，后续新运行对独立审计 PDF 保留发现目录与来源证明，跳过正文请求。范围包括附带财务报表及附注的独立审计报告；不删除已归档文件。
+默认注册表为 `business_model_sources.v1.11.json`。四个业务来源冻结 `business_model_no_audit_english_annual_v1`，后续新运行对全部独立审计 PDF（包括附带财务报表及附注）和英文年报保留发现目录与来源证明，跳过正文请求。旧 v1.10 仅停采独立审计的策略仍保持；不删除已归档文件。
 
 年报及其内部审计章节、招股说明书及附录、上市公告书、引用审计报告的公告继续按原合同处理。匹配要求预期 MIME 允许 PDF；混合 MIME 还需要明确 PDF URL。HTML 或缺少 PDF 合同的条目不会仅因标题包含“审计”停采。原本已是 metadata-only 的 smoke/查询不计入新增排除。
 
 选择在适配器规范化之后、发现行持久化之前执行。行数、上游总数、分页和原始响应证明保持；即使一页全部被排除，也不成为 `no_data`。排除只改变新行的 required fetch 与决策元数据，不创建伪造的 fetch attempt。
 
-正式 manifest 为每条新增排除写入资源 ID 与 `excluded_standalone_audit_pdf`；汇总按理由计数。构建与重新消费时校验其父 discovery attempt、运行 namespace、冻结 registry/definition 哈希和选择依据。归档脚本把 `metadata_only` 作为正常终态，其他失败继续保留。
+正式 manifest 为每条新增排除写入资源 ID 与 `excluded_standalone_audit_pdf` 或 `excluded_english_annual_report`；汇总按理由计数。构建与重新消费时校验其父 discovery attempt、运行 namespace、冻结 registry/definition 哈希和选择依据。归档脚本把 `metadata_only` 作为正常终态，其他失败继续保留。
 
 旧运行恢复仍使用旧冻结策略。旧目录导入新运行时先完整验证旧行/响应哈希，再应用新策略；旧数据库行和文件不回写。新版本未声明跨版本 checkpoint 兼容；已有正文 validator 的显式兼容独立保留。更新默认配置不会自动重跑基线或增量，也不会删除旧审计文件。
 
 业务证据筛选从通过正式 manifest 校验的本地文本读取。候选关键词只负责找页面，复核必须保存期间、单位、表头、页码及来源版本。按“公司、期间、指标、产品/地区/渠道维度、单位、口径、版本”去重事实，保留全部引用；更正公告更新版本关系，不抹除原值。项目预算、实际投入和现金支付、生产计划和已完成产量、公司优势自述和独立验证必须分开。
 
-本轮十主题试点及生成报告保存在 Git 忽略的 `var/pilots/business-evidence-screening-20260907/`。复核使用 61 份分层样本和候选页，不能估计全目录的信息命中率，也不能据未检出结果永久停采其他类型。除独立审计 PDF 外，标题类型建议均未应用于采集配置。试点属于 AI 证据复核，不替代人工黄金签署。
+前次十主题试点及生成报告保存在 Git 忽略的 `var/pilots/business-evidence-screening-20260907/`。复核使用 61 份分层样本和候选页，不能估计全目录的信息命中率，也不能据未检出结果永久停采其他类型。本轮明确新增英文年报停采，英文 ESG、中报、中文年报及更正继续保留。可执行事实入口及去重/更正规则见 [业务事实说明](business-evidence-facts.md)。试点属于 AI 证据复核，不替代人工黄金签署。

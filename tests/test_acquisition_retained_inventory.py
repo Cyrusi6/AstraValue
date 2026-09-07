@@ -69,10 +69,10 @@ def test_verified_inventory_new_namespace_html_fetch_and_durable_resume(tmp_path
     assert proof.proof_kind == "retained_inventory" and proof.http_status is None
     assert proof.body_retained and not proof.proves_no_data
     resources = runtime.repository.list_discovered_resources(proof.observation_id)
-    assert all(r.source_definition_version == "1.9.0" and r.expected_mime_types == ("text/html",)
+    assert all(r.source_definition_version == "1.10.0" and r.expected_mime_types == ("text/html",)
                and r.metadata["origin_namespace_id"] == bundle["origin_namespace_id"] for r in resources)
     assert runtime.namespace_id != bundle["origin_namespace_id"]
-    assert runtime.repository.latest_checkpoint("600519", "cninfo.disclosures", "1.9.0", "1.0.0") is None
+    assert runtime.repository.latest_checkpoint("600519", "cninfo.disclosures", "1.10.0", "1.0.0") is None
     with pytest.raises(ValueError, match="ad_hoc"):
         AcquisitionPlan.model_validate({**plan.model_dump(), "run": {
             **plan.run.model_dump(), "run_kind": "production", "request_scope": "complete"}})

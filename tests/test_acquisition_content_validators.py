@@ -102,7 +102,7 @@ def test_new_production_observation_may_conditionally_reuse_adhoc_content(tmp_pa
             assert replacement.available_at == obs.retrieved_at
         else:
             assert obs.snapshot_id == snapshot.snapshot_id
-        assert obs.source_definition_version == "1.9.0"
+        assert obs.source_definition_version == "1.10.0"
         assert obs.request_summary["validator_source_definition_version"] == "1.6.0"
         assert validators[1] == {"last_modified":"Wed, 02 Sep 2026 08:00:00 GMT"}
         with current.repository._connect(readonly=True) as connection:

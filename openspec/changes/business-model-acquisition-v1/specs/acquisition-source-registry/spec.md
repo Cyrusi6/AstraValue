@@ -4,6 +4,13 @@
 
 ## ADDED Requirements
 
+### Requirement: 英文年报的版本化正文停采
+新 registry 1.11.0 SHALL 冻结 `business_model_no_audit_english_annual_v1`，对标题和 PDF 合同可确认的英文年报记录 `excluded_english_annual_report`，对独立审计 PDF 保留原排除理由。目录条数、分页及 proof MUST 保持，排除不伪装成 no_data 或正文成功。中文年报、英文 ESG/中报、招股及普通公告 MUST 不因包含 annual report 字样而整类排除。旧运行遵守原冻结策略，旧 registry 哈希不变。
+
+#### Scenario: 同页包含中英文年报
+- **WHEN** 当前策略发现一份中文年报及一份英文年报
+- **THEN** 中文版 SHALL 按原合同抓取，英文版 SHALL 仅保留目录和资源级排除理由；manifest 重新校验本运行的冻结策略
+
 ### Requirement: 版本化独立审计正文选择
 registry 1.10.0 SHALL 为四个业务来源固定 `business_model_no_standalone_audit_pdf_v1` 策略。只有明确匹配独立审计报告标题且预期 MIME 允许 PDF 的资源，才能从 `required_fetch=true` 降为 false，记录 `metadata_only` 和 `excluded_standalone_audit_pdf`；含财务报表及附注的独立审计报告同样排除。来源端点、访问限制、速率和其他材料选择 MUST 保持。历史 registry、run、原文与派生 MUST 不变。
 

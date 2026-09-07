@@ -106,6 +106,127 @@ def test_mineru_preserves_original_pages_tables_artifacts_and_resumes(tmp_path):
     assert result["raw_sha256"] == hashlib.sha256(raw).hexdigest()
 
 
+def another_snapshot(runtime, body):
+    other = resource("fixture-duplicate", url="https://static.cninfo.com.cn/finalpage/duplicate.pdf")
+    adapter = ScenarioAdapter(lambda work: envelope(url=work.url),
+        lambda _, work: discovery_result(work, resources=(other,), declared_total=1),
+        lambda work: envelope(url=work.resource.url, body=body, content_type="application/pdf"))
+    runtime.orchestrator._adapter_resolver = lambda *_: adapter
+    runtime.orchestrator.execute_run(targeted_plan(runtime).run.run_id)
+    return runtime.repository.find_raw_resource_snapshot(resource_role="content", canonical_resource_id=other.canonical_resource_id)
+
+
+def test_identical_bytes_on_different_snapshots_reuse_parse_and_keep_provenance(tmp_path):
+    from analysis.acquisition.mineru import read_artifact, TEXT_EXTRACTOR
+    runtime, original, raw = prepared(tmp_path)
+    client = Client()
+    first = extract_snapshot_mineru(runtime, original.snapshot_id, client)
+    other = another_snapshot(runtime, raw)
+    old_artifacts = runtime.repository.list_derived_artifacts(original.snapshot_id)
+    calls = list(client.calls)
+    second = extract_snapshot_mineru(runtime, other.snapshot_id, client)
+    assert client.calls == calls
+    assert first["text_sha256"] == second["text_sha256"]
+    assert second["parse_reuse"]["producer_snapshot_id"] == original.snapshot_id
+    assert second["bundle_artifact_id"] != first["bundle_artifact_id"]
+    assert runtime.repository.list_derived_artifacts(original.snapshot_id) == old_artifacts
+    for aid in second["artifact_ids"]:
+        artifact = runtime.repository.get_derived_artifact(aid)
+        assert artifact.parent_snapshot_id == other.snapshot_id
+        read_artifact(runtime, artifact)
+    assert extract_snapshot_mineru(runtime, other.snapshot_id, client) == second
+    artifact = runtime.repository.get_derived_artifact(second["text_artifact_id"])
+    forged = runtime.snapshot_service.freeze_derived_artifact(parent_snapshot_id=other.snapshot_id,
+        extractor_id=TEXT_EXTRACTOR, extractor_version=artifact.extractor_version, parameters=artifact.parameters,
+        artifact_type="text", output=b"fabricated unrelated output")
+    with pytest.raises(MinerUError, match="parse_reuse_invalid"):
+        read_artifact(runtime, forged)
+    assert runtime.manifest_service._validate_artifacts(other.snapshot_id, [forged]) == "derived_parse_reuse_invalid"
+    runtime.repository.append_snapshot_integrity_event(SnapshotIntegrityEvent(snapshot_id=original.snapshot_id,
+        status=SnapshotIntegrityStatus.QUARANTINED, reason_code="fixture"))
+    with pytest.raises(MinerUError, match="parse_reuse_invalid"):
+        extract_snapshot_mineru(runtime, other.snapshot_id, client)
+    runtime.close()
+
+
+@pytest.mark.parametrize("reason", ["config", "producer_quarantined", "different_bytes", "bad_bundle"])
+def test_parse_reuse_requires_matching_config_and_valid_producer(tmp_path, reason):
+    runtime, original, raw = prepared(tmp_path)
+    client = Client()
+    first = extract_snapshot_mineru(runtime, original.snapshot_id, client)
+    if reason == "producer_quarantined":
+        runtime.repository.append_snapshot_integrity_event(SnapshotIntegrityEvent(snapshot_id=original.snapshot_id,
+            status=SnapshotIntegrityStatus.QUARANTINED, reason_code="fixture"))
+    if reason == "bad_bundle":
+        (runtime.data_root / first["bundle_relative_path"]).write_bytes(b"damaged")
+    if reason == "different_bytes":
+        raw += b"\n% another archived version"
+    other = another_snapshot(runtime, raw)
+    if reason == "config":
+        client.config = {**client.config, "language": "en"}
+    result = extract_snapshot_mineru(runtime, other.snapshot_id, client)
+    assert "parse_reuse" not in result
+    assert client.calls.count("allocate") == 2
+    runtime.close()
+
+
+def test_identical_content_with_pending_remote_job_does_not_upload_again(tmp_path):
+    runtime, original, raw = prepared(tmp_path)
+    client = Client()
+    extract_snapshot_mineru(runtime, original.snapshot_id, client, submit_only=True)
+    other = another_snapshot(runtime, raw)
+    with pytest.raises(MinerUError, match="same_content_parse_pending"):
+        extract_snapshot_mineru(runtime, other.snapshot_id, client)
+    assert client.calls == ["allocate", "upload"]
+    extract_snapshot_mineru(runtime, original.snapshot_id, client)
+    result = extract_snapshot_mineru(runtime, other.snapshot_id, client)
+    assert result["parse_reuse"]["producer_snapshot_id"] == original.snapshot_id
+    assert client.calls.count("allocate") == 1
+    runtime.close()
+
+
+@pytest.mark.parametrize("damage", ["missing_map", "missing_output", "wrong_extractor", "foreign_parent", "bad_text_bytes"])
+def test_reused_bundle_validates_complete_producer_lineage_before_consumption(tmp_path, damage):
+    from analysis.acquisition.mineru import read_artifact, TEXT_EXTRACTOR, LAYOUT_EXTRACTOR, MARKDOWN_EXTRACTOR
+    runtime, original, raw = prepared(tmp_path)
+    client = Client()
+    first = extract_snapshot_mineru(runtime, original.snapshot_id, client)
+    other = another_snapshot(runtime, raw)
+    bundle = runtime.repository.get_derived_artifact(first["bundle_artifact_id"])
+    payload = read_artifact(runtime, bundle)
+    parameters = json.loads(json.dumps(bundle.parameters))
+    parameters["job_identity"]["snapshot_id"] = other.snapshot_id
+    parameters["parse_reuse"] = {"version": "1.0.0", "producer_snapshot_id": original.snapshot_id,
+        "producer_bundle_artifact_id": bundle.derived_artifact_id, "bundle_sha256": bundle.output_sha256,
+        "raw_sha256": original.sha256, "producer_artifacts": {
+            a.extractor_id: a.derived_artifact_id for a in runtime.repository.list_derived_artifacts(original.snapshot_id)
+            if a.extractor_id in {LAYOUT_EXTRACTOR, TEXT_EXTRACTOR, MARKDOWN_EXTRACTOR}}}
+    relation = parameters["parse_reuse"]
+    if damage == "missing_map":
+        relation.pop("producer_artifacts")
+    elif damage == "missing_output":
+        relation["producer_artifacts"].pop(TEXT_EXTRACTOR)
+    elif damage == "wrong_extractor":
+        relation["producer_artifacts"][TEXT_EXTRACTOR] = relation["producer_artifacts"][LAYOUT_EXTRACTOR]
+    elif damage == "foreign_parent":
+        original_text = runtime.repository.get_derived_artifact(first["text_artifact_id"])
+        foreign = runtime.snapshot_service.freeze_derived_artifact(parent_snapshot_id=other.snapshot_id,
+            extractor_id=TEXT_EXTRACTOR, extractor_version=original_text.extractor_version,
+            parameters=original_text.parameters, artifact_type="text", output=read_artifact(runtime, original_text))
+        relation["producer_artifacts"][TEXT_EXTRACTOR] = foreign.derived_artifact_id
+    else:
+        text_artifact = runtime.repository.get_derived_artifact(first["text_artifact_id"])
+        (runtime.data_root / text_artifact.archive_relative_path).write_bytes(b"damaged producer text")
+    frozen = runtime.snapshot_service.freeze_derived_artifact(parent_snapshot_id=other.snapshot_id,
+        extractor_id=BUNDLE_EXTRACTOR, extractor_version=bundle.extractor_version,
+        parameters=parameters, artifact_type="ocr", output=payload)
+    with pytest.raises(MinerUError, match="parse_reuse_invalid"):
+        read_artifact(runtime, frozen)
+    assert runtime.manifest_service._validate_artifacts(other.snapshot_id, [frozen]) == "derived_parse_reuse_invalid"
+    assert client.calls.count("allocate") == client.calls.count("upload") == 1
+    runtime.close()
+
+
 def test_remote_poll_interruption_does_not_resubmit_or_upload(tmp_path):
     runtime, snapshot, _ = prepared(tmp_path)
     client = Client()

@@ -2110,6 +2110,16 @@ class AcquisitionRepository:
 
     find_raw_snapshot = find_raw_resource_snapshot
 
+    def list_content_snapshots_by_hash(self, namespace_id: str, sha256: str) -> list[Any]:
+        """Complete local candidates; consumers must still validate bytes and policy."""
+        with self._connect(readonly=True) as connection:
+            rows = connection.execute(
+                "SELECT payload FROM raw_resource_snapshots WHERE storage_namespace_id=? "
+                "AND resource_role='content' AND content_sha256=? ORDER BY created_at,snapshot_id",
+                (namespace_id, sha256),
+            ).fetchall()
+        return [_load_model("RawResourceSnapshot", row["payload"]) for row in rows]
+
     def list_resource_observations(
         self,
         *,

@@ -6,6 +6,7 @@ import pytest
 from analysis.acquisition.content_selection import (
     AUDIT_EXCLUSION_REASON, NO_STANDALONE_AUDIT_PDF_V1, apply_content_selection,
     is_standalone_audit_pdf,
+    NO_AUDIT_ENGLISH_ANNUAL_V1, ENGLISH_ANNUAL_EXCLUSION_REASON, is_english_annual_report,
 )
 from analysis.acquisition.discovery import NormalizedResource
 from analysis.acquisition.manifests import EvidenceGateError
@@ -54,10 +55,10 @@ def test_selection_only_downgrades_new_required_fetch_and_is_idempotent():
         apply_content_selection(row, "unknown")
 
 
-def _fixture_registry(tmp_path, retained):
+def _fixture_registry(tmp_path, retained, policy=NO_STANDALONE_AUDIT_PDF_V1):
     payload = json.loads(INITIAL_REGISTRY_PATH.read_text(encoding="utf-8"))
     definition = next(d for d in payload["definitions"] if d["source_definition_id"] == "cninfo.disclosures")
-    definition["content_selection_policy"] = NO_STANDALONE_AUDIT_PDF_V1
+    definition["content_selection_policy"] = policy
     if retained:
         definition["retention_policy"]["discovery_body"] = "retain"
         for query in definition["queries"]:
@@ -67,10 +68,10 @@ def _fixture_registry(tmp_path, retained):
     return path
 
 
-def _adapter(*, include_report=False):
+def _adapter(*, include_report=False, excluded_title="2024年度审计报告及财务报表"):
     def parsed(_, work):
         item = replace(resource(f"page-{work.page}"), title=(
-            "2024年年度报告" if include_report and work.page == 2 else "2024年度审计报告及财务报表"))
+            "2024年年度报告" if include_report and work.page == 2 else excluded_title))
         return discovery_result(work, resources=(item,), declared_total=2,
             page_count=2, terminal=work.page == 2)
     class Adapter(ScenarioAdapter):
@@ -145,3 +146,45 @@ def test_selection_upgrade_does_not_inherit_prior_version_checkpoints():
     for source_id in ("cninfo.disclosures", "sse.disclosures", "szse.disclosures", "moutai.ir"):
         definition = loaded.definition(source_id)
         assert definition.incremental_policy.checkpoint_compatible_from_versions == ()
+
+
+@pytest.mark.parametrize("title", ["贵州茅台2024年年度报告（英文版）", "2024 Annual Report",
+    "ANNUAL REPORT 2024", "英文版2024年度报告", "2024年年度报告（英文）（修订版）"])
+def test_english_annual_report_exclusion_requires_new_frozen_policy(title):
+    row = NormalizedResource("a", "https://example.test/a.pdf", title, "Asia/Shanghai", True,
+                             expected_mime_types=("application/pdf",))
+    assert apply_content_selection(row, NO_STANDALONE_AUDIT_PDF_V1) is row
+    chosen = apply_content_selection(row, NO_AUDIT_ENGLISH_ANNUAL_V1)
+    assert not chosen.required_fetch
+    assert chosen.metadata["content_selection"]["reason_code"] == ENGLISH_ANNUAL_EXCLUSION_REASON
+
+
+@pytest.mark.parametrize("title", ["2024年年度报告", "2024年半年度报告（英文版）", "2024年ESG报告（英文版）",
+    "2024 ESG Annual Report", "2024 Annual Report (Chinese)", "关于英文年度报告更正的公告",
+    "招股说明书附录 Annual Report", "Annual Report presentation notice", "2024 Annual Report（中英双语）"])
+def test_non_english_annual_materials_are_kept(title):
+    assert not is_english_annual_report(title, "https://example.test/a.pdf", ("application/pdf",))
+
+
+@pytest.mark.parametrize("url,mimes", [("a.pdf", ()), ("a.pdf", ("text/html",)),
+    ("a.html", ("text/html", "application/pdf"))])
+def test_english_titles_do_not_override_mime_contract(url, mimes):
+    assert not is_english_annual_report("2024年年度报告（英文版）", "https://example.test/" + url, mimes)
+
+
+@pytest.mark.parametrize("retained", [False, True])
+def test_english_annual_exclusion_is_persisted_and_revalidated(tmp_path, retained):
+    adapter = _adapter(include_report=True, excluded_title="2024年年度报告（英文版）")
+    runtime = make_runtime(tmp_path / "runtime", adapter,
+        registry_path=_fixture_registry(tmp_path, retained, NO_AUDIT_ENGLISH_ANNUAL_V1))
+    plan = targeted_plan(runtime)
+    result = runtime.orchestrator.execute_run(plan.run.run_id)
+    assert len(adapter.fetch_calls) == 1 and result.material_gap_count == 0
+    manifest = runtime.repository.get_evidence_manifest(result.manifest_id)
+    excluded = [e for e in manifest.exclusions if e.object_type == "resource"]
+    assert len(excluded) == 1 and excluded[0].reason_code == ENGLISH_ANNUAL_EXCLUSION_REASON
+    runtime.manifest_service._validate_resource_exclusions(excluded, plan.run.run_id)
+    with pytest.raises(EvidenceGateError):
+        runtime.manifest_service._validate_resource_exclusions([
+            excluded[0].model_copy(update={"reason_code": AUDIT_EXCLUSION_REASON})], plan.run.run_id)
+    runtime.close()

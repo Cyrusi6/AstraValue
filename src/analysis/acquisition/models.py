@@ -732,7 +732,7 @@ class SourceDefinition(FrozenAcquisitionModel):
     legacy: bool = False
     collection_role: Literal["primary", "on_demand"] | None = None
     supplements_source_id: str | None = None
-    content_selection_policy: Literal["business_model_no_standalone_audit_pdf_v1"] | None = None
+    content_selection_policy: Literal["business_model_no_standalone_audit_pdf_v1", "business_model_no_audit_english_annual_v1"] | None = None
 
     @model_serializer(mode="wrap")
     def preserve_legacy_selection_payload(self, handler):

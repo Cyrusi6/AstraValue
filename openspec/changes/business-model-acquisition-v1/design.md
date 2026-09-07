@@ -1,5 +1,15 @@
 ## Context
 
+### 2026-09-07 英文年报停采与独立事实消费层
+
+本轮新增授权覆盖英文年报正文停采、相同正文复用，以及十主题章节路由和原子事实的实际持久化。新 registry 1.11.0 冻结 `business_model_no_audit_english_annual_v1`，英文 ESG、中报及中文年报继续保留；旧版本、旧文件和旧运行不回写。条件请求继续用于确认历史资源版本，来源不返回 304 时无法在接收字节前证明相同内容，不能仅按标题相似跳过。
+
+MinerU 使用 namespace/raw SHA/config/extractor 的内容锁防止相同字节并行提交；已在途的同内容任务要求恢复 producer。复用只接受已校验 producer 的完整 bundle/layout/text/markdown，同 namespace、PDF、相同 SHA 和配置且双方允许原文归档、文本派生及 LLM 处理。consumer 新建自己的父 snapshot 派生，冻结单跳 producer 关系；旧 parent 不改，text/Markdown 输出必须与 producer 一致，layout 仅更换本地 snapshot/bundle 身份。读取缓存和 manifest 消费重新验证复用关系、字节及隔离，不能用 producer 当新的公告观测。
+
+`src/analysis/business_evidence/` 在采集库之上只读消费；以独立 SQLite 文件保存 facts、citations、questions、aliases、corrections、batches，不迁移或写入原采集库。新消费选择单独冻结在 route/batch，不能反向取消旧 manifest 的有效性。原子事实身份包含公司、实际主体/主体关系、期间、指标、维度、单位、口径、事件阶段和值类型；版本 ID 另含 value/revision，主题和来源不进入事实去重身份。相同披露保留多引用，不同口径不合并，同口径不同值保持冲突，只有明确更正关系推进当前视图。事实文本值摘录原句，数字按显式单位保留，语义关联仍需要复核。
+
+十主题路由配置只负责定位，输出完整命中页和邻页以及指向哈希文本的引用，无固定两页截断。页码/原文检查和正式 manifest 的哈希/许可/时点门禁独立执行。事实导入接受显式复核 JSON，事务内追加全部事实/引用/关系；查询按 available_at 查看当时可知的事实与更正，并再次校验原始 manifest 与引用。当前版本是可执行本地事实消费能力，不自动填满全历史业务问题、金融方法论或黄金验收。
+
 ### 2026-09-07 独立审计正文停采与离线证据试点
 
 SourceDefinition 新增可选 `content_selection_policy`，未设置时从序列化中省略以保持旧 payload 和 canonical hash。新 registry 1.10.0 的四个业务来源冻结 `business_model_no_standalone_audit_pdf_v1`；来源版本分别递增，旧 checkpoint 不声明跨版本兼容，历史正文 validator 兼容沿用并明确增加前一正式版本。旧运行恢复服从其已冻结定义。

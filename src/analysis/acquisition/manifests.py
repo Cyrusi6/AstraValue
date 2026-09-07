@@ -9,9 +9,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .content_selection import (
-    AUDIT_EXCLUSION_REASON,
-    NO_STANDALONE_AUDIT_PDF_V1,
-    is_standalone_audit_pdf,
+    CONTENT_EXCLUSION_REASONS,
+    content_exclusion_reason,
 )
 from .models import (
     EvidenceManifestExclusion,
@@ -60,7 +59,7 @@ class EvidenceManifestService:
     """Build the frozen gate future LLM code must validate before reading bytes."""
 
     _NON_BLOCKING_EXCLUSIONS = frozenset(
-        {"discovery_response_audit_only", "proof_audit_only", AUDIT_EXCLUSION_REASON}
+        {"discovery_response_audit_only", "proof_audit_only", *CONTENT_EXCLUSION_REASONS}
     )
 
     def __init__(
@@ -278,7 +277,7 @@ class EvidenceManifestService:
         definitions = None
         for item in values:
             try:
-                if item.object_type != "resource" or item.reason_code != AUDIT_EXCLUSION_REASON:
+                if item.object_type != "resource" or item.reason_code not in CONTENT_EXCLUSION_REASONS:
                     raise ValueError("unsupported_resource_exclusion")
                 if definitions is None:
                     definitions = self._selection_definitions_for_run(run_id)
@@ -293,15 +292,14 @@ class EvidenceManifestService:
                     or _get(attempt, "source_definition_id") != source_id
                     or _get(attempt, "source_definition_version") != version
                     or _get(resource, "required_fetch") is not False
-                    or _get(policy, "content_selection_policy") != NO_STANDALONE_AUDIT_PDF_V1
-                    or decision.get("policy_id") != NO_STANDALONE_AUDIT_PDF_V1
+                    or decision.get("policy_id") != _get(policy, "content_selection_policy")
                     or decision.get("action") != "metadata_only"
-                    or decision.get("reason_code") != AUDIT_EXCLUSION_REASON
+                    or decision.get("reason_code") != item.reason_code
                     or decision.get("original_required_fetch") is not True
-                    or not is_standalone_audit_pdf(
+                    or content_exclusion_reason(
                         _get(resource, "title"), _get(resource, "resource_url"),
-                        _get(resource, "expected_mime_types"),
-                    )
+                        _get(resource, "expected_mime_types"), _get(policy, "content_selection_policy"),
+                    ) != item.reason_code
                 ):
                     raise ValueError("invalid_content_selection_lineage")
             except Exception as exc:
@@ -419,6 +417,12 @@ class EvidenceManifestService:
         for artifact in artifacts:
             if str(_get(artifact, "parent_snapshot_id")) != snapshot_id:
                 return "derived_parent_mismatch"
+            if (_get(artifact, "parameters") or {}).get("parse_reuse") is not None:
+                from .mineru import validate_parse_reuse
+                try:
+                    validate_parse_reuse(self.repository, self.blob_store, artifact)
+                except RuntimeError:
+                    return "derived_parse_reuse_invalid"
             try:
                 self.blob_store.read_verified_derived(
                     _artifact_relative_path(artifact),
