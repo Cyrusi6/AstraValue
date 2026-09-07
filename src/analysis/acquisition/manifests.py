@@ -8,6 +8,11 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+from .content_selection import (
+    AUDIT_EXCLUSION_REASON,
+    NO_STANDALONE_AUDIT_PDF_V1,
+    is_standalone_audit_pdf,
+)
 from .models import (
     EvidenceManifestExclusion,
     EvidenceManifestItem,
@@ -16,6 +21,9 @@ from .models import (
     PolicyDecision,
     ResourceRole,
     SourcePolicyStatus,
+    SourceDefinition,
+    SourceRegistry,
+    canonical_json_sha256 as model_sha256,
     stable_acquisition_id,
 )
 from .snapshots import (
@@ -35,6 +43,11 @@ class EvidenceGateError(RuntimeError):
 
 
 class ManifestRepository(Protocol):
+    def get_discovered_resource(self, discovered_resource_id: str) -> Any: ...
+    def get_attempt(self, attempt_id: str) -> Any: ...
+    def get_run(self, run_id: str) -> Any: ...
+    def get_source_registry_version(self, registry_id: str, version: str) -> Any: ...
+    def get_source_definition_version(self, source_id: str, version: str) -> Any: ...
     def get_raw_resource_snapshot(self, snapshot_id: str) -> Any: ...
     def list_snapshot_integrity_events(self, snapshot_id: str) -> Sequence[Any]: ...
     def get_derived_artifact(self, artifact_id: str) -> Any: ...
@@ -47,7 +60,7 @@ class EvidenceManifestService:
     """Build the frozen gate future LLM code must validate before reading bytes."""
 
     _NON_BLOCKING_EXCLUSIONS = frozenset(
-        {"discovery_response_audit_only", "proof_audit_only"}
+        {"discovery_response_audit_only", "proof_audit_only", AUDIT_EXCLUSION_REASON}
     )
 
     def __init__(
@@ -72,6 +85,7 @@ class EvidenceManifestService:
         derived_artifact_ids: Iterable[str] = (),
         audit_reference_snapshot_ids: Iterable[str] = (),
         audit_proof_ids: Iterable[str] = (),
+        resource_exclusions: Iterable[EvidenceManifestExclusion] = (),
         coverage_summary: Mapping[str, Any] | None = None,
         fail_on_ineligible: bool = True,
         default_consume_eligible: bool = True,
@@ -82,6 +96,7 @@ class EvidenceManifestService:
         exclusions: list[EvidenceManifestExclusion] = []
         policy_decisions: set[str] = set()
         audit_snapshot_ids = set(audit_reference_snapshot_ids)
+        selected_exclusions = self._validate_resource_exclusions(resource_exclusions, run_id)
 
         for snapshot_id in sorted(set(snapshot_ids)):
             try:
@@ -126,6 +141,7 @@ class EvidenceManifestService:
 
         for proof_id in sorted(set(audit_proof_ids)):
             exclusions.append(_exclusion("proof", proof_id, "proof_audit_only"))
+        exclusions.extend(selected_exclusions)
         self._validate_audit_snapshot_references(tuple(sorted(audit_snapshot_ids)))
         blocking = tuple(
             item
@@ -214,6 +230,10 @@ class EvidenceManifestService:
             raise EvidenceGateError(
                 "manifest_file_mismatch", "manifest 文件与冻结内容不一致"
             )
+        self._validate_resource_exclusions(
+            (item for item in record.exclusions if item.object_type == "resource"),
+            record.run_id,
+        )
         if not record.gate_passed:
             raise EvidenceGateError(
                 "manifest_not_consume_eligible", "该 manifest 仅供部分审计"
@@ -249,6 +269,72 @@ class EvidenceManifestService:
                     "derived_hash_mismatch", "manifest 派生物哈希引用漂移"
                 )
         return record
+
+    def _validate_resource_exclusions(
+        self, values: Iterable[EvidenceManifestExclusion], run_id: str
+    ) -> tuple[EvidenceManifestExclusion, ...]:
+        """Accept only the explicit, persisted body-selection decision in this run."""
+        validated: dict[str, EvidenceManifestExclusion] = {}
+        definitions = None
+        for item in values:
+            try:
+                if item.object_type != "resource" or item.reason_code != AUDIT_EXCLUSION_REASON:
+                    raise ValueError("unsupported_resource_exclusion")
+                if definitions is None:
+                    definitions = self._selection_definitions_for_run(run_id)
+                resource = self.repository.get_discovered_resource(item.object_id)
+                attempt = self.repository.get_attempt(_get(resource, "discovery_attempt_id"))
+                source_id = _get(resource, "source_definition_id")
+                version = _get(resource, "source_definition_version")
+                policy = definitions[(source_id, version)]
+                decision = (_get(resource, "metadata") or {}).get("content_selection", {})
+                if (
+                    _get(attempt, "run_id") != run_id
+                    or _get(attempt, "source_definition_id") != source_id
+                    or _get(attempt, "source_definition_version") != version
+                    or _get(resource, "required_fetch") is not False
+                    or _get(policy, "content_selection_policy") != NO_STANDALONE_AUDIT_PDF_V1
+                    or decision.get("policy_id") != NO_STANDALONE_AUDIT_PDF_V1
+                    or decision.get("action") != "metadata_only"
+                    or decision.get("reason_code") != AUDIT_EXCLUSION_REASON
+                    or decision.get("original_required_fetch") is not True
+                    or not is_standalone_audit_pdf(
+                        _get(resource, "title"), _get(resource, "resource_url"),
+                        _get(resource, "expected_mime_types"),
+                    )
+                ):
+                    raise ValueError("invalid_content_selection_lineage")
+            except Exception as exc:
+                raise EvidenceGateError(
+                    "resource_exclusion_invalid", "正文排除缺少本运行的有效目录行与冻结策略"
+                ) from exc
+            validated[item.object_id] = item
+        return tuple(validated[key] for key in sorted(validated))
+
+    def _selection_definitions_for_run(self, run_id: str) -> dict[tuple[str, str], SourceDefinition]:
+        run = self.repository.get_run(run_id)
+        if run.storage_namespace_id != self.blob_store.storage_namespace_id:
+            raise ValueError("resource_exclusion_namespace_mismatch")
+        registry = SourceRegistry.model_validate(self.repository.get_source_registry_version(
+            run.registry_id, run.registry_version,
+        ))
+        if (registry.registry_id != run.registry_id
+                or str(registry.registry_version) != str(run.registry_version)
+                or model_sha256(registry) != run.registry_content_hash):
+            raise ValueError("resource_exclusion_registry_mismatch")
+        stored = {(d.source_definition_id, str(d.version)): d
+                  for d in (*registry.definitions, *registry.legacy_definitions)}
+        result = {}
+        for ref in run.source_definition_refs:
+            key = (ref.source_definition_id, str(ref.version))
+            definition = SourceDefinition.model_validate(
+                self.repository.get_source_definition_version(*key)
+            )
+            if (model_sha256(definition) != ref.content_hash
+                    or model_sha256(stored[key]) != ref.content_hash):
+                raise ValueError("resource_exclusion_definition_mismatch")
+            result[key] = definition
+        return result
 
     def resolve_llm_materials(
         self, manifest: EvidenceSnapshotManifest | Mapping[str, Any]

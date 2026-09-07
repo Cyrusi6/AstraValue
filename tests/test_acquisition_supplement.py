@@ -27,8 +27,8 @@ def test_default_source_roles_have_new_immutable_versions_and_zero_sse_io(tmp_pa
     assert not adapter.fetch_calls
     loaded = runtime.loaded_registry
     assert loaded.definition("cninfo.disclosures").collection_role == "primary"
-    assert loaded.definition("cninfo.disclosures").version == "1.8.0"
-    assert loaded.definition("sse.disclosures").version == "1.4.0"
+    assert loaded.definition("cninfo.disclosures").version == "1.9.0"
+    assert loaded.definition("sse.disclosures").version == "1.5.0"
     assert all(e.static_reason_code == "on_demand_supplement" for e in parent.coverage_entries
                if e.source_definition_id == "sse.disclosures")
     before = runtime.repository.list_coverage_resolutions(parent.run.run_id)

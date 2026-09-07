@@ -102,7 +102,7 @@ def test_new_production_observation_may_conditionally_reuse_adhoc_content(tmp_pa
             assert replacement.available_at == obs.retrieved_at
         else:
             assert obs.snapshot_id == snapshot.snapshot_id
-        assert obs.source_definition_version == "1.8.0"
+        assert obs.source_definition_version == "1.9.0"
         assert obs.request_summary["validator_source_definition_version"] == "1.6.0"
         assert validators[1] == {"last_modified":"Wed, 02 Sep 2026 08:00:00 GMT"}
         with current.repository._connect(readonly=True) as connection:
@@ -137,7 +137,9 @@ def test_all_published_registry_hashes_remain_frozen():
               "1.5":"8bf43179d583de4536e6c10aa2f30f11e6695d5c7cb18aadef60b96a43f79c14",
               "1.6":"a3eb504749e4307a5cdc37fb3c34cdf98e10c86e9847e1a678a6a08b3ceea64b",
               "1.7":"497038f52dc9b92faed3945cc99221e816fcaec4659ca417abb37f6c01bf2ee7",
-              "1.8":"bf6743b55880dd6dd26ff3d538412d0e0e5ffd226869b87a258b9fb1db6ad8ba"}
+              "1.8":"bf6743b55880dd6dd26ff3d538412d0e0e5ffd226869b87a258b9fb1db6ad8ba",
+              "1.9":"fee6e9c2ff6ac20f4d9572eb7eda0d26f8869f36d6a1ae91e548dba9d01a6951",
+              "1.10":"013f4f5509849e489ced8447ac2558175e537cc350e28532d6a31c50e2db8953"}
     loader=SourceRegistryLoader()
     for version,sha in expected.items():
         assert loader.load_registry(DEFAULT_REGISTRY_PATH.with_name(f"business_model_sources.v{version}.json")).content_hash==sha

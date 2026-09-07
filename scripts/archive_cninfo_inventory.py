@@ -88,6 +88,14 @@ def report(runtime, bundle, state, output, *, derive=False):
             if event.reason_code in ACCESS_HALT_REASONS:
                 halted.append(dict(run_id=run.run_id, attempt_id=attempt.attempt_id, reason=event.reason_code))
             if attempt.attempt_kind.value != "fetch":
+                for observation in repo.list_discovery_observations(attempt.attempt_id):
+                    for resource in repo.list_discovered_resources(observation.observation_id):
+                        decision = resource.metadata.get("content_selection", {})
+                        if not resource.required_fetch and decision.get("action") == "metadata_only":
+                            rows[resource.canonical_resource_id].update(
+                                run_id=run.run_id, discovery_attempt_id=attempt.attempt_id,
+                                fetch_status="metadata_only", fetch_reason=decision["reason_code"],
+                                content_selection=decision, text_status="not_requested")
                 continue
             resource = repo.get_discovered_resource(attempt.discovered_resource_id)
             row = rows[resource.canonical_resource_id]
@@ -178,7 +186,7 @@ def main(argv=None):
                  text_counts=current["text_counts"], access_halts=current["access_halts"])
         current = report(runtime, bundle, state, args.output_dir, derive=True)
         emit(event="archive_finished", **{k:v for k,v in current.items() if k != "rows"})
-        return 0 if not current["access_halts"] and set(current["fetch_counts"]) <= {"success", "unchanged"} else 2
+        return 0 if not current["access_halts"] and set(current["fetch_counts"]) <= {"success", "unchanged", "metadata_only"} else 2
 
 
 if __name__ == "__main__":

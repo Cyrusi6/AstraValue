@@ -61,6 +61,7 @@ from .models import (
     DiscoveryBodyPolicy,
     DiscoveryProof,
     DiscoveredResource,
+    EvidenceManifestExclusion,
     PhysicalQueryCoverageLink,
     PhysicalQueryPlanItem,
     PublishedAtPrecision,
@@ -311,7 +312,8 @@ class _RetainedParserAdapter:
 
     def parse_retained_discovery(self, snapshot_id: str) -> NormalizedDiscoveryPage:
         return _normalized_page(
-            self.adapter.parse_retained_discovery(snapshot_id, self.work)
+            self.adapter.parse_retained_discovery(snapshot_id, self.work),
+            self.work.context.get("content_selection_policy"),
         )
 
 
@@ -353,13 +355,17 @@ class _NonRetainedParserAdapter:
             body_limit=max(1, self.work.max_response_bytes),
         )
         return _normalized_page(
-            self.adapter.validate_and_normalize_without_retention(typed, self.work)
+            self.adapter.validate_and_normalize_without_retention(typed, self.work),
+            self.work.context.get("content_selection_policy"),
         )
 
 
-def _normalized_page(result: AdapterDiscoveryResult | Any) -> NormalizedDiscoveryPage:
+def _normalized_page(result: AdapterDiscoveryResult | Any,
+                     content_selection_policy: str | None = None) -> NormalizedDiscoveryPage:
+    from .content_selection import apply_content_selection
+
     resources = tuple(
-        NormalizedResource(
+        apply_content_selection(NormalizedResource(
             canonical_resource_id=row.canonical_resource_id,
             upstream_material_id=row.upstream_material_id,
             resource_url=row.url,
@@ -376,7 +382,7 @@ def _normalized_page(result: AdapterDiscoveryResult | Any) -> NormalizedDiscover
                 else ()
             ),
             metadata=(dict(row.metadata) if isinstance(row.metadata, Mapping) else {}),
-        )
+        ), content_selection_policy)
         for row in result.resources
     )
     return NormalizedDiscoveryPage(
@@ -2053,6 +2059,18 @@ class AcquisitionOrchestrator:
         )
         manifest_id: str | None = None
         default_consume_eligible = candidate_eligible
+        selection_exclusions = {
+            resource.discovered_resource_id: EvidenceManifestExclusion(
+                object_type="resource", object_id=resource.discovered_resource_id,
+                reason_code=resource.metadata["content_selection"]["reason_code"],
+            )
+            for execution in executions.values() for resource in execution.resources.values()
+            if not resource.required_fetch
+            and resource.metadata.get("content_selection", {}).get("action") == "metadata_only"
+        }
+        selection_counts = dict(sorted(Counter(
+            item.reason_code for item in selection_exclusions.values()
+        ).items()))
         if self.manifest_service is not None:
             heartbeat.renew(force=True)
             manifest = self.manifest_service.build_evidence_manifest(
@@ -2064,10 +2082,13 @@ class AcquisitionOrchestrator:
                 snapshot_ids=content_snapshot_ids,
                 audit_reference_snapshot_ids=discovery_snapshot_ids,
                 audit_proof_ids=proof_ids,
+                resource_exclusions=tuple(selection_exclusions.values()),
                 coverage_summary={
                     "coverage_accounted": coverage_accounted,
                     "material_gap_count": material_gap_count,
                     "coverage_entry_count": len(coverage_entries),
+                    **({"content_selection_exclusions": selection_counts}
+                       if selection_exclusions else {}),
                 },
                 fail_on_ineligible=False,
                 default_consume_eligible=candidate_eligible,
@@ -2466,6 +2487,7 @@ class AcquisitionOrchestrator:
             "deadline_monotonic": deadline,
             "page_size": pagination.page_size,
             "fetch_policy": fetch_policy,
+            "content_selection_policy": definition.content_selection_policy,
             "ticker": run.ticker,
             "items_path": query.pagination.items_path,
             "total_path": query.pagination.total_path,

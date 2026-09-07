@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from .adapters.official import CninfoAcquisitionAdapter
+from .content_selection import apply_content_selection
 from .discovery import (DiscoveryPageContext, NormalizedDiscoveryPage, NormalizedResource,
                         _build_discovered_resource)
 from .materials import classify_material
@@ -211,6 +212,8 @@ def inventory_batch(bundle: dict[str, Any], entries: list[dict[str, Any]]) -> di
 def plan_retained_inventory(runtime, bundle: dict[str, Any], *, persist=True) -> AcquisitionPlan:
     resources = validate_inventory(bundle, ticker=bundle["ticker"])
     definition = runtime.loaded_registry.definition("cninfo.disclosures")
+    resources = tuple(apply_content_selection(row, definition.content_selection_policy)
+                      for row in resources)
     query = next(q for q in definition.queries if q.query_id == "cninfo.business_announcement")
     _check(query.discovery_schema.schema_version == "3" and definition.collection_role == "primary",
            "当前来源必须是支持历史HTML的正式主采合同")
@@ -248,12 +251,14 @@ def plan_retained_inventory(runtime, bundle: dict[str, Any], *, persist=True) ->
 
 
 class _InventoryParser:
-    def __init__(self, runtime, ticker):
+    def __init__(self, runtime, ticker, content_selection_policy=None):
         self.runtime, self.ticker = runtime, ticker
+        self.content_selection_policy = content_selection_policy
 
     def parse_retained_discovery(self, snapshot_id):
         bundle = json.loads(self.runtime.snapshot_bytes(snapshot_id))
-        resources = validate_inventory(bundle, ticker=self.ticker)
+        resources = tuple(apply_content_selection(row, self.content_selection_policy)
+                          for row in validate_inventory(bundle, ticker=self.ticker))
         return NormalizedDiscoveryPage(resources=resources, parser_id=FORMAT, parser_version="1.0.0",
             schema_id=FORMAT, schema_version="1", schema_valid=True, declared_total=len(resources),
             declared_page_count=1, terminal=True)
@@ -288,7 +293,8 @@ def execute_retained_inventory(engine, run, definition, query, execution, *, lea
                     http_status=None, mime_type=MIME, page_number=1, proof_kind="retained_inventory",
                     request_summary={"input_kind": "retained_inventory", "io_performed": False},
                     response_summary={"count_basis": "local_selection", "inventory_sha256": ref["sha256"]}),
-                query_page_canonical=item.execution_key, parser=_InventoryParser(engine.runtime, run.ticker),
+                query_page_canonical=item.execution_key,
+                parser=_InventoryParser(engine.runtime, run.ticker, definition.content_selection_policy),
                 owner_token=owner_token, lease_epoch=lease_epoch)
             engine._terminal(attempt, AttemptClassification("success", "retained_inventory_loaded"),
                 owner_token=owner_token, proof_ids=(page.proof.proof_id,),

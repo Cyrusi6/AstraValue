@@ -370,6 +370,7 @@
       ],
       "properties": {
         "source_definition_id": {"type": "string", "minLength": 1},
+        "content_selection_policy": {"enum": [null, "business_model_no_standalone_audit_pdf_v1"]},
         "version": {"type": "string", "minLength": 1},
         "upstream_identity": {"type": "string", "minLength": 1},
         "display_name": {"type": "string", "minLength": 1},

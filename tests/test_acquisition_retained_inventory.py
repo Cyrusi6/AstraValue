@@ -12,20 +12,28 @@ from orchestrator_support import ScenarioAdapter, envelope, make_runtime
 from test_acquisition_html_content import _html
 
 
-def origin_bundle(tmp_path):
+def origin_bundle(tmp_path, *, audit=False):
     class Transport:
         def request(self, work):
             if work.query_family == "company_bootstrap":
                 data = {"stockList": [{"code": "600519", "orgId": "gssh0600519", "zwjc": "贵州茅台"}]}
             elif work.url.endswith(".html"):
                 return envelope(url=work.url, body=_html(), content_type="text/html")
+            elif work.url.endswith(".pdf"):
+                return envelope(url=work.url, body=b"%PDF-1.4\nfixture audit", content_type="application/pdf")
             else:
                 data = {"announcements": [{"announcementId": str(i), "secCode": "600519",
                     "announcementTitle": "2001年年度报告摘要", "announcementTime": 1000000000000,
                     "adjunctUrl": f"finalpage/2001/summary-{i}.html"} for i in (1, 2)],
                     "totalAnnouncement": 2}
+                if audit:
+                    data["announcements"].append({"announcementId": "3", "secCode": "600519",
+                        "announcementTitle": "贵州茅台审计报告及财务报表", "announcementTime": 1000000000000,
+                        "adjunctUrl": "finalpage/2001/audit.pdf"})
+                    data["totalAnnouncement"] = 3
             return envelope(url=work.url, body=json.dumps(data).encode())
-    runtime = make_runtime(tmp_path/"origin", None, registry_path=DEFAULT_REGISTRY_PATH)
+    registry = DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.9.json") if audit else DEFAULT_REGISTRY_PATH
+    runtime = make_runtime(tmp_path/"origin", None, registry_path=registry)
     adapter = CninfoAcquisitionAdapter(Transport(), runtime.snapshot_bytes)
     runtime.orchestrator._adapter_resolver = lambda *_: adapter
     now = datetime.now(timezone.utc)
@@ -61,10 +69,10 @@ def test_verified_inventory_new_namespace_html_fetch_and_durable_resume(tmp_path
     assert proof.proof_kind == "retained_inventory" and proof.http_status is None
     assert proof.body_retained and not proof.proves_no_data
     resources = runtime.repository.list_discovered_resources(proof.observation_id)
-    assert all(r.source_definition_version == "1.8.0" and r.expected_mime_types == ("text/html",)
+    assert all(r.source_definition_version == "1.9.0" and r.expected_mime_types == ("text/html",)
                and r.metadata["origin_namespace_id"] == bundle["origin_namespace_id"] for r in resources)
     assert runtime.namespace_id != bundle["origin_namespace_id"]
-    assert runtime.repository.latest_checkpoint("600519", "cninfo.disclosures", "1.8.0", "1.0.0") is None
+    assert runtime.repository.latest_checkpoint("600519", "cninfo.disclosures", "1.9.0", "1.0.0") is None
     with pytest.raises(ValueError, match="ad_hoc"):
         AcquisitionPlan.model_validate({**plan.model_dump(), "run": {
             **plan.run.model_dump(), "run_kind": "production", "request_scope": "complete"}})
@@ -80,6 +88,40 @@ def test_retained_inventory_rejects_tampered_evidence(tmp_path, mutation):
     else: bundle["entries"] = []
     with pytest.raises(ValueError, match="retained_inventory_invalid"):
         validate_inventory(bundle, ticker="600519")
+
+
+def test_old_inventory_selection_preserves_origin_and_records_exclusion(tmp_path):
+    from scripts.archive_cninfo_inventory import report
+    bundle = origin_bundle(tmp_path, audit=True)
+    before = copy.deepcopy(bundle)
+    runtime, adapter = destination(tmp_path, lambda w: envelope(
+        url=w.resource.url, body=_html(), content_type="text/html"))
+    plan = plan_retained_inventory(runtime, bundle)
+    result = runtime.orchestrator.execute_run(plan.run.run_id)
+    assert result.material_gap_count == 0
+    assert len(adapter.fetch_calls) == 2 and not adapter.query_calls
+    assert all(not w.resource.url.endswith("audit.pdf") for w in adapter.fetch_calls)
+    manifest = runtime.repository.get_evidence_manifest(result.manifest_id)
+    runtime.manifest_service._validate_resource_exclusions(
+        (e for e in manifest.exclusions if e.object_type == "resource"), plan.run.run_id)
+    exclusions = [e for e in manifest.exclusions if e.object_type == "resource"]
+    assert len(exclusions) == 1 and exclusions[0].reason_code == "excluded_standalone_audit_pdf"
+    selected = runtime.repository.get_discovered_resource(exclusions[0].object_id)
+    original = next(r for r in bundle["entries"] if r["canonical_resource_id"] == "cninfo:3")
+    assert original["required_fetch"] and not selected.required_fetch
+    assert selected.metadata["origin_row_hash"] == original["row_hash"]
+    assert selected.metadata["origin_proof_id"] == original["proof_id"]
+    assert selected.metadata["origin_discovered_resource_id"] == original["discovered_resource_id"]
+    output = tmp_path / "report"
+    output.mkdir()
+    summary = report(runtime, bundle, {"batches": [{"run_id": plan.run.run_id}],
+        "inventory_sha256": "a" * 64}, output)
+    assert summary["fetch_counts"] == {"success": 2, "metadata_only": 1}
+    row = next(r for r in summary["rows"] if r["canonical_resource_id"] == "cninfo:3")
+    assert row["fetch_reason"] == "excluded_standalone_audit_pdf" and "attempt_id" not in row
+    assert runtime.orchestrator.execute_run(plan.run.run_id) == result
+    assert len(adapter.fetch_calls) == 2 and bundle == before
+    runtime.close()
 
 
 def test_resume_does_not_auto_retry_terminal_failure_or_duplicate_success(tmp_path, monkeypatch):

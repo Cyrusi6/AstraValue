@@ -17,6 +17,7 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -731,6 +732,14 @@ class SourceDefinition(FrozenAcquisitionModel):
     legacy: bool = False
     collection_role: Literal["primary", "on_demand"] | None = None
     supplements_source_id: str | None = None
+    content_selection_policy: Literal["business_model_no_standalone_audit_pdf_v1"] | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_selection_payload(self, handler):
+        payload = handler(self)
+        if self.content_selection_policy is None:
+            payload.pop("content_selection_policy", None)
+        return payload
 
     @field_validator("source_definition_id", "adapter_key")
     @classmethod

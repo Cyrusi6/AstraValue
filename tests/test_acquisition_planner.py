@@ -51,7 +51,8 @@ def _planner() -> AcquisitionPlanner:
 def test_source_local_dates_cover_midnight_in_baseline_and_incremental(mode, cutoff, expected_last_date):
     loader = SourceRegistryLoader()
     questions = loader.load_questions()
-    registry = loader.load_registry(DEFAULT_REGISTRY_PATH, question_set=questions)
+    registry = loader.load_registry(
+        DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.9.json"), question_set=questions)
     start = datetime(2026, 8, 23, 16, tzinfo=timezone.utc)
     plan = AcquisitionPlanner(registry, questions).plan(
         _profile(), mode=mode, as_of=cutoff,

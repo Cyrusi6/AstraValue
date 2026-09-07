@@ -1,5 +1,15 @@
 ## Context
 
+### 2026-09-07 独立审计正文停采与离线证据试点
+
+SourceDefinition 新增可选 `content_selection_policy`，未设置时从序列化中省略以保持旧 payload 和 canonical hash。新 registry 1.10.0 的四个业务来源冻结 `business_model_no_standalone_audit_pdf_v1`；来源版本分别递增，旧 checkpoint 不声明跨版本兼容，历史正文 validator 兼容沿用并明确增加前一正式版本。旧运行恢复服从其已冻结定义。
+
+在适配器返回后、discovery 规范化行提交前应用纯选择函数；retained inventory 先完整验证原始目录/行谱系，再应用本次冻结策略。仅对标题可确认的独立审计 PDF 将 required_fetch 降为 false，保留目录条数、总数、分页、原始 proof 和 metadata 中的策略/原因。选取影响新的规范化行，旧行不回写。年报、招股附录、公告/决议及正文中的审计引用不匹配该规则。
+
+排除目录行不创建 fetch attempt，不伪记 success/no_data/restricted，也不形成正文缺口；manifest coverage_summary 与归档报告列出 metadata_only 排除及证据位置。只含排除项的非空目录仍是 discovery success；没有正文的 manifest 继续不可作为默认研究正文。新版本首次生产使用新的合法 baseline 前置条件，本轮只验证程序与已有目录，不重跑来源采集。
+
+离线消费试点冻结输入 manifest，重算原始/派生哈希并校验时间、来源和 namespace，再覆盖十主题检索。全目录关键词共现只是候选路由；抽样审查区分事实、公司声明、计划、解析不确定和限定审查范围内未检出。分母固定在分层样本，额外同年报比对单列，不能把样本结论推广为全部历史或所有公司。原材料、旧观察和人工签署不改。
+
 ### 2026-09-06 MinerU 精准解析替换
 
 根据用户明确指令，当前公告扫描件解析器改为 MinerU 精准解析 API v4，显式 model_version=vlm、is_ocr=true、language=ch，开启表格与公式输出。本节覆盖下方历史本地 OCR 的实现选择；原始 PDF、旧派生和运行历史继续保留。移除 RapidOCR worker、独立模型配置及隐式 Tesseract 调用。HTML 和 PDF 原生提取仍可用；云解析只接受显式选择的已提交 PDF snapshot，不自动上传任意手工文件。

@@ -4,6 +4,29 @@
 
 ## ADDED Requirements
 
+### Requirement: 版本化独立审计正文选择
+registry 1.10.0 SHALL 为四个业务来源固定 `business_model_no_standalone_audit_pdf_v1` 策略。只有明确匹配独立审计报告标题且预期 MIME 允许 PDF 的资源，才能从 `required_fetch=true` 降为 false，记录 `metadata_only` 和 `excluded_standalone_audit_pdf`；含财务报表及附注的独立审计报告同样排除。来源端点、访问限制、速率和其他材料选择 MUST 保持。历史 registry、run、原文与派生 MUST 不变。
+
+#### Scenario: 独立审计文件保留目录且无正文请求
+- **WHEN** 保留响应或仅保留 proof 的发现流程返回独立审计 PDF
+- **THEN** 系统 SHALL 保留全部行、总数、页位置、proof 和来源引用，标记正文排除且不创建 fetch attempt；仍按原分页合同继续取完目录
+
+#### Scenario: 年报招股及引用材料保持
+- **WHEN** 标题为年报、招股说明书及附录、上市公告书、引用审计报告的公告，或资源仅允许 HTML
+- **THEN** 系统 SHALL 保留其原 required fetch 选择，不因正文含审计章节或 URL 后缀而排除
+
+#### Scenario: 全页被排除不等于来源无数据
+- **WHEN** 非空发现结果中全部资源均为独立审计 PDF
+- **THEN** 发现 SHALL 按非空目录记录成功且保留总数，不得生成 no_data；没有其他合格正文时 manifest 不得通过内容消费门
+
+#### Scenario: 旧运行恢复及旧目录重用
+- **WHEN** 更新默认 registry 后恢复旧运行，或从旧保留目录创建新运行
+- **THEN** 恢复 SHALL 使用旧运行冻结的定义；新运行 SHALL 先完整校验旧目录及行哈希，再应用新冻结策略，只创建新的选择记录，不回写旧行
+
+#### Scenario: 已是 metadata-only 的查询
+- **WHEN** smoke 或查询合同本已令 required_fetch=false
+- **THEN** 系统 SHALL 保持该状态，不将其计为独立审计策略新增的停采
+
 ### Requirement: 版本化主采与按需补充角色
 registry 1.7.0 SHALL 固定 CNINFO 1.6.0 为 primary、SSE 1.4.0 为 on_demand 并引用 supplements_source_id=cninfo.disclosures。历史未声明角色的定义 SHALL 维持其主采解释。角色变化 MUST 新建来源版本；默认主采计划 SHALL 为补充来源生成无 I/O 的 on_demand_supplement 静态覆盖。当前 SSE DQBG 合同只支持定期报告，不得假定两个来源历史材料完全相同。
 

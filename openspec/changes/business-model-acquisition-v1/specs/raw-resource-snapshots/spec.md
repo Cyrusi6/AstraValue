@@ -4,6 +4,17 @@
 
 ## ADDED Requirements
 
+### Requirement: 正文选择排除具有正式资源引用
+独立审计正文排除 SHALL 进入 `EvidenceManifestExclusion(object_type=resource, object_id=discovered_resource_id, reason_code=excluded_standalone_audit_pdf)`，按资源 ID 去重排序，并在 coverage summary 按理由计数。构建和重新消费前 MUST 验证目录行、父 discovery attempt、本运行 namespace 与冻结 registry/definition 哈希、原 required fetch 和选择理由一致。只有此明确选择理由可作为非阻断排除，不得泛化为任意 policy_skipped。未含该排除的旧 manifest 哈希 MUST 保持。
+
+#### Scenario: 正常停采可追溯且不掩盖失败
+- **WHEN** 新运行同时含合格正文、独立审计目录项及真实失败项
+- **THEN** manifest SHALL 记录独立审计的资源级排除，归档汇总将其视为 metadata_only 正常终态；真实失败仍保留缺口，不能被停采计数覆盖
+
+#### Scenario: 非本运行或未经冻结的排除
+- **WHEN** 传入另一运行资源、未知排除理由、错误标题/MIME、被改动的策略或未发生 true 到 false 选择的记录
+- **THEN** 证据清单 MUST 拒绝该排除，不能通过构造排除项使正文消费门放行
+
 ### Requirement: MinerU 精准解析与逐页原文对应
 系统 SHALL 使用 MinerU 精准解析 API v4，显式选择 vlm 模型并开启扫描识别、表格与公式，替换旧本地 OCR 流程。云解析 SHALL 只接受显式选择、许可允许派生及 LLM 处理、未隔离且完整性有效的已提交 PDF snapshot。原始 PDF、原生文本、旧派生物和人工签署 MUST 保留。新派生 SHALL 冻结父快照、API/服务/提取器版本、配置、任务 ID、ZIP/Markdown/逐页布局/阅读文本和哈希；不得伪造置信度或已核对的财务事实。
 
@@ -162,7 +173,7 @@ CNINFO 公告 schema 3 SHALL 从已批准目录行的附件后缀确定 PDF 或 
 
 #### Scenario: 合格材料取得未来 LLM 消费资格
 - **WHEN** 所有选中材料均已归档、哈希匹配、`available_at` 不晚于 `as_of` 且 `llm_processing=allowed`
-- **THEN** 系统 SHALL 冻结证据清单并标记其通过门禁；未来调用方只能通过该 manifest ID 解析版本化材料，本 change 不得据此实际调用 Codex
+- **THEN** 系统 SHALL 冻结证据清单并标记其通过门禁；调用方只能通过该 manifest ID 解析版本化材料；用户另行明确批准的十主题离线试点可交由 Codex 复核，采集 runtime 不自动调用模型，AI 复核不替代人工黄金签署
 
 #### Scenario: 一份材料不允许 LLM
 - **WHEN** 候选清单中一份材料的来源定义禁止 LLM 处理
