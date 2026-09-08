@@ -602,6 +602,7 @@ class ReportStorage:
         if status not in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
         }:
             return
         unique_ids = list(dict.fromkeys(source_ids))

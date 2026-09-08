@@ -606,8 +606,8 @@ class SourceQueryDefinition(FrozenAcquisitionModel):
     execution_key: str
     adapter_operation: str
     question_ids: tuple[str, ...]
-    request_method: Literal["GET", "POST"]
-    request_encoding: Literal["query", "form", "json"] = "query"
+    request_method: Literal["GET", "POST", "SDK"]
+    request_encoding: Literal["query", "form", "json", "sdk"] = "query"
     fixed_headers: dict[str, str] = Field(default_factory=dict)
     endpoint: str | None = None
     parameter_template: dict[str, Any] = Field(default_factory=dict)
@@ -628,10 +628,12 @@ class SourceQueryDefinition(FrozenAcquisitionModel):
     def infer_legacy_request_encoding(cls, value: Any) -> Any:
         if isinstance(value, dict) and "request_encoding" not in value:
             method = str(value.get("request_method", "")).upper()
-            if method in {"GET", "POST"}:
+            if method in {"GET", "POST", "SDK"}:
                 return {
                     **value,
-                    "request_encoding": "query" if method == "GET" else "form",
+                    "request_encoding": (
+                        "sdk" if method == "SDK" else "query" if method == "GET" else "form"
+                    ),
                 }
         return value
 
@@ -1125,8 +1127,8 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     query_family: str
     execution_key: str
     attempt_kind: AttemptKind = AttemptKind.DISCOVERY
-    request_method: Literal["GET", "POST"]
-    request_encoding: Literal["query", "form", "json"] = "query"
+    request_method: Literal["GET", "POST", "SDK"]
+    request_encoding: Literal["query", "form", "json", "sdk"] = "query"
     fixed_headers: dict[str, str] = Field(default_factory=dict)
     parameter_binding_names: tuple[str, ...] = ()
     prerequisite_query_ids: tuple[str, ...] = ()
@@ -1146,20 +1148,32 @@ class PhysicalQueryPlanItem(TimeSliceMixin):
     def infer_legacy_request_encoding(cls, value: Any) -> Any:
         if isinstance(value, dict) and "request_encoding" not in value:
             method = str(value.get("request_method", "")).upper()
-            if method in {"GET", "POST"}:
+            if method in {"GET", "POST", "SDK"}:
                 return {
                     **value,
-                    "request_encoding": "query" if method == "GET" else "form",
+                    "request_encoding": (
+                        "sdk" if method == "SDK" else "query" if method == "GET" else "form"
+                    ),
                 }
         return value
 
     @field_validator("endpoint")
     @classmethod
     def validate_endpoint(cls, value: str) -> str:
+        if value.startswith("baostock+sdk://"):
+            method = value.removeprefix("baostock+sdk://")
+            if not re.fullmatch(r"query_[a-z0-9_]+", method):
+                raise ValueError("BaoStock SDK endpoint必须是固定query_*方法")
+            return value
         return _require_https_url(value, field_name="physical query endpoint")
 
     @model_validator(mode="after")
     def validate_kind(self) -> "PhysicalQueryPlanItem":
+        is_sdk = self.endpoint.startswith("baostock+sdk://")
+        if is_sdk != (self.request_method == "SDK"):
+            raise ValueError("BaoStock SDK端点必须使用SDK方法且HTTP端点不得标为SDK")
+        if (self.request_encoding == "sdk") != (self.request_method == "SDK"):
+            raise ValueError("SDK方法必须使用sdk请求编码")
         if self.retained_inventory_ref is not None:
             if self.attempt_kind != AttemptKind.DISCOVERY:
                 raise ValueError("本地目录只能作为discovery输入")

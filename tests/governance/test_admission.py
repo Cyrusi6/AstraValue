@@ -199,6 +199,7 @@ def test_A13_equal_values_never_upgrade_nonformal_sources() -> None:
     formal_roles = (
         SourceRole.OFFICIAL_DISCLOSURE,
         SourceRole.REGULATOR_EXCHANGE,
+        SourceRole.STRUCTURED_SUPPLIER,
     )
     nonformal_roles = (
         SourceRole.DISCOVERY_ONLY,
@@ -228,6 +229,26 @@ def test_A13_equal_values_never_upgrade_nonformal_sources() -> None:
         )
         for role in nonformal_roles
     )
+
+
+def test_structured_supplier_requires_external_row_field_validation() -> None:
+    claim = valid_claim(source_role=SourceRole.STRUCTURED_SUPPLIER)
+    span = GovernanceEvidenceSpan(
+        evidence_span_id=SPAN_ID,
+        raw_snapshot_id="shared-raw:1",
+        content_hash=H,
+        table_id="RPT_F10_ORGINFO_MANAINTRO",
+        row_label="PERSON_CODE=person:1;REPORT_DATE=2025-12-31",
+        column_label="POSITION",
+        excerpt_hash=H2,
+    )
+
+    assert canonical_eligible(
+        claim,
+        evidence_span=span,
+        validation_results=(valid_result(),),
+    )
+    assert not canonical_eligible(claim, evidence_span=span)
 
 
 @pytest.mark.parametrize(

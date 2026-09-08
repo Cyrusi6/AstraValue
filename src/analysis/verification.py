@@ -358,7 +358,9 @@ def evidence_scores(facts: list[FactRecord], claims: list[ClaimRecord]) -> tuple
     if not facts and not claims:
         return 0.0, 0.0
     fact_complete = sum(
-        fact.value is not None and fact.verification_status not in {VerificationStatus.PENDING, VerificationStatus.UNAVAILABLE}
+        fact.value is not None
+        and fact.verification_status
+        not in {VerificationStatus.PENDING, VerificationStatus.UNAVAILABLE}
         for fact in facts
     )
     claim_complete = sum(bool(claim.evidence_fact_ids or claim.evidence_source_ids) for claim in claims)
@@ -366,6 +368,7 @@ def evidence_scores(facts: list[FactRecord], claims: list[ClaimRecord]) -> tuple
     fact_weights = {
         VerificationStatus.DUAL_SOURCE: 1.0,
         VerificationStatus.AUTHORITATIVE_SINGLE: 0.9,
+        VerificationStatus.SUPPLIER_DIRECT: 0.85,
         VerificationStatus.ESTIMATED: 0.6,
         VerificationStatus.NOT_DISCLOSED: 0.2,
         VerificationStatus.UNAVAILABLE: 0.0,

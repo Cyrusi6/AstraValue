@@ -1,0 +1,464 @@
+{
+  "schema_version": "structured-registry.v1",
+  "registry_kind": "schedules",
+  "registry_id": "structured_data_schedules",
+  "version": "1.0.0",
+  "content_sha256": "28c18cd4c47120025ce7b878c871b4018b7a18ae2c577990168fd13782405026",
+  "generated_from": [
+    "docs/acquisition/structured-data-interface-fields-v1.json",
+    "docs/acquisition/structured-data-field-plan-v1.md",
+    "openspec/changes/structured-data-first-v1/design.md"
+  ],
+  "timezone": "Asia/Shanghai",
+  "source_min_interval_seconds": {
+    "eastmoney": 3,
+    "baostock": 3,
+    "cninfo": 5
+  },
+  "max_attempts_per_execution": 2,
+  "analysis_default_complete_years": 5,
+  "analysis_default_published_quarters": 12,
+  "analysis_window_limits_acquisition": false,
+  "dataset_schedules": [
+    {
+      "dataset_id": "balance_fields",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "income_fields",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "cashflow_fields",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "income_quarter",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "cashflow_quarter",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "em_metrics",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "company_basic",
+      "baseline_scope": "snapshot_from_first_retrieval",
+      "incremental_rule": "report or related event plus weekly supplier-summary check",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "segments",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "customers_peer",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "rd",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "staff_pay",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "staff_structure",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "subsidiaries",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "controller",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "equity",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "holders_history",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "float_holders_history",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "holder_count",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "dividend",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "repurchase",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "guarantee",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "litigation",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "violation",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "seo",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "allotment",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "bond_issuance",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "goodwill",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "pledge",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "unlock_peer",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "management_trades",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "management_roster",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "management_salary",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "margin",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "block_trade",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "billboard",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "institution_holds",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "fund_holds",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "surveys",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "tags",
+      "baseline_scope": "on_demand_all_available_history",
+      "incremental_rule": "activate only for a concrete research category, then follow publication cadence",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "forecasts",
+      "baseline_scope": "on_demand_all_available_history",
+      "incremental_rule": "activate only for a concrete research category, then follow publication cadence",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "market_cap",
+      "baseline_scope": "snapshot_from_first_retrieval",
+      "incremental_rule": "report or related event plus weekly supplier-summary check",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "macro_cpi",
+      "baseline_scope": "on_demand_all_available_history",
+      "incremental_rule": "activate only for a concrete research category, then follow publication cadence",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "macro_retail",
+      "baseline_scope": "on_demand_all_available_history",
+      "incremental_rule": "activate only for a concrete research category, then follow publication cadence",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "capital_projects",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "capital_raise",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "daily 20:30 Asia/Shanghai; 30-day overlap and open lifecycle refresh",
+      "cron_local": "30 20 * * *",
+      "overlap_days": 30,
+      "refresh_open_lifecycle": true
+    },
+    {
+      "dataset_id": "baostock_adjust",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "trading_day 19:00 Asia/Shanghai; keep actual quote date when delayed",
+      "cron_local": "0 19 * * 1-5",
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_balance",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_basic",
+      "baseline_scope": "snapshot_from_first_retrieval",
+      "incremental_rule": "report or related event plus weekly supplier-summary check",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_calendar",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "trading_day 19:00 Asia/Shanghai; keep actual quote date when delayed",
+      "cron_local": "0 19 * * 1-5",
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_cash_flow",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_daily",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "trading_day 19:00 Asia/Shanghai; keep actual quote date when delayed",
+      "cron_local": "0 19 * * 1-5",
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_dupont",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_growth",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_operation",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    },
+    {
+      "dataset_id": "baostock_profit",
+      "baseline_scope": "all_available_history",
+      "incremental_rule": "new_report_catalog_period_or_supplier_period; no daily historical refetch",
+      "cron_local": null,
+      "overlap_days": null,
+      "refresh_open_lifecycle": false
+    }
+  ]
+}

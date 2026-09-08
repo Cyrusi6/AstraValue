@@ -1,0 +1,3621 @@
+{
+  "schema_version": "structured-registry.v1",
+  "registry_kind": "datasets",
+  "registry_id": "structured_data_datasets",
+  "version": "1.0.0",
+  "content_sha256": "be6c750f189382d42883f6a02fddbdc1bf337a5e98e9aadf7a48ded7be4cb405",
+  "generated_from": [
+    "docs/acquisition/structured-data-interface-fields-v1.json",
+    "docs/acquisition/structured-data-field-plan-v1.md",
+    "openspec/changes/structured-data-first-v1/design.md"
+  ],
+  "datasets": [
+    {
+      "dataset_id": "balance_fields",
+      "plan_group_id": "F01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_f",
+        "method": "GET",
+        "endpoint": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/zcfzbAjaxNew",
+        "report_name": null,
+        "allowed_parameters": [
+          "companyType",
+          "reportDateType",
+          "reportType",
+          "dates",
+          "code"
+        ],
+        "fixed_parameters": {
+          "reportDateType": "0",
+          "reportType": "1"
+        },
+        "parameter_template": {
+          "companyType": "{resolved_company_type}",
+          "dates": "{catalog_report_dates}",
+          "code": "{provider_code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange}{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "financial_date_catalog",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "financial_date_catalog",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 319,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "22aa24d0979ce648c742b792e09b7180fddc74e2a98de7b0562c41851c02946c"
+      ]
+    },
+    {
+      "dataset_id": "income_fields",
+      "plan_group_id": "F02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_f",
+        "method": "GET",
+        "endpoint": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/lrbAjaxNew",
+        "report_name": null,
+        "allowed_parameters": [
+          "companyType",
+          "reportDateType",
+          "reportType",
+          "dates",
+          "code"
+        ],
+        "fixed_parameters": {
+          "reportDateType": "0",
+          "reportType": "1"
+        },
+        "parameter_template": {
+          "companyType": "{resolved_company_type}",
+          "dates": "{catalog_report_dates}",
+          "code": "{provider_code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange}{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "financial_date_catalog",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "financial_date_catalog",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 203,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "189d76959d97edaa7e2ebe17ee91b3efe3bef0d698da045fd7891b2f1cc0a25e"
+      ]
+    },
+    {
+      "dataset_id": "cashflow_fields",
+      "plan_group_id": "F03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_f",
+        "method": "GET",
+        "endpoint": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/xjllbAjaxNew",
+        "report_name": null,
+        "allowed_parameters": [
+          "companyType",
+          "reportDateType",
+          "reportType",
+          "dates",
+          "code"
+        ],
+        "fixed_parameters": {
+          "reportDateType": "0",
+          "reportType": "1"
+        },
+        "parameter_template": {
+          "companyType": "{resolved_company_type}",
+          "dates": "{catalog_report_dates}",
+          "code": "{provider_code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange}{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "financial_date_catalog",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "financial_date_catalog",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 254,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "1e6c2cc2f25d375286b88b08a763e6e95ad14701b4b35a324eef7a4567ac965b"
+      ]
+    },
+    {
+      "dataset_id": "income_quarter",
+      "plan_group_id": "F04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_f",
+        "method": "GET",
+        "endpoint": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/lrbAjaxNew",
+        "report_name": null,
+        "allowed_parameters": [
+          "companyType",
+          "reportDateType",
+          "reportType",
+          "dates",
+          "code"
+        ],
+        "fixed_parameters": {
+          "reportDateType": "0",
+          "reportType": "2"
+        },
+        "parameter_template": {
+          "companyType": "{resolved_company_type}",
+          "dates": "{catalog_report_dates}",
+          "code": "{provider_code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange}{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "financial_date_catalog",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "financial_date_catalog",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 204,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "cb151256138132f88fd594c085463f5e112c769efc3fe5dd92ef62b0867b5e98"
+      ]
+    },
+    {
+      "dataset_id": "cashflow_quarter",
+      "plan_group_id": "F04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_f",
+        "method": "GET",
+        "endpoint": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/xjllbAjaxNew",
+        "report_name": null,
+        "allowed_parameters": [
+          "companyType",
+          "reportDateType",
+          "reportType",
+          "dates",
+          "code"
+        ],
+        "fixed_parameters": {
+          "reportDateType": "0",
+          "reportType": "2"
+        },
+        "parameter_template": {
+          "companyType": "{resolved_company_type}",
+          "dates": "{catalog_report_dates}",
+          "code": "{provider_code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange}{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "financial_date_catalog",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "financial_date_catalog",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 253,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "c41061edfc1792453d7a8722a10909a94997f18e48a1a585ccc74a631a25fcdc"
+      ]
+    },
+    {
+      "dataset_id": "em_metrics",
+      "plan_group_id": "F05",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_m",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/get",
+        "report_name": "RPT_F10_FINANCE_MAINFINADATA",
+        "allowed_parameters": [
+          "type",
+          "sty",
+          "filter",
+          "p",
+          "ps",
+          "sr",
+          "st",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "type": "RPT_F10_FINANCE_MAINFINADATA",
+          "sty": "APP_F10_MAINFINADATA",
+          "sr": "-1",
+          "st": "REPORT_DATE",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "filter": "(SECUCODE=\"{supplier_security_code}\")",
+          "p": "{page_number}",
+          "ps": "{bounded_page_size}"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 141,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "eeb14d8f879fdcb8cc4a2d77283570e97fcb257fa7b7a76acb7f7566e2ecc5f8"
+      ]
+    },
+    {
+      "dataset_id": "company_basic",
+      "plan_group_id": "C01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_ORG_BASICINFO",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_ORG_BASICINFO",
+          "columns": "ALL",
+          "sortColumns": "",
+          "sortTypes": "",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "snapshot_from_first_retrieval",
+      "history_enumeration": "current_snapshot",
+      "primary_key_fields": [
+        "SECUCODE",
+        "__retrieved_at",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "__retrieved_at"
+      ],
+      "pagination": "none",
+      "update_category": "snapshot",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 107,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "0cf066526573f1097b00738dd0a5807fccf4771a0aef5ed778fe7c42a7eb326e"
+      ]
+    },
+    {
+      "dataset_id": "segments",
+      "plan_group_id": "C02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_FN_SEGMENTSV",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_FN_SEGMENTSV",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ITEM_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 35,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "3e155406ef96247f7f629d269f8633fb131b88f147005b5cc39b3f5e63f67295"
+      ]
+    },
+    {
+      "dataset_id": "customers_peer",
+      "plan_group_id": "C03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_BUSINESS_CUSTSUPP",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_BUSINESS_CUSTSUPP",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "d03a20107e3886f9e1a803a5127347f9182ce8bd5c0022cca572174a2a56b26c"
+      ]
+    },
+    {
+      "dataset_id": "rd",
+      "plan_group_id": "C04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_BUSINESS_RDEXPENSE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_BUSINESS_RDEXPENSE",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 17,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "f4dd061a1afc6b31709552b1dafc3844c2395d1fbb14d1f4a340d67cff4f2b8b"
+      ]
+    },
+    {
+      "dataset_id": "staff_pay",
+      "plan_group_id": "C05",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_HSF9_BASIC_STAFFCOMPOSITION",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_HSF9_BASIC_STAFFCOMPOSITION",
+          "columns": "ALL",
+          "sortColumns": "PAYYEAR",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 30,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "87140c8c505a9b4b2110c0277bc869e39db6ce29ed123eea4ab5b5aa30d64273"
+      ]
+    },
+    {
+      "dataset_id": "staff_structure",
+      "plan_group_id": "C06",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_STAFFCOMPETE_STRUCTURE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_STAFFCOMPETE_STRUCTURE",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 9,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "8cc818fcea06f84bc89f7eb3d25869a16376ec1f94374a9739603c1d48d195fe"
+      ]
+    },
+    {
+      "dataset_id": "subsidiaries",
+      "plan_group_id": "C07",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_PUBLIC_OP_HOLDINGORG",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_PUBLIC_OP_HOLDINGORG",
+          "columns": "ALL",
+          "sortColumns": "ORG_RANK",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "896b58786df01e44cd5955eb49df28f90329979358366b53613f5fa158970aaa"
+      ]
+    },
+    {
+      "dataset_id": "controller",
+      "plan_group_id": "G01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_EH_RELATION",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_EH_RELATION",
+          "columns": "ALL",
+          "sortColumns": "",
+          "sortTypes": "",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "__retrieved_at",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "__retrieved_at"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 6,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "e42a10c1dfe9cca6bf07bdcb60cfd67c9cb55c353fdcc910fefe2a5d295302ee"
+      ]
+    },
+    {
+      "dataset_id": "equity",
+      "plan_group_id": "G02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_EH_EQUITY",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_EH_EQUITY",
+          "columns": "ALL",
+          "sortColumns": "END_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "END_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 73,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "a6a0d1c37955c0439febcaa7f974f49efaafaa21d1e5a66df80600bb37db6152"
+      ]
+    },
+    {
+      "dataset_id": "holders_history",
+      "plan_group_id": "G03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_EH_HOLDERS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_EH_HOLDERS",
+          "columns": "ALL",
+          "sortColumns": "END_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "HOLDER_CODE"
+      ],
+      "date_fields": [
+        "END_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 26,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "97500a17cf37cda742f9875c0a9ea7ffccf2ed36145b83471ea61fb78ba165a3"
+      ]
+    },
+    {
+      "dataset_id": "float_holders_history",
+      "plan_group_id": "G04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_EH_FREEHOLDERS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_EH_FREEHOLDERS",
+          "columns": "ALL",
+          "sortColumns": "END_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "HOLDER_CODE"
+      ],
+      "date_fields": [
+        "END_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 47,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "dda1a6780894b39fc6038c6f5dac5d1175dd4c49b43d5d2fc17e8b00f0efd56e"
+      ]
+    },
+    {
+      "dataset_id": "holder_count",
+      "plan_group_id": "G05",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_HOLDERNUM_DET",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_HOLDERNUM_DET",
+          "columns": "ALL",
+          "sortColumns": "END_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "END_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 23,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "9efb8488d559ba38c40803f38ab53a70e8858094570d2c3cf7caf04393260b6f"
+      ]
+    },
+    {
+      "dataset_id": "dividend",
+      "plan_group_id": "A01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_SHAREBONUS_DET",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_SHAREBONUS_DET",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE",
+        "PUBLISH_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 30,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "3e8fde9f8eb2c72778691f83dea355d4e1f20badbba5ff48f24eadb6bb1f24c5"
+      ]
+    },
+    {
+      "dataset_id": "repurchase",
+      "plan_group_id": "A02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPTA_WEB_GETHGLIST_NEW",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPTA_WEB_GETHGLIST_NEW",
+          "columns": "ALL",
+          "sortColumns": "DIM_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(DIM_SCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "DIM_SCODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "__retrieved_at"
+      ],
+      "date_fields": [
+        "__retrieved_at"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 68,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "d274ca6715ea5b68f13348318ccf14f93701b83fcc81c17031b1c23f8d7cad47"
+      ]
+    },
+    {
+      "dataset_id": "guarantee",
+      "plan_group_id": "G09",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_F10_ORGRES_GUARANTEE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_ORGRES_GUARANTEE",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "TRADE_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 23,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "ec00767b22340478fd9b1e4e244a0abdca6d8fb57dd21ba626b1892f1f766c56"
+      ]
+    },
+    {
+      "dataset_id": "litigation",
+      "plan_group_id": "G10",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_LITIGATION_ARBITRATION_BSINFO",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_LITIGATION_ARBITRATION_BSINFO",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 23,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "8f4a43ff4c51afb9d944a633b30ad1364c5a0df829d6dfc83c0069aedf8d25c6"
+      ]
+    },
+    {
+      "dataset_id": "violation",
+      "plan_group_id": "G11",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_HSF9_OP_VIOLATION",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_HSF9_OP_VIOLATION",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "b300f3b37cbd03e3894b3dd7afddfde96e6b3b79c0057099a0aba723f0bf65eb"
+      ]
+    },
+    {
+      "dataset_id": "seo",
+      "plan_group_id": "A03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_DIVIDEND_SEO",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_DIVIDEND_SEO",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "330ae7062eb53c34efe60a171338d7abf6832bed85611210b3c7376a17fa28e3"
+      ]
+    },
+    {
+      "dataset_id": "allotment",
+      "plan_group_id": "A03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_DIVIDEND_ALLOTMENT",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_DIVIDEND_ALLOTMENT",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 10,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "cf8931f5c13743c9345854fdbd495c0c59c4e2f9e0b6e67ceded9975786c630a"
+      ]
+    },
+    {
+      "dataset_id": "bond_issuance",
+      "plan_group_id": "A04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_DIVIDEND_BOND",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_DIVIDEND_BOND",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE",
+        "BOND_COMBINE_CODE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 23,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "79b7216b3c20bd029cf7bc53c98c45531ec8fc4289d08d89b9e655245a3227d9"
+      ]
+    },
+    {
+      "dataset_id": "goodwill",
+      "plan_group_id": "G12",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_GOODWILL_STOCKDETAILS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_GOODWILL_STOCKDETAILS",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 25,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "392822f051eaf8527fd88aac5fcf4ff505d9bcae02a5132ef7309b0ef68e8643"
+      ]
+    },
+    {
+      "dataset_id": "pledge",
+      "plan_group_id": "A05",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPTA_APP_ACCUMDETAILS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPTA_APP_ACCUMDETAILS",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "TRADE_DATE",
+        "HOLDER_CODE"
+      ],
+      "date_fields": [
+        "TRADE_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 41,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "15f0758a51e5aac1ec7ad6d3fcc3f6dccba993d9d00555dc85f94ac6c6d7a912"
+      ]
+    },
+    {
+      "dataset_id": "unlock_peer",
+      "plan_group_id": "A06",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_LIFT_STAGE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_LIFT_STAGE",
+          "columns": "ALL",
+          "sortColumns": "FREE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "FREE_DATE"
+      ],
+      "date_fields": [
+        "FREE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 24,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "22f7b9ddde34a02896035685f1555eb61547550909e4f88e94b8a4fc2556dc0c"
+      ]
+    },
+    {
+      "dataset_id": "management_trades",
+      "plan_group_id": "G08",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_EXECUTIVE_HOLD_DETAILS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_EXECUTIVE_HOLD_DETAILS",
+          "columns": "ALL",
+          "sortColumns": "CHANGE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECURITY_CODE",
+        "CHANGE_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "CHANGE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 19,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "67dc0ba050ffdc827f0b17525bd1724bbdc4b04b3d22d7f2dc0ee77bf6e92b24"
+      ]
+    },
+    {
+      "dataset_id": "management_roster",
+      "plan_group_id": "G06",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_ORGINFO_MANAINTRO",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_ORGINFO_MANAINTRO",
+          "columns": "ALL",
+          "sortColumns": "",
+          "sortTypes": "",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "PERSON_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 31,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "8dae6f3fd6f63191bd5d09e1307b235c074577ec2423c3983d7c97c70bf3d147"
+      ]
+    },
+    {
+      "dataset_id": "management_salary",
+      "plan_group_id": "G07",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_ORGINFO_SALARY",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_ORGINFO_SALARY",
+          "columns": "ALL",
+          "sortColumns": "",
+          "sortTypes": "",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "PERSON_CODE"
+      ],
+      "date_fields": [
+        "END_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "7fd2dda0835872465e55d3d76987a44cbb851048a251ab744312920dd0c2063a"
+      ]
+    },
+    {
+      "dataset_id": "margin",
+      "plan_group_id": "T01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_MARGIN_STATISTICS_STOCKS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_MARGIN_STATISTICS_STOCKS",
+          "columns": "ALL",
+          "sortColumns": "TRADE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "TRADE_DATE"
+      ],
+      "date_fields": [
+        "TRADE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 32,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "99c5ad7535647ede16104a64f5f19b9247afc2d379b298b181f394e76837d5d9"
+      ]
+    },
+    {
+      "dataset_id": "block_trade",
+      "plan_group_id": "T02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_DATA_BLOCKTRADE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_DATA_BLOCKTRADE",
+          "columns": "ALL",
+          "sortColumns": "TRADE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "TRADE_DATE"
+      ],
+      "date_fields": [
+        "TRADE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 38,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "0a41bd1258334ffcba08f80a0fd68265cd8aefea466bc6105c8bbf44a2b2ff87"
+      ]
+    },
+    {
+      "dataset_id": "billboard",
+      "plan_group_id": "T03",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_BILLBOARD_DAILYDETAILS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_BILLBOARD_DAILYDETAILS",
+          "columns": "ALL",
+          "sortColumns": "TRADE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "TRADE_DATE",
+        "TRADE_ID"
+      ],
+      "date_fields": [
+        "TRADE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 17,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "d18f6ab2bca6ad0fdd75c7e87a9670e8e30dc8f5d71c6384fb6fa0e8acc332f2"
+      ]
+    },
+    {
+      "dataset_id": "institution_holds",
+      "plan_group_id": "T04",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_MAIN_ORGHOLDDETAILS",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_MAIN_ORGHOLDDETAILS",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 18,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "f5913484f82c33fdea59451234a6fbdab219d05a2d80ce3b4b658fee37ea066d"
+      ]
+    },
+    {
+      "dataset_id": "fund_holds",
+      "plan_group_id": "T05",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_MAIN_ORGHOLDDETAIL",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_MAIN_ORGHOLDDETAIL",
+          "columns": "ALL",
+          "sortColumns": "TOTAL_SHARES",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "HOLDER_CODE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 41,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "4f3be69d440a8a8a838bdba0c3ec7bdea45e4dcd2eb9cc8518b8960ad5fb6304"
+      ]
+    },
+    {
+      "dataset_id": "surveys",
+      "plan_group_id": "T06",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_ORG_SURVEY",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_ORG_SURVEY",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "END_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "END_DATE",
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 34,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "123e8bad1dce9e25291088d32c91096c49c14087d6fa89f5efdde60061d67a59"
+      ]
+    },
+    {
+      "dataset_id": "tags",
+      "plan_group_id": "L01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_CORETHEME_BOARDTYPE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_CORETHEME_BOARDTYPE",
+          "columns": "ALL",
+          "sortColumns": "BOARD_RANK",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "on_demand_all_available_history",
+      "history_enumeration": "on_demand_complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "__retrieved_at",
+        "BOARD_CODE"
+      ],
+      "date_fields": [
+        "__retrieved_at"
+      ],
+      "pagination": "page_number",
+      "update_category": "on_demand",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 13,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "245281e5447d0db5ca0dcec53921e9569c3ec76b7a46cd3f7504f9e0fcfc350c"
+      ]
+    },
+    {
+      "dataset_id": "forecasts",
+      "plan_group_id": "P01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_HSF10_RES_PREDICTDETAIL",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_HSF10_RES_PREDICTDETAIL",
+          "columns": "ALL",
+          "sortColumns": "",
+          "sortTypes": "",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "on_demand_all_available_history",
+      "history_enumeration": "on_demand_complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "PUBLISH_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "PUBLISH_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "on_demand",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 25,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "7781e9db3b0fb7555df9a14d60dc056875494f2302a43272f5905da0b1358703"
+      ]
+    },
+    {
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_q",
+        "method": "GET",
+        "endpoint": "https://push2.eastmoney.com/api/qt/stock/get",
+        "report_name": null,
+        "allowed_parameters": [
+          "secid",
+          "fields",
+          "fltt",
+          "invt"
+        ],
+        "fixed_parameters": {
+          "fields": "f57,f58,f86,f116,f117",
+          "fltt": "2",
+          "invt": "2"
+        },
+        "parameter_template": {
+          "secid": "{provider_secid}"
+        },
+        "company_filter_field": "secid",
+        "provider_code_format": "{market_number}.{security_code}"
+      },
+      "history_mode": "snapshot_from_first_retrieval",
+      "history_enumeration": "current_snapshot",
+      "primary_key_fields": [
+        "f57",
+        "f86"
+      ],
+      "date_fields": [
+        "f86"
+      ],
+      "pagination": "none",
+      "update_category": "snapshot",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 5,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "f7cb81b1ff17d41c602b6c5b40455bd3db4f0b5ac0c91d0e91cee97878aade08"
+      ]
+    },
+    {
+      "dataset_id": "macro_cpi",
+      "plan_group_id": "I01",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_ECONOMY_CPI",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_ECONOMY_CPI",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}"
+        },
+        "company_filter_field": null,
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "on_demand_all_available_history",
+      "history_enumeration": "date_range_batches",
+      "primary_key_fields": [
+        "__company_id",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "on_demand",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 14,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "6969aeb1be3fdfa980c197a909cc39dceffebaccaac9351fec3b751f0bd10208"
+      ]
+    },
+    {
+      "dataset_id": "macro_retail",
+      "plan_group_id": "I02",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_w",
+        "method": "GET",
+        "endpoint": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+        "report_name": "RPT_ECONOMY_TOTAL_RETAIL",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_ECONOMY_TOTAL_RETAIL",
+          "columns": "ALL",
+          "sortColumns": "REPORT_DATE",
+          "sortTypes": "-1",
+          "source": "WEB",
+          "client": "WEB"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}"
+        },
+        "company_filter_field": null,
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "on_demand_all_available_history",
+      "history_enumeration": "date_range_batches",
+      "primary_key_fields": [
+        "__company_id",
+        "REPORT_DATE"
+      ],
+      "date_fields": [
+        "REPORT_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "on_demand",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 7,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "336e002f0f1f0f44103dba7e897cd56f1ea9142abc081c612103e60a4acee0f7"
+      ]
+    },
+    {
+      "dataset_id": "capital_projects",
+      "plan_group_id": "A07",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_CAPITAL_ITEM",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_CAPITAL_ITEM",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECURITY_CODE",
+        "provider_code_format": "{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECURITY_CODE",
+        "NOTICE_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 10,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "ce542e3ae76fc4053490d9e1b29f1cc36a26ec8f42ab73ea314e003ed71bb86c"
+      ]
+    },
+    {
+      "dataset_id": "capital_raise",
+      "plan_group_id": "A08",
+      "provider": "eastmoney",
+      "upstream_identity": "eastmoney",
+      "request": {
+        "protocol": "em_s",
+        "method": "GET",
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/v1/get",
+        "report_name": "RPT_F10_CAPITAL_RAISE",
+        "allowed_parameters": [
+          "reportName",
+          "columns",
+          "filter",
+          "pageNumber",
+          "pageSize",
+          "sortColumns",
+          "sortTypes",
+          "source",
+          "client"
+        ],
+        "fixed_parameters": {
+          "reportName": "RPT_F10_CAPITAL_RAISE",
+          "columns": "ALL",
+          "sortColumns": "NOTICE_DATE",
+          "sortTypes": "-1",
+          "source": "HSF10",
+          "client": "PC"
+        },
+        "parameter_template": {
+          "pageNumber": "{page_number}",
+          "pageSize": "{bounded_page_size}",
+          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+        },
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
+      "primary_key_fields": [
+        "SECUCODE",
+        "NOTICE_DATE",
+        "ORG_CODE"
+      ],
+      "date_fields": [
+        "NOTICE_DATE"
+      ],
+      "pagination": "page_number",
+      "update_category": "event",
+      "empty_result": {
+        "success_evidence": [
+          "protocol success and required response shape"
+        ],
+        "empty_evidence": [
+          "valid empty result contract including Eastmoney 9201 where registered"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 10,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "7a3f3fcf03aa70ae72b3301c39554a1a3fab16542776e34e5c8f789cb8e82791"
+      ]
+    },
+    {
+      "dataset_id": "baostock_adjust",
+      "plan_group_id": "B08",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_adjust_factor",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "start_date",
+          "end_date"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "start_date": "{start_date}",
+          "end_date": "{end_date}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "date_range_batches",
+      "primary_key_fields": [
+        "code",
+        "__retrieved_at"
+      ],
+      "date_fields": [
+        "__retrieved_at"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "market",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 5,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "e8e7b88c1d38e83d20760dec8f4d5ead2029c485a9af55ea29762d172a97ddb0"
+      ]
+    },
+    {
+      "dataset_id": "baostock_balance",
+      "plan_group_id": "B05",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_balance_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 9,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "9dfec265c8cd82764b9e960430f1b2a2dbaabd94b6fca4287e9838bfffe42e3f"
+      ]
+    },
+    {
+      "dataset_id": "baostock_basic",
+      "plan_group_id": "B08",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_stock_basic",
+        "report_name": null,
+        "allowed_parameters": [
+          "code"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "snapshot_from_first_retrieval",
+      "history_enumeration": "current_snapshot",
+      "primary_key_fields": [
+        "code",
+        "ipoDate"
+      ],
+      "date_fields": [
+        "ipoDate"
+      ],
+      "pagination": "none",
+      "update_category": "snapshot",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 6,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "71ccf6b24266aba65108e2255987554a8dde17acb56699350bcecef55b3d856e"
+      ]
+    },
+    {
+      "dataset_id": "baostock_calendar",
+      "plan_group_id": "B08",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_trade_dates",
+        "report_name": null,
+        "allowed_parameters": [
+          "start_date",
+          "end_date"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "start_date": "{start_date}",
+          "end_date": "{end_date}"
+        },
+        "company_filter_field": null,
+        "provider_code_format": null
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "date_range_batches",
+      "primary_key_fields": [
+        "__company_id",
+        "calendar_date"
+      ],
+      "date_fields": [
+        "calendar_date"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "market",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 2,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "9c7d70ef278a9bc8fbeeadb394d343c0397c2fa29cc5a27d14f1e9fd6c874e96"
+      ]
+    },
+    {
+      "dataset_id": "baostock_cash_flow",
+      "plan_group_id": "B06",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_cash_flow_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 10,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "f733e41339bb8f4dae46caf5e323c4a160db126dc8b1bd43e2d9de6963ef55e9"
+      ]
+    },
+    {
+      "dataset_id": "baostock_daily",
+      "plan_group_id": "B01",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_history_k_data_plus",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "fields",
+          "start_date",
+          "end_date",
+          "frequency",
+          "adjustflag"
+        ],
+        "fixed_parameters": {
+          "fields": "date,code,open,high,low,close,preclose,volume,amount,adjustflag,turn,tradestatus,pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM,isST",
+          "frequency": "d",
+          "adjustflag": "3"
+        },
+        "parameter_template": {
+          "code": "{code}",
+          "start_date": "{start_date}",
+          "end_date": "{end_date}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "date_range_batches",
+      "primary_key_fields": [
+        "code",
+        "date"
+      ],
+      "date_fields": [
+        "date"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "market",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 18,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "ad7ef8238bbae4fd46d6d113ccf82c1c848ff695ae79e51ff7cf9a108eab351b"
+      ]
+    },
+    {
+      "dataset_id": "baostock_dupont",
+      "plan_group_id": "B07",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_dupont_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 11,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "89853e7b865fb6f934348261a24e76932d6b350a392fe2e95e8f5d7f314908e0"
+      ]
+    },
+    {
+      "dataset_id": "baostock_growth",
+      "plan_group_id": "B04",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_growth_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 8,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "41d807fa24e78c98e7b739f14da2f1586b820eff3faf304b5a132518f89c0e26"
+      ]
+    },
+    {
+      "dataset_id": "baostock_operation",
+      "plan_group_id": "B03",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_operation_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 9,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "ed8b1865efb4c1a269e34dad73b988fb3e60758ce4fe3f18d8bcc84e5038db72"
+      ]
+    },
+    {
+      "dataset_id": "baostock_profit",
+      "plan_group_id": "B02",
+      "provider": "baostock",
+      "upstream_identity": "baostock",
+      "request": {
+        "protocol": "baostock_sdk",
+        "method": "SDK",
+        "endpoint": "query_profit_data",
+        "report_name": null,
+        "allowed_parameters": [
+          "code",
+          "year",
+          "quarter"
+        ],
+        "fixed_parameters": {},
+        "parameter_template": {
+          "code": "{code}",
+          "year": "{year}",
+          "quarter": "{quarter}"
+        },
+        "company_filter_field": "code",
+        "provider_code_format": "{exchange_lower}.{security_code}"
+      },
+      "history_mode": "all_available_history",
+      "history_enumeration": "year_quarter_batches",
+      "primary_key_fields": [
+        "code",
+        "statDate"
+      ],
+      "date_fields": [
+        "statDate"
+      ],
+      "pagination": "sdk_exhaustion",
+      "update_category": "financial",
+      "empty_result": {
+        "success_evidence": [
+          "SDK success code and exhausted result set"
+        ],
+        "empty_evidence": [
+          "success code with zero exhausted rows"
+        ],
+        "does_not_prove": [
+          "company has no historical record",
+          "fact is not applicable",
+          "fact was not disclosed"
+        ]
+      },
+      "expected_field_count": 11,
+      "field_coverage_status": "response_fields_observed",
+      "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
+      "sample_evidence_hashes": [
+        "db7a029062efab88abefa74c9628370429f02d2a648ce1c903f0553f2f426129"
+      ]
+    }
+  ]
+}

@@ -159,6 +159,7 @@ def test_enum_values_are_closed_and_stable() -> None:
     assert {item.value for item in SourceRole} == {
         "official_disclosure",
         "regulator_exchange",
+        "structured_supplier",
         "discovery_only",
         "contextual_evidence",
         "deferred",

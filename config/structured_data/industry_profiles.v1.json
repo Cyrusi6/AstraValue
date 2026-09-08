@@ -1,0 +1,1521 @@
+{
+  "schema_version": "structured-registry.v1",
+  "registry_kind": "industry_profiles",
+  "registry_id": "structured_data_industry_profiles",
+  "version": "1.0.0",
+  "content_sha256": "982ac43fc794261bef8ff872a908027083e5618bd8bbfe82f7a600a25f43f3f4",
+  "generated_from": [
+    "docs/acquisition/structured-data-interface-fields-v1.json",
+    "docs/acquisition/structured-data-field-plan-v1.md",
+    "openspec/changes/structured-data-first-v1/design.md"
+  ],
+  "profile_selection_version": "1.0.0",
+  "mixed_business_rule": "连续两个可比年度单一主营分类占比均至少50%方可自动选择单一画像；否则组合已证画像并按分部适用，未知保持待确认",
+  "preprofit_is_overlay": true,
+  "classification_sources_are_not_research_profiles": true,
+  "unknown_industry_default_profile": null,
+  "profiles": [
+    {
+      "profile_id": "general",
+      "label": "普通工商",
+      "mode": "base",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "ordinary companyType",
+        "two-period segment evidence where classification is needed"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.general.balance",
+          "path": {
+            "dataset_id": "balance_fields",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.general.balance",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "confirmed ordinary industrial/commercial reporting type",
+          "affected_question_ids": [
+            "ES02.Q01",
+            "ES02.Q05",
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.general.income",
+          "path": {
+            "dataset_id": "income_fields",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.general.income",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "confirmed ordinary industrial/commercial reporting type",
+          "affected_question_ids": [
+            "ES02.Q02",
+            "ES02.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.general.cashflow",
+          "path": {
+            "dataset_id": "cashflow_fields",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.general.cashflow",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "confirmed ordinary industrial/commercial reporting type",
+          "affected_question_ids": [
+            "ES02.Q07",
+            "ES02.Q08"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.general.notes",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD05",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.general.notes",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "ordinary industrial/commercial evidence is confirmed",
+          "affected_question_ids": [
+            "ES02.Q01",
+            "ES02.Q05"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "manufacturing",
+      "label": "制造",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 principal business",
+        "report companyType"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.manufacturing.capacity",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.manufacturing.capacity",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "company operates owned/contracted production with comparable capacity",
+          "affected_question_ids": [
+            "ES01.Q05",
+            "ES01.Q06",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.manufacturing.unit_cost",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD02",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.manufacturing.unit_cost",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "same product and scope quantities exist",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.manufacturing.industry_inputs",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.manufacturing.industry_inputs",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "manufacturing profile active",
+          "affected_question_ids": [
+            "ES07.Q02",
+            "ES07.Q03",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.manufacturing.operating_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.manufacturing.operating_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "capacity/order/utilization variables are not evidenced",
+          "affected_question_ids": [
+            "ES01.Q05",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "consumer",
+      "label": "消费",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 consumer principal business and share"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.consumer.segments",
+          "path": {
+            "dataset_id": "segments",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.consumer.segments",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "consumer products/services and comparable segments are evidenced",
+          "affected_question_ids": [
+            "ES01.Q02",
+            "ES01.Q04",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.consumer.counterparties",
+          "path": {
+            "dataset_id": "customers_peer",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.consumer.counterparties",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "distribution or concentrated counterparties apply",
+          "affected_question_ids": [
+            "ES01.Q03",
+            "ES01.Q08"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.consumer.volume",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.consumer.volume",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "physical product volume is applicable",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.consumer.channel",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD02",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.consumer.channel",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "distribution/channel model is evidenced",
+          "affected_question_ids": [
+            "ES01.Q03",
+            "ES01.Q10"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.consumer.price_inventory_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.consumer.price_inventory_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "industry price or channel inventory is required",
+          "affected_question_ids": [
+            "ES07.Q03",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [
+        {
+          "condition_id": "distribution_chain",
+          "evidence_required": [
+            "distribution/channel business evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.consumer.counterparties",
+            "IND.consumer.channel",
+            "IND.consumer.price_inventory_gap"
+          ]
+        }
+      ],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "technology",
+      "label": "科技",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 technology principal business"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.technology.rd",
+          "path": {
+            "dataset_id": "rd",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.rd",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "technology profile active",
+          "affected_question_ids": [
+            "ES01.Q07",
+            "ES07.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.technology.commercialization",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD04",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.commercialization",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "technology project evidence exists",
+          "affected_question_ids": [
+            "ES01.Q07",
+            "ES07.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.technology.hardware_capacity",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.hardware_capacity",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "hardware production is evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.technology.hardware_yield_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.hardware_yield_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "hardware yield/operating volume is required",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.technology.software_subscription",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD01",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.software_subscription",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "subscription/software service model is evidenced",
+          "affected_question_ids": [
+            "ES01.Q01",
+            "ES01.Q04"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.technology.software_retention",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP12",
+            "research_object_kind": null,
+            "semantic_key": "industry.technology.software_retention",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "ARR/retention/customer counts are required and not evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [
+        {
+          "condition_id": "hardware",
+          "evidence_required": [
+            "hardware production evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.technology.hardware_capacity",
+            "IND.technology.hardware_yield_gap"
+          ]
+        },
+        {
+          "condition_id": "software_subscription",
+          "evidence_required": [
+            "software/subscription revenue model evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.technology.software_subscription",
+            "IND.technology.software_retention"
+          ]
+        }
+      ],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "bank",
+      "label": "银行",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "bank report companyType",
+        "bank regulatory/business classification"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.bank.nim",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NET_INTEREST_MARGIN",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.nim",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "bank reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q03"
+          ],
+          "replaces_semantic_keys": [
+            "general.gross_margin"
+          ]
+        },
+        {
+          "input_id": "IND.bank.npl",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NON_PERFORMING_LOAN",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.npl",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "bank reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q05"
+          ],
+          "replaces_semantic_keys": [
+            "general.inventory_quality"
+          ]
+        },
+        {
+          "input_id": "IND.bank.capital",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NEWCAPITALADER",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.capital",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "bank reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": [
+            "general.current_ratio"
+          ]
+        },
+        {
+          "input_id": "IND.bank.liquidity",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "LIQUIDITY_COVERAGE_RATIO",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.liquidity",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "bank reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": [
+            "general.quick_ratio"
+          ]
+        },
+        {
+          "input_id": "IND.bank.definitions",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.definitions",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "bank profile active",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES02.Q05",
+            "ES02.Q06",
+            "ES05.Q04"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.bank.sample_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP08",
+            "research_object_kind": null,
+            "semantic_key": "industry.bank.sample_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "candidate fields lack companyType/nonempty/unit evidence",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES02.Q05",
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "insurance",
+      "label": "保险",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "insurance report companyType",
+        "life/P&C business evidence"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.insurance.embedded_value",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NHJZ_CURRENT_AMT",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.embedded_value",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "life insurance business and field definition are validated",
+          "affected_question_ids": [
+            "ES05.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.insurance.life_nbv",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NBV_LIFE",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.life_nbv",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "life insurance business and field definition are validated",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES05.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.insurance.life_nbv_rate",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NBV_RATE",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.life_nbv_rate",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "life insurance business and field definition are validated",
+          "affected_question_ids": [
+            "ES02.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.insurance.solvency",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "SOLVENCY_AR",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.solvency",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "insurance reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": [
+            "general.current_ratio",
+            "general.quick_ratio"
+          ]
+        },
+        {
+          "input_id": "IND.insurance.property_casualty",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.property_casualty",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "property/casualty business is evidenced",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES02.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.insurance.sample_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP08",
+            "research_object_kind": null,
+            "semantic_key": "industry.insurance.sample_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "insurance candidate fields or P&C ratios lack evidence",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES02.Q05",
+            "ES02.Q06",
+            "ES05.Q05"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [
+        {
+          "condition_id": "life",
+          "evidence_required": [
+            "life insurance business evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.insurance.embedded_value",
+            "IND.insurance.life_nbv",
+            "IND.insurance.life_nbv_rate"
+          ]
+        },
+        {
+          "condition_id": "property_casualty",
+          "evidence_required": [
+            "property/casualty insurance business evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.insurance.property_casualty"
+          ]
+        }
+      ],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "securities",
+      "label": "券商",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "securities report companyType",
+        "licensed securities business evidence"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.securities.risk_coverage",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "RISK_COVERAGE",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.securities.risk_coverage",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "securities reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.securities.net_capital",
+          "path": {
+            "dataset_id": "em_metrics",
+            "raw_name": "NET_CAPITAL_LIABILITIES",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.securities.net_capital",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "candidate_mapping"
+          },
+          "activation_condition": "securities reporting type and definition are validated",
+          "affected_question_ids": [
+            "ES02.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.securities.fee_income",
+          "path": {
+            "dataset_id": "income_fields",
+            "raw_name": "FEE_COMMISSION_INCOME",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.securities.fee_income",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "securities income statement definition is validated",
+          "affected_question_ids": [
+            "ES01.Q02",
+            "ES02.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.securities.segments",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.securities.segments",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "brokerage/investment banking/asset management/proprietary segment applies",
+          "affected_question_ids": [
+            "ES01.Q02",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.securities.sample_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP08",
+            "research_object_kind": null,
+            "semantic_key": "industry.securities.sample_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "regulatory ratios or segment rates lack evidence",
+          "affected_question_ids": [
+            "ES02.Q03",
+            "ES02.Q06",
+            "ES05.Q03"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "real_estate",
+      "label": "地产",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 development/project principal business"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.real_estate.contract_liability",
+          "path": {
+            "dataset_id": "balance_fields",
+            "raw_name": "CONTRACT_LIAB",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.real_estate.contract_liability",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "real-estate development business is evidenced",
+          "affected_question_ids": [
+            "ES02.Q05",
+            "ES02.Q08"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.real_estate.projects",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.real_estate.projects",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "project development business is evidenced",
+          "affected_question_ids": [
+            "ES01.Q05",
+            "ES01.Q06"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.real_estate.restricted_cash_debt",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD06",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.real_estate.restricted_cash_debt",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "real-estate profile active",
+          "affected_question_ids": [
+            "ES02.Q06",
+            "ES05.Q04"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.real_estate.nav_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP05",
+            "research_object_kind": null,
+            "semantic_key": "industry.real_estate.nav_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "NAV or complete debt inputs are required",
+          "affected_question_ids": [
+            "ES05.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.real_estate.sales_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.real_estate.sales_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "contract sales/collections/project saleable value are required",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "resources",
+      "label": "资源周期",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 specific resource principal business"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.resources.reserves_output",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.resources.reserves_output",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "resource extraction business is evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.resources.prices_costs",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.resources.prices_costs",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "specific commodity and region are identified",
+          "affected_question_ids": [
+            "ES07.Q02",
+            "ES07.Q03",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.resources.segments",
+          "path": {
+            "dataset_id": "segments",
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.resources.segments",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "record_set",
+            "support_status": "supported"
+          },
+          "activation_condition": "multiple resources/products exist",
+          "affected_question_ids": [
+            "ES01.Q02"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.resources.commodity_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.resources.commodity_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "complete quantity/price/cost source is absent",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "utility",
+      "label": "公用事业",
+      "mode": "industry",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "C01 classification",
+        "C02 electricity/water/gas principal business"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.utility.electricity",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.utility.electricity",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "electricity generation/supply business is evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.utility.water",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.utility.water",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "water treatment/supply business is evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.utility.gas",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD03",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.utility.gas",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "gas distribution business is evidenced",
+          "affected_question_ids": [
+            "ES01.Q04",
+            "ES01.Q05",
+            "ES07.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.utility.tariff_cost",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD09",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.utility.tariff_cost",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "applicable utility segment is identified",
+          "affected_question_ids": [
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.utility.operating_gap",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": "GAP07",
+            "research_object_kind": null,
+            "semantic_key": "industry.utility.operating_gap",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "gap",
+            "support_status": "unsupported_free_source"
+          },
+          "activation_condition": "industry quantity/tariff mechanism lacks evidence",
+          "affected_question_ids": [
+            "ES07.Q03",
+            "ES07.Q05"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [
+        {
+          "condition_id": "electricity",
+          "evidence_required": [
+            "electricity segment evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.utility.electricity"
+          ]
+        },
+        {
+          "condition_id": "water",
+          "evidence_required": [
+            "water segment evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.utility.water"
+          ]
+        },
+        {
+          "condition_id": "gas",
+          "evidence_required": [
+            "gas segment evidence"
+          ],
+          "unknown_behavior": "pending",
+          "input_ids": [
+            "IND.utility.gas"
+          ]
+        }
+      ],
+      "preserve_unreplaced_steps": true
+    },
+    {
+      "profile_id": "preprofit",
+      "label": "尚未盈利",
+      "mode": "overlay",
+      "inherits_common_requirements": true,
+      "activation_evidence": [
+        "period-specific profitability and cash-flow evidence",
+        "research classification evidence"
+      ],
+      "unknown_behavior": "pending_not_general_fallback",
+      "inputs": [
+        {
+          "input_id": "IND.preprofit.cash",
+          "path": {
+            "dataset_id": "balance_fields",
+            "raw_name": "MONETARYFUNDS",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.preprofit.cash",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "company is not yet sustainably profitable",
+          "affected_question_ids": [
+            "ES02.Q06",
+            "ES05.Q04"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.preprofit.operating_cash",
+          "path": {
+            "dataset_id": "cashflow_fields",
+            "raw_name": "NETCASH_OPERATE",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.preprofit.operating_cash",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "company is not yet sustainably profitable",
+          "affected_question_ids": [
+            "ES02.Q07",
+            "ES08.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.preprofit.capex",
+          "path": {
+            "dataset_id": "cashflow_fields",
+            "raw_name": "CONSTRUCT_LONG_ASSET",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.preprofit.capex",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "company is not yet sustainably profitable",
+          "affected_question_ids": [
+            "ES01.Q06",
+            "ES08.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.preprofit.shares",
+          "path": {
+            "dataset_id": "equity",
+            "raw_name": "TOTAL_SHARES",
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.preprofit.shares",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "raw_field",
+            "support_status": "supported"
+          },
+          "activation_condition": "company is not yet sustainably profitable",
+          "affected_question_ids": [
+            "ES02.Q09",
+            "ES08.Q03"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.preprofit.milestones",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": "RD10",
+            "gap_id": null,
+            "research_object_kind": null,
+            "semantic_key": "industry.preprofit.milestones",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "reading_section",
+            "support_status": "reading_required"
+          },
+          "activation_condition": "company is not yet sustainably profitable",
+          "affected_question_ids": [
+            "ES01.Q09",
+            "ES06.Q05"
+          ],
+          "replaces_semantic_keys": []
+        },
+        {
+          "input_id": "IND.preprofit.runway_assumption",
+          "path": {
+            "dataset_id": null,
+            "raw_name": null,
+            "route_id": null,
+            "gap_id": null,
+            "research_object_kind": "AssumptionRecord",
+            "semantic_key": "industry.preprofit.runway_assumption",
+            "period_semantics": "industry-compatible comparison period",
+            "scope_semantics": "question company, requested analysis period and registered business dimension",
+            "unit_semantics": "registered provider unit or requirement-specific declared unit",
+            "kind": "research_context",
+            "support_status": "research_context_required"
+          },
+          "activation_condition": "cash runway model is selected",
+          "affected_question_ids": [
+            "ES05.Q04",
+            "ES08.Q02"
+          ],
+          "replaces_semantic_keys": []
+        }
+      ],
+      "conditional_groups": [],
+      "preserve_unreplaced_steps": true
+    }
+  ]
+}

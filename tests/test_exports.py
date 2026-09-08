@@ -39,7 +39,7 @@ def test_markdown_html_and_xlsx_share_core_result(demo_report, tmp_path):
 
     path = export_report(demo_report, "xlsx", tmp_path)
     workbook = load_workbook(path, data_only=False)
-    assert workbook.sheetnames == ["置顶结论", "八步正文", "财务事实", "经营维度事实", "公司事件", "情景假设", "情景测算", "估值模型", "来源与审计", "方法与版本", "检查"]
+    assert workbook.sheetnames == ["置顶结论", "八步正文", "财务事实", "经营维度事实", "公司事件", "情景假设", "情景测算", "估值模型", "来源与审计", "方法与版本", "八步数据覆盖", "检查"]
     assert workbook["置顶结论"]["C10"].value == demo_report.conclusion.fair_value_base
     formulas = [cell.value for row in workbook["情景测算"].iter_rows() for cell in row if isinstance(cell.value, str) and cell.value.startswith("=")]
     assert len(formulas) >= 20
@@ -51,6 +51,49 @@ def test_markdown_html_and_xlsx_share_core_result(demo_report, tmp_path):
         "期望差异",
         "偏差",
     ]
+
+
+def test_exports_share_frozen_research_coverage_projection(demo_request, tmp_path):
+    snapshot_id = "coverage-snapshot-export-001"
+    demo_request.research_coverage_snapshot_id = snapshot_id
+    demo_request.research_coverage = {
+        "overall_status": "pending",
+        "analysis_scope": {"FIN": {"years": ["Y2021", "Y2022"]}},
+        "questions": [
+            {
+                "step_id": "ES02",
+                "question_id": "ES02.Q01",
+                "state": "pending",
+                "applicability": "true",
+                "required_requirement_ids": ["REQ.ES02.Q01.001", "REQ.ES02.Q01.002"],
+                "ready_requirement_ids": ["REQ.ES02.Q01.001"],
+                "missing_requirement_ids": ["REQ.ES02.Q01.002"],
+                "optional_missing_ids": ["REQ.ES02.Q01.003"],
+                "next_paths": ["GAP02:补充历史季度"],
+                "method_status": "skeleton",
+                "assumption_status": "not_required",
+                "analysis_status": "not_started",
+            }
+        ],
+    }
+    report = ReportBuilder().build(demo_request)
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+    path = export_report(report, "xlsx", tmp_path)
+    workbook = load_workbook(path, data_only=False)
+    sheet = workbook["八步数据覆盖"]
+    headers = [cell.value for cell in sheet[1]]
+    row = {header: sheet.cell(2, index + 1).value for index, header in enumerate(headers)}
+
+    assert snapshot_id in markdown
+    assert snapshot_id in html
+    assert "REQ.ES02.Q01.002" in markdown
+    assert "REQ.ES02.Q01.002" in html
+    assert row["覆盖快照ID"] == snapshot_id
+    assert row["问题"] == "ES02.Q01"
+    assert json.loads(row["待补必需项"]) == ["REQ.ES02.Q01.002"]
+    assert row["方法状态"] == "skeleton"
 
 
 def test_xlsx_writes_complete_dimensional_fact_lineage(demo_request, tmp_path):

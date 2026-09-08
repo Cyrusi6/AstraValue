@@ -17,6 +17,7 @@ from .registry import MethodRegistry
 from .reporting import ReportBuilder
 from .storage import ReportStorage, report_diff
 from .timeseries import TimeSeriesStore
+from .structured.consumption import is_fact_consumable
 
 
 class AnalysisService:
@@ -158,12 +159,7 @@ class AnalysisService:
                 if item.metric_id == "market_price"
                 and item.value is not None
                 and item.value > 0
-                and item.verification_status
-                not in {
-                    VerificationStatus.PENDING,
-                    VerificationStatus.UNAVAILABLE,
-                    VerificationStatus.NOT_DISCLOSED,
-                }
+                and is_fact_consumable(item, as_of=resolved.as_of)
                 and aware(item.as_of) <= aware(resolved.as_of)
             ]
             if usable_prices:
@@ -300,4 +296,6 @@ class AnalysisService:
             event_sync_result_id=report.request_metadata.get(
                 "event_sync_result_id"
             ),
+            research_coverage_snapshot_id=report.research_coverage_snapshot_id,
+            research_coverage=deepcopy(report.research_coverage),
         )
