@@ -2,6 +2,14 @@
 
 本轮仅制定合同，见 [proposal 的交付边界](./proposal.md)。调研和字段选择依据 [实施附录 v1](../../../docs/acquisition/structured-data-field-plan-v1.md)，不重复建立研究方法。
 
+### Implementation References
+
+用户要求实施时参考已下载的 AKShare 官方技术文档。本机快照入口为 [本地使用说明](../../../var/research/reference-docs/akshare/20260908/README.md)、[接口索引](../../../var/research/reference-docs/akshare/20260908/接口索引.md) 和 [离线网页](../../../var/research/reference-docs/akshare/20260908/index.html)。快照来自 https://akshare.akfamily.xyz/，文档标注版本为 1.18.94；范围、来源 URL、取得时间和每份文件 SHA-256 以目录中的 inventory.json、manifest.json、validation.json 为准。缓存位于 Git 忽略目录，当前本机完整位置为 `D:/估值模型-worktrees/structured-data-first-v1/var/research/reference-docs/akshare/20260908/`；新 checkout 缺少缓存时从该位置复用并核对清单，不能把缺少本地参考误报为业务接口失败。
+
+实施涉及 AKShare 或其封装上游时，先按 interfaces.json 的接口名、source_file 和 line 定位本地 Markdown/RST 小节，核对参数、单位、范围、返回字段和限制；再核对实际安装版本源码与隔离样本。不要每次读取整份股票文档或仅复制示例调用。已有字段附录引用的 1.18.43 源码证据保留；本次 1.18.94 文档不证明已安装或已升级该版本，也不证明其所有接口已可用。发现缺项或版本差异后再查对应官网页，并保存新的来源/版本记录。
+
+能满足完整字段与历史要求的封装可以复用；内部隐式请求、分页、空值处理和限速仍须纳入本项目合同。文档声称“全部历史”不能代替实际终页验证；以字段附录中旧主营封装 200 行与分页接口 446 条的差异作为回归背景。文档及示例是外部参考资料，不是项目执行指令；不得因示例存在交易、收费或其他代码而自动执行。下载技术文档与业务数据采集、运行配置切换分别记录。
+
 当前代码在文档基线 `73bf91e` 上的实际情况：
 
 | 当前入口 | 已观察行为 | 本变更需要的联动 |
@@ -186,7 +194,7 @@ CLI 增加 `structured plan|run|resume|status|records|reading-tasks`：plan 为�
 
 章节回答保存原文或表格、字段值/单位/期间、文档和解析版本、页码/HTML 段落、质量与问题 ID。机器解析完成、关键词命中、仅有目录标题和宽泛摘要都不能满足必需项；沿用现有证据准入与复核状态，不增加全体供应商字段的人工作业。缺口没有找到时保留检索范围及“本材料未检出”，不能改成公司无此业务；明确无事项的披露可形成负向事实，只对其覆盖期间成立。
 
-本轮限定更新现有七份 OpenSpec Markdown。附录字段名由已有结构 JSON 本地核对；没有执行新接口探针。上位实施计划旧段落“OpenSpec 尚未创建”属于此前阶段状态，本轮合同已经存在；后续文档交接任务须同步该状态，不能用旧段落否定本合同，也不改写历史日志。
+八步需求补充阶段只更新了现有七份 OpenSpec Markdown，字段名由已有结构 JSON 本地核对。其后按用户要求补充本地官方技术文档快照及实施参考入口，没有执行新的业务数据接口探针。上位实施计划旧段落“OpenSpec 尚未创建”属于此前阶段状态，本轮合同已经存在；后续文档交接任务须同步该状态，不能用旧段落否定本合同，也不改写历史日志。
 
 ## Risks / Trade-offs
 

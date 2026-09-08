@@ -4,7 +4,7 @@
 
 ## Delivery Boundary
 
-用户已明确本轮仅形成完整变更合同，后续另行要求实现。当前交付限于 proposal、specs、design 和 tasks；下文为待实现的目标行为，源码、运行配置、数据迁移、联网执行和调度部署均不在本轮执行。
+用户已明确本轮仅形成完整变更合同，后续另行要求实现。当前交付为 proposal、specs、design、tasks，以及用户随后要求保存并在实施时参考的本地官方技术文档；下文为待实现的目标行为，业务源码、运行配置、数据迁移、业务数据联网执行和调度部署均不在本轮执行。技术参考位置与使用规则见 [设计](./design.md#implementation-references)。
 
 ## What Changes
 
