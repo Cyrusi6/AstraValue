@@ -3,7 +3,7 @@
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
   "version": "1.0.0",
-  "content_sha256": "be6c750f189382d42883f6a02fddbdc1bf337a5e98e9aadf7a48ded7be4cb405",
+  "content_sha256": "056652d5d4de92e366b2b87140823d90c3124017abde97cd47dcf2f9337155f6",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -350,7 +350,7 @@
           "client": "PC"
         },
         "parameter_template": {
-          "filter": "(SECUCODE=\"{supplier_security_code}\")",
+          "filter": "(SECUCODE=\"{provider_code}\")",
           "p": "{page_number}",
           "ps": "{bounded_page_size}"
         },
@@ -422,7 +422,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -491,7 +491,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -561,7 +561,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -630,7 +630,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -698,7 +698,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -767,7 +767,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -835,7 +835,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -904,7 +904,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -973,7 +973,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1043,7 +1043,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1112,7 +1112,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1182,7 +1182,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -1251,7 +1251,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -1322,7 +1322,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(DIM_SCODE=\"{supplier_security_code}\")"
+          "filter": "(DIM_SCODE=\"{security_code}\")"
         },
         "company_filter_field": "DIM_SCODE",
         "provider_code_format": "{security_code}"
@@ -1390,7 +1390,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1460,7 +1460,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1529,7 +1529,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1598,7 +1598,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1666,7 +1666,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1734,7 +1734,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1803,7 +1803,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -1873,7 +1873,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -1943,7 +1943,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -2011,7 +2011,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -2080,7 +2080,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2149,7 +2149,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2218,7 +2218,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2286,7 +2286,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2354,7 +2354,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2423,7 +2423,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2491,7 +2491,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2560,7 +2560,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -2630,7 +2630,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2699,7 +2699,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"
@@ -2960,7 +2960,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECURITY_CODE=\"{supplier_security_code}\")"
+          "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
         "provider_code_format": "{security_code}"
@@ -3029,7 +3029,7 @@
         "parameter_template": {
           "pageNumber": "{page_number}",
           "pageSize": "{bounded_page_size}",
-          "filter": "(SECUCODE=\"{supplier_security_code}\")"
+          "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
         "provider_code_format": "{security_code}.{exchange}"

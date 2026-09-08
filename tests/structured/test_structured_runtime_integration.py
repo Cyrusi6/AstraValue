@@ -130,6 +130,7 @@ def test_http_page_is_snapshotted_then_projected_under_shared_run(tmp_path):
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.host == "datacenter.eastmoney.com"
         assert request.url.params["pageNumber"] == "1"
+        assert request.url.params["filter"] == '(SECUCODE="600519.SH")'
         return httpx.Response(
             200,
             json={

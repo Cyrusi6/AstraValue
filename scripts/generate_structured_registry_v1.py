@@ -186,7 +186,10 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
         filter_field = None
         if dataset_id not in NO_COMPANY_FILTER:
             filter_field = COMPANY_FILTER_FIELDS.get(dataset_id, "SECUCODE")
-            template["filter"] = f'({filter_field}="{{supplier_security_code}}")'
+            placeholder = (
+                "{provider_code}" if filter_field == "SECUCODE" else "{security_code}"
+            )
+            template["filter"] = f'({filter_field}="{placeholder}")'
         return {
             "protocol": protocol,
             "method": "GET",
@@ -214,7 +217,7 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
                 "client": "PC",
             },
             "parameter_template": {
-                "filter": '(SECUCODE="{supplier_security_code}")',
+                "filter": '(SECUCODE="{provider_code}")',
                 "p": "{page_number}",
                 "ps": "{bounded_page_size}",
             },

@@ -4,7 +4,7 @@
 
 ## 自动准备的样本证据
 
-本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。
+本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。本次绑定修复冻结的 `datasets.v1.json` 版本为 `1.0.0`，`content_sha256=056652d5d4de92e366b2b87140823d90c3124017abde97cd47dcf2f9337155f6`；人工抽样记录必须引用该配置 hash。
 
 | 样本 | 自动检查内容 | 自动结果 | 人工状态 |
 |---|---|---|---|
