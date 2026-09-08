@@ -39,3 +39,14 @@
 #### Scenario: One report triggers multiple topics
 - **WHEN** 同一季报同时触发营收、现金流和存货条件，且已有有效解析
 - **THEN** 生成一个含三项理由的定向阅读任务，引用已有解析与章节，额外下载和 MinerU 请求为零
+
+### Requirement: Required reading resolves question inputs with explicit evidence
+系统 SHALL 将八步问题所需的非结构化输入映射到具体重要报告章节和提取字段，复用已有 BM 主题、事实表和解析。只有绑定公司、期间、字段/原文及页码或历史 HTML 段落定位的可用证据才能满足该输入；材料存在、文本解析完成、候选关键词命中均不等于已回答。无披露、无可靠定位或阅读未完成各有原因，缺口不触发全部公告正文抓取。
+
+#### Scenario: Annual report parsed but required quantity is unanswered
+- **WHEN** 年报已有 MinerU 解析，但产量要求没有带单位和期间的有效证据
+- **THEN** 产量问题保持待补，生成或复用经营数据章节的定向阅读项；不再下载和解析该文件，也不以营收估计产量
+
+#### Scenario: Source explicitly states an event is absent
+- **WHEN** 有效报告章节明确说明该公司在覆盖期间未实施股权激励
+- **THEN** 保存有出处的无实施事件记录并据此判定该期间激励条款子问题不适用；不推广到公司所有历史期间

@@ -58,3 +58,25 @@
 #### Scenario: Dividend and valuation units
 - **WHEN** 来源返回每十股分红、百分数换手率和现金流量净额口径市现率
 - **THEN** 显式换算单位并保留原字段；不得将市现率改标为经营现金流口径或将分红预案标为已支付
+
+### Requirement: Eight-step questions have explicit input contracts
+系统 SHALL 为设计附录的每个八步问题登记稳定 ID、必需与可选数据项、适用行业/事件条件、期间需求和数据性质。每项必须定位到具体数据集原字段、有完整依赖的公式、重要报告章节或带原因的缺口；假设、论点、模型运行等已有研究对象独立引用，不能伪装为供应商事实。不得以“其他财务数据”“待探索接口”等占位表达可执行路径。跨题展开不得形成循环就绪依赖；问题选择只决定研究输入和按需项，不缩减已选公司的全部适用客观字段获取。
+
+#### Scenario: Registry contains an unmapped required input
+- **WHEN** 必需项只有字段名称而没有取得路径，或公式有未登记输入
+- **THEN** 注册校验拒绝将其标为已支持；允许以显式缺口登记，保留受影响问题及待补原因
+
+#### Scenario: Optional field is absent
+- **WHEN** 问题全部必需输入可用，但可选的调研回答或机构预测缺失
+- **THEN** 可选缺口单列，不降低该问题的数据就绪状态，不为填满可选项强制下载无关正文
+
+### Requirement: Industry-specific support is independently evidenced
+系统 MUST 区分行业字段的原名称已见、定义已确认、公司类型协议已验证和实际公司/期间已取得。金融等行业不能因普通企业响应含同名空列即认定已支持；无法取得的行业必需值保持缺口，不能以通用三表或全体上市公司均值替代。
+
+#### Scenario: Bank field name exists only in an industrial sample
+- **WHEN** 普通企业 F05 响应包含净息差列，但没有对应银行类型的字段定义和有效记录
+- **THEN** 将银行净息差列为行业映射/实测待补，保留确切候选字段；其他已通过的银行通用数据可以独立使用
+
+#### Scenario: Industry market share lacks a compatible denominator
+- **WHEN** 只有目标及六家同行的销售额，缺少同产品/地区/期间的全行业规模
+- **THEN** 不生成真实市场份额或行业 CR3/CR5；同业样本内占比只能用其独立定义显示，行业问题保留缺口

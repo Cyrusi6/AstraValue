@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: Versioned company and history scope
-系统 SHALL 默认使用贵州茅台及五粮液、泸州老窖、山西汾酒、洋河股份、古井贡酒、今世缘七家公司，保存目标/同行角色、选择依据和版本。每家取得适用数据集可免费提供的全部历史，展示五年/十二季度不得限制获取。
+系统 SHALL 将贵州茅台及五粮液、泸州老窖、山西汾酒、洋河股份、古井贡酒、今世缘保留为首批已选集合。明确输入新公司时使用该公司的解析身份和选定同行，不回退成茅台集合；未指定公司或集合的调用须明确选择范围。保存目标/同行角色、选择依据和版本，每家取得适用数据集可免费提供的全部历史，展示五年/十二季度不得限制获取。
 
 #### Scenario: Plan first full history
 - **WHEN** 对首批集合创建首次计划
@@ -61,3 +61,32 @@
 #### Scenario: Build or validate the new configuration
 - **WHEN** 执行注册表检查、离线测试或打开计划
 - **THEN** 不访问真实来源、不修改生产库、不创建操作系统定时任务
+
+### Requirement: New company resolution precedes scoped acquisition
+系统 SHALL 接受股票代码、带交易所代码或公司名称，通过已登记主数据和必要的身份前置工作解析唯一公司/证券关系。保留现名/曾用名和有效日期；未知、同名多候选、非支持市场不得猜选公司或仅按代码前缀推断。缓存不足的零网络计划只能列出前置任务，状态查询不隐式联网。
+
+#### Scenario: Ambiguous company name
+- **WHEN** 输入名称对应多个上市主体或多种证券且无法唯一匹配 A 股标的
+- **THEN** 返回候选和需明确的身份，目标财务及正文请求为零；不会使用默认 600519 或任意第一条结果
+
+#### Scenario: Unique company outside the first seven
+- **WHEN** 一个新 A 股代码被唯一解析且该市场/公司类型适配可用
+- **THEN** 为该公司创建通用数据与八步需求计划，行业专用缺口独立列出；未启用同行时不抓旧七家公司
+
+### Requirement: Industry profile is versioned and does not silently default
+系统 MUST 分开供应商行业标签、可用主营证据、报表 companyType 和研究行业画像。根据版本化规则确定通用、行业专用和条件问题；主营混合时组合适用画像并按分部处理。未知或相互矛盾时可继续独立通用获取，行业相关问题待补，不能静默采用普通工商估值或跳过所有行业要求。
+
+#### Scenario: Financial company has conflicting classification
+- **WHEN** 标签、报表类型或主营证据不能支持同一个行业画像
+- **THEN** 保存矛盾及候选，保留已知通用事实；相关行业/估值问题显示待确认，不触发通用 FCFF 作为兜底
+
+### Requirement: Peer selection is bounded, explained and separate from fact truth
+系统 SHALL 优先使用目标公司适用的已选同行版本，否则按同一分类体系发现候选并依据主营、模式、地域、期间及规模规则形成有理由的研究同行。自动规则选择独立于供应商事实及用户确认，最多选六家进入默认全历史获取；不足时保留不足，不递归扩展同行的同行。不同估值指标可有不同可比子集，亏损公司不应因此从经营比较中删除。
+
+#### Scenario: Same label without comparable business
+- **WHEN** 候选与目标拥有同一概念标签，但缺少共同主营和模式证据
+- **THEN** 候选不能自动成为已可比同行；必要元数据/主营筛查可安排，候选缺口不阻断目标公司独立财务获取
+
+#### Scenario: Loss-making peer remains operationally relevant
+- **WHEN** 同行通过经营可比性规则但当期亏损，PE 不具备经济可比性
+- **THEN** 保留其经营数据与同行身份，只在 PE 比较中排除并解释原因，不用负 PE 填补比较数量

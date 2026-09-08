@@ -42,3 +42,36 @@
 #### Scenario: Load an old report after upgrade
 - **WHEN** 按固定 ID 读取升级前的报告、来源或快照
 - **THEN** 返回其原记录和来源策略语义，不补造供应商准入、第二来源、历史时间或人工复核
+
+### Requirement: Question readiness follows required evidence and applicability
+系统 SHALL 对公司、问题、研究期间及冻结需求版本逐项计算“可分析 / 待补 / 不适用”。适用条件未知、必需输入缺失/过期/失败、公式依赖不全、必要章节尚未回答均为待补；只有有依据地判为不适用才可排除。可分析表示该问题的数据输入齐备，方法就绪、假设确认和分析完成必须独立显示；不得以接口成功、无记录、PDF 下载或模型生成答案代替数据覆盖。
+
+#### Scenario: Empty event response cannot prove no event
+- **WHEN** 质押接口本次无记录，且没有证明该期间无质押的可用材料
+- **THEN** 质押相关问题显示待补和供应商无记录原因，不自动显示不适用或无质押风险
+
+#### Scenario: Complete inputs meet an unfinished method
+- **WHEN** 某问题全部数据可用，但关联方法仍为 skeleton 或估值假设未确认
+- **THEN** 数据状态可以为可分析，同时明确方法待完善或假设待确认；不得输出整体八步完成或自动确认投资结论
+
+#### Scenario: Applicability is evidenced
+- **WHEN** 明确的行业规则或覆盖研究期间的材料证明某项业务不适用
+- **THEN** 以规则/材料 ID、时间和理由记录不适用，保留原问题条目；单个空值或接口不支持不是该证明
+
+### Requirement: Coverage preserves required periods and all eight steps
+系统 MUST 按请求的分析期间和问题定义展开必需输入，分别报告当前截面、历史趋势和供应商全历史采集状态。默认分析窗口为近五个完整年度及十二个已公布季度，年度同比和 TTM 等另带依赖期；上市前期间可有依据地排除，缺少供应商上市后历史不能排除。八步全部列出，问题部分就绪时不得靠其他问题的可选字段、重复字段或不适用项提高完成率。
+
+#### Scenario: Latest values hide historical gaps
+- **WHEN** 最近营收可用但分析窗口内一个必需历史季度缺失
+- **THEN** 最新截面可分析、对应历史问题待补，两者分别显示；接口本次成功或全历史任务未结束不改变这一判断
+
+#### Scenario: One ready question in a partially covered step
+- **WHEN** 财务步骤十个问题只有部分必需输入齐备
+- **THEN** 展示可分析问题与待补问题及缺项清单，该步骤仍为待补并可展示已有分析；八步汇总不隐藏该步骤
+
+### Requirement: Coverage snapshots are traceable and consistent across outputs
+系统 SHALL 保存公司身份、行业与同行版本、问题/需求/来源版本、分析范围、输入证据、缺口和判定时间的不可变覆盖快照。API、CLI、报告、前端和导出使用相同结果，区分数据就绪计数、可选增强、采集历史覆盖与研究完成；旧需求快照不得在配置变更后被原地重写。
+
+#### Scenario: A new required field changes current readiness
+- **WHEN** 新需求版本增加渠道库存必需项，而旧版本问题已经可分析
+- **THEN** 新覆盖如实显示待补，旧快照保持原版本及判定，所有输出可以定位到各自确切版本
