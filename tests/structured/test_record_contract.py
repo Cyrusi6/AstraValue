@@ -259,11 +259,17 @@ def test_market_cap_history_key_sort_and_secucode_binding_contract():
         item for item in source_plan["datasets"] if item["dataset_id"] == "market_cap"
     )
     sample_params = source_market_cap["samples"][0]["params"]
-    sample_sort_columns = tuple(sample_params["sortColumns"].split(","))
-    assert set(EXPECTED_KEYS["market_cap"][1:]).issubset(sample_sort_columns)
-    assert tuple(sample_params["sortTypes"].split(",")) == (
-        "-1",
-    ) * len(sample_sort_columns)
+    assert sample_params == {
+        "type": "RPT_VALUEANALYSIS_DET",
+        "sty": "ALL",
+        "filter": '(SECUCODE="600519.SH")',
+        "p": "1",
+        "ps": "500",
+        "sr": "-1",
+        "st": "TRADE_DATE",
+        "source": "HSF10",
+        "client": "PC",
+    }
 
     identity = {"market": "SSE", "security_code": "600519"}
     job = {

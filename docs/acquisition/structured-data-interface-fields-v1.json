@@ -17819,13 +17819,13 @@
         {
           "retrieved_at": "2026-09-09T04:11:12Z",
           "params": {
-            "reportName": "RPT_VALUEANALYSIS_DET",
-            "columns": "ALL",
+            "type": "RPT_VALUEANALYSIS_DET",
+            "sty": "ALL",
             "filter": "(SECUCODE=\"600519.SH\")",
-            "pageNumber": "1",
-            "pageSize": "500",
-            "sortColumns": "TRADE_DATE",
-            "sortTypes": "-1",
+            "p": "1",
+            "ps": "500",
+            "sr": "-1",
+            "st": "TRADE_DATE",
             "source": "HSF10",
             "client": "PC"
           },
