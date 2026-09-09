@@ -365,6 +365,13 @@ class StructuredRegistryLoader:
         for dataset in datasets:
             if dataset.provider != dataset.upstream_identity:
                 raise StructuredRegistryError(f"{dataset.dataset_id}: 真实上游身份不匹配")
+            synthetic_keys = [
+                name for name in dataset.primary_key_fields if name.startswith("__")
+            ]
+            if synthetic_keys:
+                raise StructuredRegistryError(
+                    f"{dataset.dataset_id}: primary_key_fields不得包含合成字段: {synthetic_keys}"
+                )
             if any(len(value) != 64 for value in dataset.sample_evidence_hashes):
                 raise StructuredRegistryError(f"{dataset.dataset_id}: 样本证据hash非法")
             probe_literals = {

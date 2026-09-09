@@ -3,7 +3,7 @@
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
   "version": "1.0.0",
-  "content_sha256": "056652d5d4de92e366b2b87140823d90c3124017abde97cd47dcf2f9337155f6",
+  "content_sha256": "f6496acaf154d8c848b619a0673677e0d9e3abc6f8a22ddcc90e90f4ed004723",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -430,9 +430,7 @@
       "history_mode": "snapshot_from_first_retrieval",
       "history_enumeration": "current_snapshot",
       "primary_key_fields": [
-        "SECUCODE",
-        "__retrieved_at",
-        "ORG_CODE"
+        "SECUCODE"
       ],
       "date_fields": [
         "__retrieved_at"
@@ -501,7 +499,8 @@
       "primary_key_fields": [
         "SECUCODE",
         "REPORT_DATE",
-        "ITEM_CODE"
+        "ITEM_CODE",
+        "MAINOP_TYPE"
       ],
       "date_fields": [
         "REPORT_DATE",
@@ -776,7 +775,8 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "REPORT_DATE"
+        "REPORT_DATE",
+        "DISTRIBUTION_NAME"
       ],
       "date_fields": [
         "REPORT_DATE"
@@ -845,7 +845,7 @@
       "primary_key_fields": [
         "SECUCODE",
         "REPORT_DATE",
-        "ORG_CODE"
+        "HOLD_ORG_NAME"
       ],
       "date_fields": [
         "REPORT_DATE"
@@ -913,8 +913,7 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "__retrieved_at",
-        "ORG_CODE"
+        "HOLDER_NAME"
       ],
       "date_fields": [
         "__retrieved_at"
@@ -1035,8 +1034,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_EH_HOLDERS",
           "columns": "ALL",
-          "sortColumns": "END_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "END_DATE,HOLDER_NAME",
+          "sortTypes": "-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -1053,7 +1052,7 @@
       "primary_key_fields": [
         "SECUCODE",
         "END_DATE",
-        "HOLDER_CODE"
+        "HOLDER_NAME"
       ],
       "date_fields": [
         "END_DATE"
@@ -1104,8 +1103,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_EH_FREEHOLDERS",
           "columns": "ALL",
-          "sortColumns": "END_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "END_DATE,HOLDER_NAME",
+          "sortTypes": "-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -1122,7 +1121,7 @@
       "primary_key_fields": [
         "SECUCODE",
         "END_DATE",
-        "HOLDER_CODE"
+        "HOLDER_NAME"
       ],
       "date_fields": [
         "END_DATE",
@@ -1331,7 +1330,7 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "__retrieved_at"
+        "REPURCODE"
       ],
       "date_fields": [
         "__retrieved_at"
@@ -1539,7 +1538,8 @@
       "primary_key_fields": [
         "SECUCODE",
         "NOTICE_DATE",
-        "ORG_CODE"
+        "PUNISH_OBJECT",
+        "PUNISH_TYPE"
       ],
       "date_fields": [
         "NOTICE_DATE"
@@ -2089,7 +2089,6 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "REPORT_DATE",
         "PERSON_CODE"
       ],
       "date_fields": [
@@ -2278,8 +2277,8 @@
         "fixed_parameters": {
           "reportName": "RPT_DATA_BLOCKTRADE",
           "columns": "ALL",
-          "sortColumns": "TRADE_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "TRADE_DATE,DAILY_RANK",
+          "sortTypes": "-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -2295,7 +2294,8 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "TRADE_DATE"
+        "TRADE_DATE",
+        "DAILY_RANK"
       ],
       "date_fields": [
         "TRADE_DATE"
@@ -2432,7 +2432,8 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "REPORT_DATE"
+        "REPORT_DATE",
+        "ORG_TYPE"
       ],
       "date_fields": [
         "REPORT_DATE"
@@ -2483,8 +2484,8 @@
         "fixed_parameters": {
           "reportName": "RPT_MAIN_ORGHOLDDETAIL",
           "columns": "ALL",
-          "sortColumns": "TOTAL_SHARES",
-          "sortTypes": "-1",
+          "sortColumns": "TOTAL_SHARES,HOLDER_CODE",
+          "sortTypes": "-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -2494,7 +2495,8 @@
           "filter": "(SECUCODE=\"{provider_code}\")"
         },
         "company_filter_field": "SECUCODE",
-        "provider_code_format": "{security_code}.{exchange}"
+        "provider_code_format": "{security_code}.{exchange}",
+        "page_size": 100
       },
       "history_mode": "all_available_history",
       "history_enumeration": "complete_pagination",
@@ -2563,7 +2565,8 @@
           "filter": "(SECURITY_CODE=\"{security_code}\")"
         },
         "company_filter_field": "SECURITY_CODE",
-        "provider_code_format": "{security_code}"
+        "provider_code_format": "{security_code}",
+        "page_size": 50
       },
       "history_mode": "all_available_history",
       "history_enumeration": "complete_pagination",
@@ -2639,7 +2642,6 @@
       "history_enumeration": "on_demand_complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "__retrieved_at",
         "BOARD_CODE"
       ],
       "date_fields": [
@@ -2833,7 +2835,6 @@
       "history_mode": "on_demand_all_available_history",
       "history_enumeration": "date_range_batches",
       "primary_key_fields": [
-        "__company_id",
         "REPORT_DATE"
       ],
       "date_fields": [
@@ -2900,7 +2901,6 @@
       "history_mode": "on_demand_all_available_history",
       "history_enumeration": "date_range_batches",
       "primary_key_fields": [
-        "__company_id",
         "REPORT_DATE"
       ],
       "date_fields": [
@@ -3094,7 +3094,7 @@
       "history_enumeration": "date_range_batches",
       "primary_key_fields": [
         "code",
-        "__retrieved_at"
+        "dividOperateDate"
       ],
       "date_fields": [
         "__retrieved_at"
@@ -3252,7 +3252,6 @@
       "history_mode": "all_available_history",
       "history_enumeration": "date_range_batches",
       "primary_key_fields": [
-        "__company_id",
         "calendar_date"
       ],
       "date_fields": [

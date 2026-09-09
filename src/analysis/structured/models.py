@@ -39,6 +39,7 @@ class RequestContract(FrozenStructuredModel):
     allowed_parameters: tuple[str, ...] = Field(min_length=1)
     fixed_parameters: dict[str, str] = Field(default_factory=dict)
     parameter_template: dict[str, str] = Field(default_factory=dict)
+    page_size: int | None = Field(default=None, ge=1, le=500)
     company_filter_field: str | None = None
     provider_code_format: str | None = None
 

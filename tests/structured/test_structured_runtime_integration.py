@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.models import SyncRequest
@@ -285,6 +286,205 @@ def test_em_f_prerequisites_expand_catalog_into_persisted_report_batches(tmp_pat
             "zcfzbDateAjaxNew",
             "zcfzbAjaxNew",
         ]
+    finally:
+        acquisition_runtime.close()
+        client.close()
+
+
+def _run_all_rounds(service: StructuredDataService, run_id: str) -> dict:
+    result = service.run(run_id)
+    for _ in range(12):
+        status = service.status(run_id)
+        if status["partial"]:
+            return result
+        if not status["pending"] and not status["retryable"] and not status["partial"]:
+            return result
+        result = service.resume(run_id)
+    raise AssertionError("structured test run did not reach a terminal status")
+
+
+def _emf_handler(period_rows, *, empty_envelope=False):
+    catalog_dates = [
+        "2025-12-31",
+        "2025-09-30",
+        "2025-06-30",
+        "2025-03-31",
+        "2024-12-31",
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/Index"):
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                content=b'<html><input id="hidctype" value="4"></html>',
+            )
+        if request.url.path.endswith("lrbDateAjaxNew"):
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": [
+                        {"SECURITY_CODE": "600519", "REPORT_DATE": value}
+                        for value in catalog_dates
+                    ],
+                },
+            )
+        assert request.url.path.endswith("lrbAjaxNew")
+        payload = {"$type": "Eastmoney.FinanceResult"} if empty_envelope else {"code": 0, "data": period_rows}
+        return httpx.Response(200, json=payload)
+
+    return handler, catalog_dates
+
+
+def test_em_f_empty_envelope_is_no_data_and_records_absent_periods(tmp_path):
+    handler, catalog_dates = _emf_handler([], empty_envelope=True)
+    acquisition_runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(acquisition_runtime)
+        planned = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("income_quarter",),
+            as_of=NOW,
+        )
+        run_id = planned["run_ids"][0]
+        # Return the EM-F metadata-only empty envelope for the report batch.
+        _run_all_rounds(service, run_id)
+        report_job = next(
+            item
+            for item in service.storage.list_jobs(run_id, limit=None)
+            if item["purpose"] == "report_period"
+        )
+        coverage = next(
+            item
+            for item in service.storage.list_acquisition_coverage(run_id=run_id, limit=None)
+            if item.get("job_id") == report_job["job_id"]
+        )
+        attempt = next(
+            item
+            for item in acquisition_runtime.repository.list_attempts(run_id=run_id)
+            if item.physical_query_plan_item_id == report_job["plan_item_id"]
+        )
+        events = acquisition_runtime.repository.list_attempt_events(attempt.attempt_id)
+        terminal = next(item for item in events if item.outcome is not None)
+        assert terminal.outcome.value == "no_data"
+        assert "supplier_period_absent" in (terminal.reason_code or "")
+        assert terminal.protocol_summary["absent_periods"] == sorted(catalog_dates)
+        assert coverage["status"] == "no_data"
+        assert coverage["absent_periods"] == sorted(catalog_dates)
+    finally:
+        acquisition_runtime.close()
+        client.close()
+
+
+@pytest.mark.parametrize(
+    ("period_rows", "expected_absent"),
+    [
+        (
+            [
+                {"SECUCODE": "600519.SH", "REPORT_DATE": "2025-12-31", "ORG_CODE": "1", "NET_PROFIT": 1},
+                {"SECUCODE": "600519.SH", "REPORT_DATE": "2025-09-30", "ORG_CODE": "1", "NET_PROFIT": 2},
+            ],
+            ["2024-12-31", "2025-03-31", "2025-06-30"],
+        ),
+        (
+            [
+                {"SECUCODE": "600519.SH", "REPORT_DATE": value, "ORG_CODE": "1", "NET_PROFIT": 1}
+                for value in ["2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+            ],
+            [],
+        ),
+    ],
+)
+def test_em_f_report_period_absence_is_explicit_without_downgrading_complete(
+    tmp_path, period_rows, expected_absent
+):
+    handler, _ = _emf_handler(period_rows)
+    acquisition_runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(acquisition_runtime)
+        planned = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("income_quarter",),
+            as_of=NOW,
+        )
+        run_id = planned["run_ids"][0]
+        _run_all_rounds(service, run_id)
+        report_job = next(
+            item
+            for item in service.storage.list_jobs(run_id, limit=None)
+            if item["purpose"] == "report_period"
+        )
+        coverage = next(
+            item
+            for item in service.storage.list_acquisition_coverage(run_id=run_id, limit=None)
+            if item.get("job_id") == report_job["job_id"]
+        )
+        assert coverage["status"] == "complete"
+        if expected_absent:
+            assert coverage["absent_periods"] == expected_absent
+            assert "supplier_period_absent" in coverage["reason_code"]
+        else:
+            assert "absent_periods" not in coverage
+    finally:
+        acquisition_runtime.close()
+        client.close()
+
+
+@pytest.mark.parametrize("duplicate", [True, False])
+def test_complete_pagination_requires_exact_unique_total(tmp_path, duplicate):
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["pageNumber"])
+        rows = (
+            [
+                {"SECUCODE": "600519.SH", "TRADE_DATE": "2020-01-02", "DAILY_RANK": 1},
+                {"SECUCODE": "600519.SH", "TRADE_DATE": "2020-01-02", "DAILY_RANK": 2},
+            ]
+            if page == 1
+            else [
+                {
+                    "SECUCODE": "600519.SH",
+                    "TRADE_DATE": "2020-01-02",
+                    "DAILY_RANK": 2 if duplicate else 3,
+                }
+            ]
+        )
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "code": 0,
+                "result": {"data": rows, "count": 3, "pages": 2},
+            },
+        )
+
+    acquisition_runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(acquisition_runtime)
+        planned = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("block_trade",),
+            as_of=NOW,
+        )
+        run_id = planned["run_ids"][0]
+        _run_all_rounds(service, run_id)
+        status = service.status(run_id)
+        job = service.storage.list_jobs(run_id, limit=None)[0]
+        coverage = service.storage.list_acquisition_coverage(run_id=run_id, limit=None)[-1]
+        if duplicate:
+            assert status["partial"] == 1
+            assert coverage["status"] != "complete"
+            assert coverage["safe_through"] is None
+        else:
+            assert status["succeeded"] == 1
+            assert coverage["status"] == "complete"
+            assert coverage["safe_through"] is not None
     finally:
         acquisition_runtime.close()
         client.close()

@@ -4,7 +4,7 @@
 
 ## 自动准备的样本证据
 
-本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。本次绑定修复冻结的 `datasets.v1.json` 版本为 `1.0.0`，`content_sha256=056652d5d4de92e366b2b87140823d90c3124017abde97cd47dcf2f9337155f6`；人工抽样记录必须引用该配置 hash。
+本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。本次行键/分页/EM-F 修复冻结的 `datasets.v1.json` 版本为 `1.0.0`，`content_sha256=f6496acaf154d8c848b619a0673677e0d9e3abc6f8a22ddcc90e90f4ed004723`；人工抽样记录必须引用该配置 hash。
 
 | 样本 | 自动检查内容 | 自动结果 | 人工状态 |
 |---|---|---|---|
@@ -31,6 +31,8 @@
 8. API、CLI、SQLite、DuckDB/Parquet 与导出是否引用相同事实 ID、值、期间、来源状态和覆盖快照 ID。
 9. 八步固定全部显示；数据状态、方法 skeleton、假设状态和研究完成状态没有合并成一个“完成”。
 10. 对发现的错义、错单位、错期间或适用性问题，记录 dataset/raw field、公司、期间、期望语义、证据 ID 和处理决定；不要直接改写旧快照。
+
+验收时另外核对：行键字段在样本中非空且唯一；分页终页的去重行数等于供应商声明总数；任何不完整分页均为 `partial` 且 `safe_through` 为空；EM-F 的 `absent_periods` 与“请求期间 − 响应 `REPORT_DATE`”逐项相等；`surveys` 和 `fund_holds` 分别使用 50 和 100 的冻结页大小。
 
 ## 签署记录
 

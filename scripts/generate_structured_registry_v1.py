@@ -51,6 +51,40 @@ FINANCIAL_GROUPS = {"F01", "F02", "F03", "F04", "F05", "B02", "B03", "B04", "B05
 SNAPSHOT_GROUPS = {"C01", "M01"}
 ON_DEMAND_GROUPS = {"I01", "I02", "L01", "P01"}
 
+# 真实响应中默认识别字段可能为空或不唯一。按已核对的样本显式指定
+# 非空且唯一的键组件，并拒绝把运行时不会注入的合成字段写入行身份。
+KEY_FIELD_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "holders_history": ("SECUCODE", "END_DATE", "HOLDER_NAME"),
+    "float_holders_history": ("SECUCODE", "END_DATE", "HOLDER_NAME"),
+    "management_roster": ("SECUCODE", "PERSON_CODE"),
+    "block_trade": ("SECUCODE", "TRADE_DATE", "DAILY_RANK"),
+    "institution_holds": ("SECUCODE", "REPORT_DATE", "ORG_TYPE"),
+    "segments": ("SECUCODE", "REPORT_DATE", "ITEM_CODE", "MAINOP_TYPE"),
+    "staff_structure": ("SECUCODE", "REPORT_DATE", "DISTRIBUTION_NAME"),
+    "subsidiaries": ("SECUCODE", "REPORT_DATE", "HOLD_ORG_NAME"),
+    "controller": ("SECUCODE", "HOLDER_NAME"),
+    "repurchase": ("SECUCODE", "REPURCODE"),
+    "violation": ("SECUCODE", "NOTICE_DATE", "PUNISH_OBJECT", "PUNISH_TYPE"),
+    "baostock_calendar": ("calendar_date",),
+    "baostock_adjust": ("code", "dividOperateDate"),
+    "company_basic": ("SECUCODE",),
+    "tags": ("SECUCODE", "BOARD_CODE"),
+    "macro_cpi": ("REPORT_DATE",),
+    "macro_retail": ("REPORT_DATE",),
+}
+
+SORT_TIE_BREAKER_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "holders_history": ("HOLDER_NAME",),
+    "float_holders_history": ("HOLDER_NAME",),
+    "block_trade": ("DAILY_RANK",),
+    "fund_holds": ("HOLDER_CODE",),
+}
+
+PAGE_SIZE_OVERRIDES: dict[str, int] = {
+    "surveys": 50,
+    "fund_holds": 100,
+}
+
 KNOWN_FIELD_REFS = set(
     re.findall(
         r"\b([A-Z]\d{2})\.([A-Za-z][A-Za-z0-9_]*)\b",
@@ -174,11 +208,25 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
         ]
         source = "WEB" if protocol == "em_w" else "HSF10"
         client = "WEB" if protocol == "em_w" else "PC"
+        sort_columns = _safe_sort(dataset, "sortColumns")
+        sort_types = _safe_sort(dataset, "sortTypes")
+        tie_breakers = SORT_TIE_BREAKER_OVERRIDES.get(dataset_id, ())
+        if tie_breakers:
+            existing_columns = tuple(
+                value for value in sort_columns.split(",") if value
+            )
+            existing_types = tuple(value for value in sort_types.split(",") if value)
+            for tie_breaker in tie_breakers:
+                if tie_breaker not in existing_columns:
+                    existing_columns += (tie_breaker,)
+                    existing_types += ("-1",)
+            sort_columns = ",".join(existing_columns)
+            sort_types = ",".join(existing_types)
         fixed = {
             "reportName": report_name,
             "columns": "ALL",
-            "sortColumns": _safe_sort(dataset, "sortColumns"),
-            "sortTypes": _safe_sort(dataset, "sortTypes"),
+            "sortColumns": sort_columns,
+            "sortTypes": sort_types,
             "source": source,
             "client": client,
         }
@@ -190,7 +238,7 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
                 "{provider_code}" if filter_field == "SECUCODE" else "{security_code}"
             )
             template["filter"] = f'({filter_field}="{placeholder}")'
-        return {
+        contract = {
             "protocol": protocol,
             "method": "GET",
             "endpoint": dataset["endpoint"],
@@ -201,6 +249,9 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
             "company_filter_field": filter_field,
             "provider_code_format": "{security_code}.{exchange}" if filter_field == "SECUCODE" else "{security_code}",
         }
+        if dataset_id in PAGE_SIZE_OVERRIDES:
+            contract["page_size"] = PAGE_SIZE_OVERRIDES[dataset_id]
+        return contract
     if protocol == "em_m":
         return {
             "protocol": protocol,
@@ -349,9 +400,20 @@ def _record_contract(dataset: dict[str, Any]) -> tuple[list[str], list[str]]:
         ),
         None,
     )
-    primary = [company, dates[0]]
-    if discriminator and discriminator not in primary:
+    has_override = dataset["dataset_id"] in KEY_FIELD_OVERRIDES
+    primary = list(KEY_FIELD_OVERRIDES.get(dataset["dataset_id"], (company, dates[0])))
+    if not has_override and discriminator and discriminator not in primary:
         primary.append(discriminator)
+    missing = [field for field in primary if field not in names]
+    if missing:
+        raise ValueError(
+            f"{dataset['dataset_id']}: primary_key_fields缺少响应字段: {missing}"
+        )
+    invalid = [field for field in primary if field.startswith("__")]
+    if invalid:
+        raise ValueError(
+            f"{dataset['dataset_id']}: primary_key_fields不得包含合成字段: {invalid}"
+        )
     return primary, dates
 
 

@@ -162,6 +162,18 @@ def test_em_f_and_em_q_have_distinct_shapes() -> None:
     assert quote.rows == ({"f116": 1},)
 
 
+def test_em_f_metadata_only_empty_envelope_is_valid_empty_result() -> None:
+    result = parse_eastmoney_response(
+        _request(ProtocolFamily.EM_F),
+        status_code=200,
+        body=_body({"$type": "Eastmoney.FinanceResult", "$types": {}}),
+    )
+    assert result.status is ResultStatus.EMPTY
+    assert result.rows == ()
+    assert result.declared_total == 0
+    assert result.terminal is True
+
+
 def test_em_f_company_type_prerequisite_uses_bounded_html_evidence() -> None:
     endpoint = next(
         item for item in EASTMONEY_ENDPOINTS[ProtocolFamily.EM_F] if item.endswith("/Index")

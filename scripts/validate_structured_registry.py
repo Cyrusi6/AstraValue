@@ -17,6 +17,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         bundle = StructuredRegistryLoader(args.config_dir).load()
+        invalid_page_sizes = [
+            (item.dataset_id, item.request.page_size)
+            for item in bundle.datasets.datasets
+            if item.request.page_size is not None
+            and (item.request.page_size < 1 or item.request.page_size > 500)
+        ]
+        if invalid_page_sizes:
+            raise StructuredRegistryError(
+                f"page_size必须为1..500的正整数: {invalid_page_sizes}"
+            )
     except StructuredRegistryError as exc:
         print(f"STRUCTURED_REGISTRY_INVALID {exc}", file=sys.stderr)
         return 1

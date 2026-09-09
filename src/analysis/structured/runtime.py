@@ -37,6 +37,7 @@ from .planner import (
     PlanDisposition,
     StructuredDatasetPlanner,
 )
+from .pagination import PageAudit, PageManifest, PageSlice, PageStatus
 from .protocols import (
     BaoStockQuery,
     EastmoneyRequest,
@@ -204,6 +205,7 @@ class ExecutionPage:
     mime_type: str
     http_status: int | None
     diagnostic: str | None = None
+    declared_pages: int | None = None
 
 
 class StructuredDataRuntime:
@@ -671,6 +673,62 @@ class StructuredDataRuntime:
                 raise StructuredRuntimeError(
                     "job source is absent from frozen structured context"
                 )
+            pagination_manifest: PageManifest | None = None
+            if dataset["history_enumeration"] in {
+                "complete_pagination",
+                "on_demand_complete_pagination",
+            }:
+                pagination_manifest = PageManifest(
+                    dataset_id=str(dataset["dataset_id"]),
+                    partition={"job_id": str(job["job_id"])},
+                )
+                existing_records = self.storage.list_records(
+                    job_id=job["job_id"], limit=None
+                )
+                records_by_page: dict[str, list[str]] = {}
+                for record in existing_records:
+                    records_by_page.setdefault(str(record["page_id"]), []).append(
+                        str(record["row_key"])
+                    )
+                for existing_page in pages:
+                    page_number_value = int(existing_page.get("page_number") or 0)
+                    if page_number_value < 1:
+                        continue
+                    status_value = str(existing_page.get("status") or "success")
+                    page_status = (
+                        PageStatus.EMPTY
+                        if status_value == ResultStatus.EMPTY.value
+                        else PageStatus.FAILED
+                        if status_value in {
+                            ResultStatus.FAILED.value,
+                            ResultStatus.PARTIAL.value,
+                        }
+                        else PageStatus.SUCCESS
+                    )
+                    content_hash = existing_page.get("content_hash")
+                    if not content_hash:
+                        continue
+                    pagination_manifest.add(
+                        PageSlice(
+                            page_number=page_number_value,
+                            row_keys=tuple(
+                                records_by_page.get(str(existing_page.get("page_id")), ())
+                            ),
+                            response_sha256=str(content_hash),
+                            status=page_status,
+                            declared_total=(
+                                None
+                                if existing_page.get("total_count") is None
+                                else int(existing_page["total_count"])
+                            ),
+                            declared_pages=(
+                                None
+                                if existing_page.get("declared_pages") is None
+                                else int(existing_page["declared_pages"])
+                            ),
+                            terminal=bool(existing_page.get("terminal")),
+                        )
+                    )
             guard = self._lease_guard(
                 context.run_id,
                 owner_token=owner_token,
@@ -792,6 +850,49 @@ class StructuredDataRuntime:
                     snapshot_id,
                     observed_at,
                 )
+                absent_periods: tuple[str, ...] = ()
+                if job["purpose"] == "report_period":
+                    requested = {
+                        str(value).strip()
+                        for value in str(
+                            plan_item.normalized_parameters.get(
+                                "report_period",
+                                plan_item.normalized_parameters.get("dates", ""),
+                            )
+                        ).split(",")
+                        if str(value).strip()
+                    }
+                    observed = {
+                        str(row.get("REPORT_DATE")).strip()[:10]
+                        for row in execution_page.rows
+                        if row.get("REPORT_DATE") not in (None, "")
+                    }
+                    absent_periods = tuple(sorted(requested - observed))
+                pagination_audit: PageAudit | None = None
+                if pagination_manifest is not None:
+                    page_status = (
+                        PageStatus.EMPTY
+                        if execution_page.status is ResultStatus.EMPTY
+                        else PageStatus.FAILED
+                        if execution_page.status in {
+                            ResultStatus.FAILED,
+                            ResultStatus.PARTIAL,
+                        }
+                        else PageStatus.SUCCESS
+                    )
+                    pagination_manifest.add(
+                        PageSlice(
+                            page_number=page_number,
+                            row_keys=tuple(str(record["row_key"]) for record in records),
+                            response_sha256=execution_page.response_sha256,
+                            status=page_status,
+                            declared_total=execution_page.declared_total,
+                            declared_pages=execution_page.declared_pages,
+                            terminal=execution_page.terminal,
+                        )
+                    )
+                    if execution_page.terminal:
+                        pagination_audit = pagination_manifest.audit()
                 page_payload = {
                     "page_id": _page_id(job["job_id"], execution_page),
                     "job_id": job["job_id"],
@@ -801,12 +902,17 @@ class StructuredDataRuntime:
                     "position_key": f"page:{page_number}",
                     "row_count": len(records),
                     "total_count": execution_page.declared_total,
+                    "declared_pages": execution_page.declared_pages,
                     "terminal": execution_page.terminal,
                     "content_hash": execution_page.response_sha256,
                     "lease_epoch": lease_epoch,
                     "status": execution_page.status.value,
                     "committed_at": observed_at,
                 }
+                if absent_periods:
+                    page_payload["absent_periods"] = list(absent_periods)
+                if pagination_audit is not None and not pagination_audit.complete:
+                    page_payload["pagination_issues"] = list(pagination_audit.issues)
                 self.bridge.commit_page_bundle(
                     page=page_payload,
                     records=records,
@@ -821,6 +927,8 @@ class StructuredDataRuntime:
                     execution_page,
                     snapshot_id,
                     observed_at,
+                    pagination_audit=pagination_audit,
+                    absent_periods=absent_periods,
                 )
                 if (
                     job["purpose"] == "report_catalog"
@@ -835,6 +943,20 @@ class StructuredDataRuntime:
                         execution_page.rows,
                     )
                     guard(force=True)
+                if pagination_audit is not None and not pagination_audit.complete:
+                    reason = "pagination_incomplete:" + ",".join(
+                        pagination_audit.issues
+                    )
+                    self._append_attempt_outcome(
+                        attempt_id,
+                        lease_epoch,
+                        AcquisitionOutcome.PARTIAL_SUCCESS,
+                        owner_token,
+                        reason_code=reason,
+                        snapshot_ids=tuple(snapshot_ids),
+                    )
+                    terminal_written = True
+                    return
                 if (
                     execution_page.status is ResultStatus.PARTIAL
                     or execution_page.terminal
@@ -844,13 +966,28 @@ class StructuredDataRuntime:
                         ResultStatus.EMPTY: AcquisitionOutcome.NO_DATA,
                         ResultStatus.PARTIAL: AcquisitionOutcome.PARTIAL_SUCCESS,
                     }[execution_page.status]
+                    reason_code = execution_page.diagnostic
+                    if absent_periods:
+                        absent_reason = "supplier_period_absent:" + ",".join(
+                            absent_periods
+                        )
+                        reason_code = (
+                            f"{reason_code};{absent_reason}"
+                            if reason_code
+                            else absent_reason
+                        )
                     self._append_attempt_outcome(
                         attempt_id,
                         lease_epoch,
                         outcome,
                         owner_token,
-                        reason_code=execution_page.diagnostic,
+                        reason_code=reason_code,
                         snapshot_ids=tuple(snapshot_ids),
+                        protocol_summary=(
+                            {"absent_periods": list(absent_periods)}
+                            if absent_periods
+                            else None
+                        ),
                     )
                     terminal_written = True
                     return
@@ -1086,6 +1223,7 @@ class StructuredDataRuntime:
                     page_number=page_number,
                     declared_total=len(rows),
                     terminal=True,
+                    declared_pages=1,
                     response_sha256=evidence.proof.response_sha256,
                     body=body,
                     mime_type=observation.mime_type or "text/html",
@@ -1105,6 +1243,7 @@ class StructuredDataRuntime:
                 page_number=parsed.page_number,
                 declared_total=parsed.declared_total,
                 terminal=parsed.terminal,
+                declared_pages=parsed.declared_pages,
                 response_sha256=parsed.proof.response_sha256,
                 body=body,
                 mime_type=observation.mime_type or "application/json",
@@ -1133,6 +1272,7 @@ class StructuredDataRuntime:
                 page_number=page_number,
                 declared_total=len(rows),
                 terminal=bool(proof.get("result_set_exhausted")),
+                declared_pages=None,
                 response_sha256=str(proof["response_sha256"]),
                 body=body,
                 mime_type=observation.mime_type or "application/json",
@@ -1223,6 +1363,7 @@ class StructuredDataRuntime:
                 page_number=page_number,
                 declared_total=len(rows),
                 terminal=True,
+                declared_pages=1,
                 response_sha256=evidence.proof.response_sha256,
                 body=body,
                 mime_type=(content_type or "text/html").split(";", 1)[0],
@@ -1235,6 +1376,7 @@ class StructuredDataRuntime:
             page_number=parsed.page_number,
             declared_total=parsed.declared_total,
             terminal=parsed.terminal,
+            declared_pages=parsed.declared_pages,
             response_sha256=parsed.proof.response_sha256,
             body=body,
             mime_type=(content_type or "application/json").split(";", 1)[0],
@@ -1283,6 +1425,7 @@ class StructuredDataRuntime:
             page_number=page_number,
             declared_total=len(result.rows),
             terminal=bool(result.proof.result_set_exhausted),
+            declared_pages=None,
             response_sha256=result.proof.response_sha256,
             body=body,
             mime_type="application/json",
@@ -1308,8 +1451,8 @@ class StructuredDataRuntime:
         fields: list[dict[str, Any]] = []
         for ordinal, raw in enumerate(page.rows):
             row = dict(raw)
-            if "__retrieved_at" in dataset["primary_key_fields"]:
-                row.setdefault("__retrieved_at", observed_at.isoformat())
+            # Retrieval time is provenance metadata, never part of row identity.
+            row.setdefault("__retrieved_at", observed_at.isoformat())
             key_fields = tuple(dataset["primary_key_fields"])
             if job["purpose"] == "company_type":
                 key_fields = ("code",)
@@ -1402,6 +1545,7 @@ class StructuredDataRuntime:
         *,
         reason_code: str | None,
         snapshot_ids: Sequence[str] = (),
+        protocol_summary: Mapping[str, Any] | None = None,
     ) -> None:
         self.repository.append_attempt_event(
             AcquisitionAttemptEvent(
@@ -1416,7 +1560,10 @@ class StructuredDataRuntime:
                 outcome=outcome,
                 reason_code=reason_code,
                 snapshot_ids=tuple(snapshot_ids),
-                protocol_summary={"structured": True},
+                protocol_summary={
+                    "structured": True,
+                    **dict(protocol_summary or {}),
+                },
             ),
             owner_token=owner_token,
         )
@@ -1428,6 +1575,8 @@ class StructuredDataRuntime:
         page: ExecutionPage,
         snapshot_id: str,
         recorded_at: datetime,
+        pagination_audit: PageAudit | None = None,
+        absent_periods: Sequence[str] = (),
     ) -> None:
         previous = self.storage.list_acquisition_coverage(
             run_id=context.run_id,
@@ -1446,34 +1595,57 @@ class StructuredDataRuntime:
             if page.status is ResultStatus.SUCCESS and page.terminal
             else "partial"
         )
+        reason_code = page.diagnostic
+        if pagination_audit is not None and not pagination_audit.complete:
+            status = "partial"
+            pagination_reason = "pagination_incomplete:" + ",".join(
+                pagination_audit.issues
+            )
+            reason_code = (
+                f"{reason_code};{pagination_reason}"
+                if reason_code
+                else pagination_reason
+            )
+        if absent_periods:
+            period_reason = "supplier_period_absent:" + ",".join(
+                str(item) for item in absent_periods
+            )
+            reason_code = (
+                f"{reason_code};{period_reason}"
+                if reason_code
+                else period_reason
+            )
+        coverage = {
+            "coverage_record_id": stable_structured_id(
+                "structured-acquisition-coverage",
+                {
+                    "job_id": job["job_id"],
+                    "version": version,
+                    "snapshot_id": snapshot_id,
+                },
+            ),
+            "run_id": context.run_id,
+            "storage_namespace_id": context.storage_namespace_id,
+            "shared_coverage_entry_id": (
+                links[0].coverage_entry_id if links else None
+            ),
+            "job_id": job["job_id"],
+            "company_id": context.company_id,
+            "dataset_id": job["dataset_id"],
+            "scope_key": job["scope_key"],
+            "status": status,
+            "version": version,
+            "safe_through": job.get("time_end") if status == "complete" else None,
+            "reason_code": reason_code,
+            "supersedes_coverage_record_id": (
+                previous[-1]["coverage_record_id"] if previous else None
+            ),
+            "recorded_at": recorded_at.isoformat(),
+        }
+        if absent_periods:
+            coverage["absent_periods"] = [str(item) for item in absent_periods]
         self.storage.append_acquisition_coverage(
-            {
-                "coverage_record_id": stable_structured_id(
-                    "structured-acquisition-coverage",
-                    {
-                        "job_id": job["job_id"],
-                        "version": version,
-                        "snapshot_id": snapshot_id,
-                    },
-                ),
-                "run_id": context.run_id,
-                "storage_namespace_id": context.storage_namespace_id,
-                "shared_coverage_entry_id": (
-                    links[0].coverage_entry_id if links else None
-                ),
-                "job_id": job["job_id"],
-                "company_id": context.company_id,
-                "dataset_id": job["dataset_id"],
-                "scope_key": job["scope_key"],
-                "status": status,
-                "version": version,
-                "safe_through": job.get("time_end") if status == "complete" else None,
-                "reason_code": page.diagnostic,
-                "supersedes_coverage_record_id": (
-                    previous[-1]["coverage_record_id"] if previous else None
-                ),
-                "recorded_at": recorded_at.isoformat(),
-            }
+            coverage
         )
 
     def _lease_guard(
@@ -1654,7 +1826,7 @@ def _bind_parameters(
         "exchange_lower": exchange.lower(),
         "market_number": "1" if market == "SSE" else "0",
         "page_number": page_number,
-        "bounded_page_size": 500,
+        "bounded_page_size": int(dataset["request"].get("page_size") or 500),
         "start_date": start.date().isoformat(),
         "end_date": (end - timedelta(microseconds=1)).date().isoformat(),
         "year": start.year,

@@ -522,6 +522,29 @@ def _parse_em_f(
     body: bytes,
     status_code: int,
 ) -> ProtocolPage:
+    # EM-F uses a metadata-only envelope (typically ``{"$type": ...}``) to
+    # represent a valid batch with no disclosed rows.  Treat it exactly like
+    # ``data: []``; malformed shapes that mention any other key remain errors.
+    if "data" not in payload and set(payload).issubset({"$type", "$types"}):
+        proof = ExecutionProof(
+            evidence_kind="http_response",
+            status=ResultStatus.EMPTY,
+            response_sha256=hashlib.sha256(body).hexdigest(),
+            rows_yielded=0,
+            http_status=status_code,
+        )
+        return ProtocolPage(
+            protocol=request.protocol,
+            status=ResultStatus.EMPTY,
+            page_number=1,
+            rows=(),
+            declared_total=0,
+            declared_pages=0,
+            terminal=True,
+            proof=proof,
+            business_code=_business_code(payload),
+            message=str(payload.get("message")) if payload.get("message") is not None else None,
+        )
     rows = payload.get("data")
     if not isinstance(rows, list) or any(not isinstance(row, Mapping) for row in rows):
         return _http_failure(

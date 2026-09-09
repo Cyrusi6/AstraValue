@@ -15,7 +15,7 @@
 - `industry_profiles.v1.json`：11 类行业画像及条件/替代规则。
 
 本轮东财证券代码绑定修复后的 `datasets.v1.json` 仍为版本 `1.0.0`，
-`content_sha256=056652d5d4de92e366b2b87140823d90c3124017abde97cd47dcf2f9337155f6`。
+`content_sha256=f6496acaf154d8c848b619a0673677e0d9e3abc6f8a22ddcc90e90f4ed004723`。
 该 hash 必须随运行冻结并出现在计划/运行证据中；它只标识配置版本，不代表生产全历史已执行。
 
 任何版本、hash、引用、允许参数或唯一主路由校验失败都会在来源 I/O 前拒绝。运行创建后保存完整冻结配置；恢复不得换用当前文件覆盖旧运行。
@@ -61,6 +61,14 @@ python -m analysis.cli structured peers 600519 --company-scope company-with-peer
 ```
 
 `baseline` 枚举供应商可得历史，`incremental` 只计划新期间与登记重叠范围，`due` 只执行本轮到期工作并退出。显式 `--dataset` 是受控子集，不代表全部适用数据集覆盖；不传该参数以及 API/前端传空数组都表示全部适用数据集。
+
+### 行键、分页完整性与报告期缺失
+
+每个数据集的 `primary_key_fields` 必须来自真实响应中的非空且唯一字段；任何以 `__` 开头的运行时合成字段都不得作为行键。若排序列在同一公司内不唯一，注册表会追加稳定的决胜列（例如 `END_DATE,HOLDER_NAME`），使 `page_number` 分页形成全序。`complete_pagination` 和 `on_demand_complete_pagination` 数据集在终页使用页清单核对页序、声明页数、声明总数和去重后的行键数；发现重复、漂移或丢行时记录 `partial_success`，覆盖状态为 `partial`，不推进 `safe_through`，但保留已提交页面和失败证据。
+
+EM-F 的报告日期目录只表示供应商声明的可查询期间，不保证明细接口一定返回该期。`report_period` 批次会在响应行的 `REPORT_DATE` 与请求期间集合之间计算差集；缺失期间写入 attempt/page/coverage payload 的 `absent_periods`，并以 `supplier_period_absent` 作为诊断。查询已执行完毕时覆盖仍可为 `complete`（空批次则为 `no_data`），但验收必须显式读取该字段，不能把目录声明当作明细事实。
+
+分页大小由数据集注册表的 `request.page_size` 冻结并进入请求指纹，缺省为 500。当前已验证的例外为 `surveys=50`、`fund_holds=100`；其余数据集不设置覆盖值并继续使用 500，不在运行时根据 9701 响应自适应改写页大小。
 
 ## API
 
