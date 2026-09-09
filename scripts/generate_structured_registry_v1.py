@@ -23,9 +23,9 @@ OUTPUT_DIR = ROOT / "config" / "structured_data"
 SCHEMA_VERSION = "structured-registry.v1"
 VERSION = "1.0.0"
 REGISTRY_VERSIONS = {
-    "datasets": "1.1.0",
+    "datasets": "1.2.0",
     "fields": "1.1.0",
-    "schedules": "1.1.0",
+    "schedules": "1.2.0",
     "research_requirements": "1.1.0",
     "peer_sets": VERSION,
     "reading_rules": VERSION,
@@ -63,6 +63,19 @@ ON_DEMAND_GROUPS = {"I01", "I02", "L01", "P01"}
 # 真实响应中默认识别字段可能为空或不唯一。按已核对的样本显式指定
 # 非空且唯一的键组件，并拒绝把运行时不会注入的合成字段写入行身份。
 KEY_FIELD_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "capital_projects": ("SECURITY_CODE", "NOTICE_DATE", "ORG_CODE", "ITEM_NAME"),
+    "customers_peer": ("SECUCODE", "REPORT_DATE", "ORG_CODE", "TYPE_CODE", "RANK"),
+    "guarantee": ("SECUCODE", "EID_EID"),
+    "litigation": (
+        "SECUCODE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "CASE_NAME",
+        "DEFENCE",
+        "CASE_PROFILE",
+    ),
+    "pledge": ("SECUCODE", "MXID"),
+    "management_trades": ("SECURITY_CODE", "GGEID"),
     "holders_history": ("SECUCODE", "END_DATE", "HOLDER_NAME"),
     "float_holders_history": ("SECUCODE", "END_DATE", "HOLDER_NAME"),
     "management_roster": ("SECUCODE", "PERSON_CODE"),
@@ -93,6 +106,14 @@ KEY_FIELD_OVERRIDES: dict[str, tuple[str, ...]] = {
 # 某些分页接口的原始样本排序不是行键的全序。对已实测存在跨页漂移的
 # 数据集声明完整排序覆盖；排序方向沿用供应商样本的降序约定。
 SORT_COLUMN_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "capital_projects": ("NOTICE_DATE", "ORG_CODE", "ITEM_NAME"),
+    "customers_peer": ("REPORT_DATE", "ORG_CODE", "TYPE_CODE", "RANK"),
+    "guarantee": ("EID_EID",),
+    "litigation": ("NOTICE_DATE", "ORG_CODE", "CASE_NAME", "DEFENCE"),
+    "pledge": ("MXID",),
+    "management_trades": ("GGEID",),
+    "segments": ("REPORT_DATE", "ITEM_CODE", "MAINOP_TYPE"),
+    "institution_holds": ("REPORT_DATE", "ORG_TYPE"),
     "surveys": (
         "NOTICE_DATE",
         "NUM",

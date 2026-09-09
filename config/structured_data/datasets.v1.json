@@ -2,8 +2,8 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
-  "version": "1.1.0",
-  "content_sha256": "dc45cab9c8ebc79746f5c473a944740f55e39adadcfa62063edacedf92fe0d8d",
+  "version": "1.2.0",
+  "content_sha256": "53c6de27110a4de071b16123ae63ce5ea95f5f5cadc97f511a7bbd1cdab720e5",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -481,8 +481,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_FN_SEGMENTSV",
           "columns": "ALL",
-          "sortColumns": "REPORT_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "REPORT_DATE,ITEM_CODE,MAINOP_TYPE",
+          "sortTypes": "-1,-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -552,8 +552,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_BUSINESS_CUSTSUPP",
           "columns": "ALL",
-          "sortColumns": "REPORT_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "REPORT_DATE,ORG_CODE,TYPE_CODE,RANK",
+          "sortTypes": "-1,-1,-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -570,7 +570,9 @@
       "primary_key_fields": [
         "SECUCODE",
         "REPORT_DATE",
-        "ORG_CODE"
+        "ORG_CODE",
+        "TYPE_CODE",
+        "RANK"
       ],
       "date_fields": [
         "REPORT_DATE"
@@ -1381,7 +1383,7 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_ORGRES_GUARANTEE",
           "columns": "ALL",
-          "sortColumns": "NOTICE_DATE",
+          "sortColumns": "EID_EID",
           "sortTypes": "-1",
           "source": "WEB",
           "client": "WEB"
@@ -1398,7 +1400,7 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "REPORT_DATE"
+        "EID_EID"
       ],
       "date_fields": [
         "REPORT_DATE",
@@ -1451,8 +1453,8 @@
         "fixed_parameters": {
           "reportName": "RPT_LITIGATION_ARBITRATION_BSINFO",
           "columns": "ALL",
-          "sortColumns": "NOTICE_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "NOTICE_DATE,ORG_CODE,CASE_NAME,DEFENCE",
+          "sortTypes": "-1,-1,-1,-1",
           "source": "WEB",
           "client": "WEB"
         },
@@ -1469,7 +1471,10 @@
       "primary_key_fields": [
         "SECUCODE",
         "NOTICE_DATE",
-        "ORG_CODE"
+        "ORG_CODE",
+        "CASE_NAME",
+        "DEFENCE",
+        "CASE_PROFILE"
       ],
       "date_fields": [
         "NOTICE_DATE"
@@ -1865,7 +1870,7 @@
         "fixed_parameters": {
           "reportName": "RPTA_APP_ACCUMDETAILS",
           "columns": "ALL",
-          "sortColumns": "NOTICE_DATE",
+          "sortColumns": "MXID",
           "sortTypes": "-1",
           "source": "WEB",
           "client": "WEB"
@@ -1882,8 +1887,7 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "TRADE_DATE",
-        "HOLDER_CODE"
+        "MXID"
       ],
       "date_fields": [
         "TRADE_DATE",
@@ -2003,7 +2007,7 @@
         "fixed_parameters": {
           "reportName": "RPT_EXECUTIVE_HOLD_DETAILS",
           "columns": "ALL",
-          "sortColumns": "CHANGE_DATE",
+          "sortColumns": "GGEID",
           "sortTypes": "-1",
           "source": "WEB",
           "client": "WEB"
@@ -2020,8 +2024,7 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECURITY_CODE",
-        "CHANGE_DATE",
-        "ORG_CODE"
+        "GGEID"
       ],
       "date_fields": [
         "CHANGE_DATE"
@@ -2415,8 +2418,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_MAIN_ORGHOLDDETAILS",
           "columns": "ALL",
-          "sortColumns": "REPORT_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "REPORT_DATE,ORG_TYPE",
+          "sortTypes": "-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -2964,8 +2967,8 @@
         "fixed_parameters": {
           "reportName": "RPT_F10_CAPITAL_ITEM",
           "columns": "ALL",
-          "sortColumns": "NOTICE_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "NOTICE_DATE,ORG_CODE,ITEM_NAME",
+          "sortTypes": "-1,-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -2982,7 +2985,8 @@
       "primary_key_fields": [
         "SECURITY_CODE",
         "NOTICE_DATE",
-        "ORG_CODE"
+        "ORG_CODE",
+        "ITEM_NAME"
       ],
       "date_fields": [
         "NOTICE_DATE"

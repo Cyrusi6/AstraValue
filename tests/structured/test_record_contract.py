@@ -37,6 +37,19 @@ EXPECTED_KEYS = {
     "macro_cpi": ("REPORT_DATE",),
     "macro_retail": ("REPORT_DATE",),
     "market_cap": ("SECUCODE", "TRADE_DATE"),
+    "capital_projects": ("SECURITY_CODE", "NOTICE_DATE", "ORG_CODE", "ITEM_NAME"),
+    "customers_peer": ("SECUCODE", "REPORT_DATE", "ORG_CODE", "TYPE_CODE", "RANK"),
+    "guarantee": ("SECUCODE", "EID_EID"),
+    "litigation": (
+        "SECUCODE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "CASE_NAME",
+        "DEFENCE",
+        "CASE_PROFILE",
+    ),
+    "pledge": ("SECUCODE", "MXID"),
+    "management_trades": ("SECURITY_CODE", "GGEID"),
     "surveys": (
         "SECUCODE",
         "NOTICE_DATE",
@@ -134,6 +147,71 @@ def test_fund_holds_sort_covers_report_period_and_row_identity():
     assert sort_columns == ("REPORT_DATE", "TOTAL_SHARES", "HOLDER_CODE")
     assert set(EXPECTED_KEYS["fund_holds"][1:]).issubset(sort_columns)
     assert tuple(fixed["sortTypes"].split(",")) == ("-1",) * len(sort_columns)
+
+
+def test_row_key_collapse_batch_a_and_ordering_batch_b_contracts():
+    bundle = StructuredRegistryLoader().load()
+    expected_sorts = {
+        "capital_projects": ("NOTICE_DATE", "ORG_CODE", "ITEM_NAME"),
+        "customers_peer": ("REPORT_DATE", "ORG_CODE", "TYPE_CODE", "RANK"),
+        "guarantee": ("EID_EID",),
+        "litigation": ("NOTICE_DATE", "ORG_CODE", "CASE_NAME", "DEFENCE"),
+        "pledge": ("MXID",),
+        "management_trades": ("GGEID",),
+        "segments": ("REPORT_DATE", "ITEM_CODE", "MAINOP_TYPE"),
+        "institution_holds": ("REPORT_DATE", "ORG_TYPE"),
+    }
+    batch_a = {
+        "capital_projects",
+        "customers_peer",
+        "guarantee",
+        "litigation",
+        "pledge",
+        "management_trades",
+    }
+    batch_b = {"segments", "institution_holds"}
+    assert set(expected_sorts) == batch_a | batch_b
+
+    for dataset_id, expected_key in EXPECTED_KEYS.items():
+        if dataset_id not in expected_sorts:
+            continue
+        dataset = bundle.dataset(dataset_id)
+        assert tuple(dataset.primary_key_fields) == expected_key
+        fixed = dataset.request.fixed_parameters
+        sort_columns = tuple(str(fixed["sortColumns"]).split(","))
+        assert sort_columns == expected_sorts[dataset_id]
+        assert tuple(str(fixed["sortTypes"]).split(",")) == ("-1",) * len(sort_columns)
+        filter_field = dataset.request.company_filter_field
+        assert filter_field in {"SECUCODE", "SECURITY_CODE"}
+        identity_filter_fields = {filter_field}
+        # A few contracts filter by SECURITY_CODE while retaining the
+        # provider's SECUCODE in the row identity; both identify the company
+        # and neither needs to be repeated in the server-side ordering.
+        if filter_field == "SECURITY_CODE":
+            identity_filter_fields.add("SECUCODE")
+        sortable_key = {
+            field
+            for field in expected_key
+            if field not in identity_filter_fields
+            # CASE_PROFILE is a valid identity component but Eastmoney rejects
+            # it as a sort column (code=9501); keep it out of the request.
+            and not (dataset_id == "litigation" and field == "CASE_PROFILE")
+        }
+        assert sortable_key.issubset(sort_columns)
+
+    assert "REPORT_DATE" not in EXPECTED_KEYS["guarantee"]
+    assert "CASE_PROFILE" not in expected_sorts["litigation"]
+
+
+def test_row_key_collapse_contract_rejects_empty_identity_fields():
+    bundle = StructuredRegistryLoader().load()
+    guarantee = bundle.dataset("guarantee")
+    with pytest.raises(ValueError, match="EID_EID"):
+        stable_row_key(
+            "guarantee",
+            {"SECUCODE": "600519.SH", "EID_EID": ""},
+            guarantee.primary_key_fields,
+        )
 
 
 def test_market_cap_history_key_sort_and_secucode_binding_contract():

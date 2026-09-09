@@ -14,8 +14,8 @@
 - `research_requirements.v1.json`：54 个八步问题及 401 个需求项；
 - `industry_profiles.v1.json`：11 类行业画像及条件/替代规则。
 
-本轮 `market_cap` 换源后的 `datasets.v1.json` 为版本 `1.1.0`，
-`content_sha256=dc45cab9c8ebc79746f5c473a944740f55e39adadcfa62063edacedf92fe0d8d`。
+本轮行键与排序契约修正后的 `datasets.v1.json` 为版本 `1.2.0`，
+`content_sha256=53c6de27110a4de071b16123ae63ce5ea95f5f5cadc97f511a7bbd1cdab720e5`。
 该 hash 必须随运行冻结并出现在计划/运行证据中；它只标识配置版本，不代表生产全历史已执行。
 
 任何版本、hash、引用、允许参数或唯一主路由校验失败都会在来源 I/O 前拒绝。运行创建后保存完整冻结配置；恢复不得换用当前文件覆盖旧运行。

@@ -2,8 +2,8 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "schedules",
   "registry_id": "structured_data_schedules",
-  "version": "1.1.0",
-  "content_sha256": "dbcedc7b61b9620e761a5bee6d96234fca39182101938f973905222cb9b6fa2d",
+  "version": "1.2.0",
+  "content_sha256": "9eac1663c82a647c31d3be350adb19a48dec76fcd327408096682324cbd8183f",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
