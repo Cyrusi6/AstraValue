@@ -57,7 +57,7 @@ EM-S/EM-W 使用 `reportName`、`columns=ALL`、公司过滤条件、`pageNumber
 | B06 | 现金流/资产结构指标：BaoStock | `query_cash_flow_data` | `CAToAsset, NCAToAsset, tangibleAssetToAsset, ebitToInterest, CFOToOR, CFOToNP, CFOToGr` | 同上；空的利息保障倍数不补零 |
 | B07 | 杜邦指标：BaoStock | `query_dupont_data` | `dupontROE, dupontAssetStoEquity, dupontAssetTurn, dupontPnitoni, dupontNitogr, dupontTaxBurden, dupontIntburden, dupontEbittogr` | 同上；不与其他口径 ROE 无条件合并 |
 | B08 | 证券状态、日历、复权：BaoStock | `query_stock_basic, query_trade_dates, query_adjust_factor` | `code_name, ipoDate, outDate, type, status`；`calendar_date, is_trading_day`；`dividOperateDate, foreAdjustFactor, backAdjustFactor, adjustFactor` | 基线/变更；复权随除权事件 |
-| M01 | 总/流通市值：东方财富 | EM-Q，`secid=1.600519, fltt=2, invt=2` | `f116=总市值, f117=流通市值, f57=代码, f58=名称, f86=报价时间` | 每交易日快照；没有历史报价时点不能补为历史日市值 |
+| M01 | 总/流通市值与收盘估值：东方财富 | EM-M，`RPT_VALUEANALYSIS_DET`，`SECUCODE` 分页，`st=TRADE_DATE` | `TOTAL_MARKET_CAP=总市值, NOTLIMITED_MARKETCAP_A=流通A股市值, CLOSE_PRICE=收盘价, TOTAL_SHARES=总股本, FREE_SHARES_A=流通A股股本, PE_TTM/PB_MRQ/PS_TTM=估值指标, TRADE_DATE=交易日`；其余响应字段原样保留 | 每交易日 T+1 收盘口径；2018-01-02 起可取得历史序列，非实时行情 |
 
 F01–F04 的 `companyType` 从来源页面取得，本轮普通企业样本为 4，不能对其他行业硬编码；`reportDateType=0`，按目录日期分组请求。资产/利润目录均返回 103 期，现金流目录 99 期；只抽取了指定期报表，未全量下载这些期间。
 

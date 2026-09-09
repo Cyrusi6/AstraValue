@@ -52,12 +52,11 @@ def test_protocol_support_covers_each_approved_transport_family() -> None:
         ProtocolFamily.EM_W,
         ProtocolFamily.EM_M,
         ProtocolFamily.EM_F,
-        ProtocolFamily.EM_Q,
         ProtocolFamily.BAOSTOCK,
     }
     assert DATASET_PROTOCOL_SUPPORT["segments"].protocol is ProtocolFamily.EM_S
     assert DATASET_PROTOCOL_SUPPORT["em_metrics"].protocol is ProtocolFamily.EM_M
-    assert DATASET_PROTOCOL_SUPPORT["market_cap"].protocol is ProtocolFamily.EM_Q
+    assert DATASET_PROTOCOL_SUPPORT["market_cap"].protocol is ProtocolFamily.EM_M
 
 
 def test_protocol_support_rejects_registry_group_drift() -> None:
@@ -78,6 +77,27 @@ def test_confirmed_financial_routes_keep_distinct_revenue_and_pcf_semantics() ->
     assert total.standard_field != operating.standard_field
     assert pcf.standard_field == "pcf_net_cashflow_ttm"
     assert FIELD_RULES[("baostock_profit", "epsTTM")].period_kind is PeriodKind.TTM
+
+
+def test_market_cap_replacement_maps_report_fields_without_legacy_quote_names() -> None:
+    mapped = {
+        item.raw_field: item
+        for item in map_row(
+            "market_cap",
+            {
+                "TOTAL_MARKET_CAP": 1000,
+                "NOTLIMITED_MARKETCAP_A": 900,
+                "CLOSE_PRICE": 10,
+                "TOTAL_SHARES": 100,
+                "TRADE_DATE": "2026-09-08",
+            },
+        )
+    }
+    assert mapped["TOTAL_MARKET_CAP"].standard_field == "total_market_cap"
+    assert mapped["NOTLIMITED_MARKETCAP_A"].standard_field == "float_market_cap"
+    assert mapped["CLOSE_PRICE"].standard_field == "market_close"
+    assert mapped["TOTAL_SHARES"].standard_field == "total_shares"
+    assert mapped["TRADE_DATE"].standard_field is None
 
 
 def test_percent_and_per_ten_share_units_use_explicit_field_multipliers() -> None:

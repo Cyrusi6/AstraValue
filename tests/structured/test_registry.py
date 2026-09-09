@@ -42,7 +42,7 @@ def test_default_registry_loads_atomically_with_frozen_counts_and_hashes():
     bundle = StructuredRegistryLoader().load()
 
     assert len(bundle.datasets.datasets) == 55
-    assert len(bundle.fields.fields) == bundle.fields.declared_field_positions == 2487
+    assert len(bundle.fields.fields) == bundle.fields.declared_field_positions == 2504
     assert len(bundle.peer_sets.peer_sets[0].companies) == 7
     assert len(bundle.schedules.dataset_schedules) == 55
     assert len(bundle.reading_rules.rules) == 12
@@ -134,7 +134,7 @@ def test_field_unclassified_count_is_exact_and_unknown_definitions_do_not_enter_
     assert len(unclassified) > 0
     assert not any(item.formula_eligible for item in unclassified)
     assert bundle.fields.classification_summary == {
-        "total": 2487,
+        "total": 2504,
         "unclassified_nature": len(unclassified),
         "definition_unknown": sum(item.definition_status.value == "unknown" for item in bundle.fields.fields),
         "definition_candidate": sum(item.definition_status.value == "candidate" for item in bundle.fields.fields),
@@ -154,6 +154,7 @@ def test_dataset_requests_use_production_placeholders_not_probe_values():
             assert dataset.pagination == "page_number"
     assert bundle.dataset("balance_fields").request.parameter_template["companyType"] == "{resolved_company_type}"
     assert bundle.dataset("segments").request.parameter_template["pageSize"] == "{bounded_page_size}"
+    assert all(item.request.protocol != "em_q" for item in bundle.datasets.datasets)
 
 
 def test_peer_set_has_exact_seven_codes_roles_and_unbounded_history_scope():
@@ -182,7 +183,7 @@ def test_all_datasets_have_history_schedule_and_display_window_never_shortens_it
     assert bundle.schedules.analysis_default_complete_years == 5
     assert bundle.schedules.analysis_default_published_quarters == 12
     assert bundle.schedules.analysis_window_limits_acquisition is False
-    assert bundle.dataset("market_cap").history_mode == "snapshot_from_first_retrieval"
+    assert bundle.dataset("market_cap").history_mode == "all_available_history"
     assert bundle.dataset("macro_cpi").history_mode == "on_demand_all_available_history"
     assert bundle.dataset("income_fields").history_mode == "all_available_history"
 

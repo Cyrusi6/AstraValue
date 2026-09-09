@@ -7,7 +7,7 @@ from analysis.structured.service import StructuredDataService
 def test_bound_service_loads_full_registry_and_zero_network_plan(tmp_path):
     service = StructuredDataService.create(tmp_path / "isolated.db", tmp_path / "data")
     assert service.registry(limit=500, offset=0)["total"] == 55
-    assert service.fields(limit=5000, offset=0)["total"] == 2487
+    assert service.fields(limit=5000, offset=0)["total"] == 2504
 
     preview = service.plan(
         "600519",

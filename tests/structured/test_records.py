@@ -280,29 +280,27 @@ def test_b_market_rows_distinguish_trading_suspension_nontrading_and_empty_value
     assert suspended.missing_fields == holiday.missing_fields == empty.missing_fields == ("close",)
 
 
-def test_b_current_market_snapshot_is_not_backfilled_before_retrieval() -> None:
+def test_b_market_cap_history_selection_respects_trade_date_and_availability() -> None:
     old = RecordVersion.create(
         dataset_id="market_cap",
-        raw_row={"SECUCODE": "600519.SH", "f116": 100},
-        key_fields=("SECUCODE",),
+        raw_row={"SECUCODE": "600519.SH", "TRADE_DATE": "2025-01-05", "TOTAL_MARKET_CAP": 100},
+        key_fields=("SECUCODE", "TRADE_DATE"),
         snapshot_sha256="c" * 64,
         retrieved_at=datetime(2025, 1, 5, tzinfo=UTC),
         available_at=datetime(2025, 1, 5, tzinfo=UTC),
     )
     current = RecordVersion.create(
         dataset_id="market_cap",
-        raw_row={"SECUCODE": "600519.SH", "f116": 200},
-        key_fields=("SECUCODE",),
+        raw_row={"SECUCODE": "600519.SH", "TRADE_DATE": "2025-01-10", "TOTAL_MARKET_CAP": 200},
+        key_fields=("SECUCODE", "TRADE_DATE"),
         snapshot_sha256="d" * 64,
         retrieved_at=datetime(2025, 1, 10, tzinfo=UTC),
         available_at=datetime(2025, 1, 10, tzinfo=UTC),
     )
-    assert select_record_version(
-        [old, current],
-        as_of=datetime(2025, 1, 7, tzinfo=UTC),
-        strict_point_in_time=True,
-    ) is old
-    assert select_record_version([old, current]) is current
+    assert old.row_key != current.row_key
+    assert select_record_version([old], as_of=datetime(2025, 1, 7, tzinfo=UTC), strict_point_in_time=True) is old
+    assert select_record_version([current], as_of=datetime(2025, 1, 7, tzinfo=UTC), strict_point_in_time=True) is None
+    assert select_record_version([current]) is current
 
 
 def test_t_post_event_n_day_result_is_unavailable_until_horizon_and_retrieval() -> None:

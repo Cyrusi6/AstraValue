@@ -34,7 +34,7 @@ def registry():
         ("holder_count", "filter", '(SECURITY_CODE="600519")'),
         ("repurchase", "filter", '(DIM_SCODE="600519")'),
         ("balance_fields", "code", "SH600519"),
-        ("market_cap", "secid", "1.600519"),
+        ("market_cap", "filter", '(SECUCODE="600519.SH")'),
         ("baostock_daily", "code", "sh.600519"),
     ],
 )
@@ -77,7 +77,7 @@ def test_registry_locks_all_eastmoney_filter_placeholders():
         if value and "DIM_SCODE=" in value
     ]
 
-    assert len(secucode) == 29
+    assert len(secucode) == 30
     assert len(security_code) == 7
     assert len(dim_scode) == 1
     assert all(value == '(SECUCODE="{provider_code}")' for _, value in secucode)

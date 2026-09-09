@@ -2,20 +2,20 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "fields",
   "registry_id": "structured_data_fields",
-  "version": "1.0.0",
-  "content_sha256": "dc7e9581868f0331fa6856c3fa4658d66d0fbc3f41e0af2955360ce80cfbb618",
+  "version": "1.1.0",
+  "content_sha256": "4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
     "openspec/changes/structured-data-first-v1/design.md"
   ],
-  "declared_field_positions": 2487,
+  "declared_field_positions": 2504,
   "classification_summary": {
-    "total": 2487,
-    "unclassified_nature": 2357,
-    "definition_unknown": 2403,
+    "total": 2504,
+    "unclassified_nature": 2365,
+    "definition_unknown": 2411,
     "definition_candidate": 14,
-    "formula_eligible": 23
+    "formula_eligible": 31
   },
   "fields": [
     {
@@ -40036,10 +40036,146 @@
       "classification_basis": "planning exception forecasts.YEAR_MARK4"
     },
     {
-      "field_id": "market_cap.f116",
+      "field_id": "market_cap.SECURITY_CODE",
       "dataset_id": "market_cap",
       "plan_group_id": "M01",
-      "raw_name": "f116",
+      "raw_name": "SECURITY_CODE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.SECUCODE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "SECUCODE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.SECURITY_NAME_ABBR",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "SECURITY_NAME_ABBR",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.ORG_CODE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "ORG_CODE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.TRADE_MARKET",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "TRADE_MARKET",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "unknown",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.BOARD_CODE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "BOARD_CODE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.BOARD_NAME",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "BOARD_NAME",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.ORIG_BOARD_CODE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "ORIG_BOARD_CODE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "not_applicable",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.TOTAL_MARKET_CAP",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "TOTAL_MARKET_CAP",
       "observed_json_types": [
         "number"
       ],
@@ -40053,10 +40189,44 @@
       "classification_basis": "field plan or design exact reference"
     },
     {
-      "field_id": "market_cap.f117",
+      "field_id": "market_cap.NOTLIMITED_MARKETCAP_A",
       "dataset_id": "market_cap",
       "plan_group_id": "M01",
-      "raw_name": "f117",
+      "raw_name": "NOTLIMITED_MARKETCAP_A",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.CLOSE_PRICE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "CLOSE_PRICE",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.CHANGE_RATE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "CHANGE_RATE",
       "observed_json_types": [
         "number"
       ],
@@ -40070,44 +40240,61 @@
       "classification_basis": "preserved observed position pending semantic classification"
     },
     {
-      "field_id": "market_cap.f57",
+      "field_id": "market_cap.TOTAL_SHARES",
       "dataset_id": "market_cap",
       "plan_group_id": "M01",
-      "raw_name": "f57",
+      "raw_name": "TOTAL_SHARES",
       "observed_json_types": [
-        "string"
+        "number"
       ],
       "nonempty_in_sample": true,
-      "nature": "unclassified",
-      "definition_status": "unknown",
-      "unit_status": "unknown",
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
       "period_semantics": "point_in_time",
       "scope_semantics": "supplier response field in its registered dataset and company/report scope",
-      "formula_eligible": false,
-      "classification_basis": "preserved observed position pending semantic classification"
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
     },
     {
-      "field_id": "market_cap.f58",
+      "field_id": "market_cap.FREE_SHARES_A",
       "dataset_id": "market_cap",
       "plan_group_id": "M01",
-      "raw_name": "f58",
+      "raw_name": "FREE_SHARES_A",
       "observed_json_types": [
-        "string"
+        "number"
       ],
       "nonempty_in_sample": true,
-      "nature": "unclassified",
-      "definition_status": "unknown",
-      "unit_status": "unknown",
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
       "period_semantics": "point_in_time",
       "scope_semantics": "supplier response field in its registered dataset and company/report scope",
-      "formula_eligible": false,
-      "classification_basis": "preserved observed position pending semantic classification"
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
     },
     {
-      "field_id": "market_cap.f86",
+      "field_id": "market_cap.PE_TTM",
       "dataset_id": "market_cap",
       "plan_group_id": "M01",
-      "raw_name": "f86",
+      "raw_name": "PE_TTM",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.PE_LAR",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PE_LAR",
       "observed_json_types": [
         "number"
       ],
@@ -40115,10 +40302,112 @@
       "nature": "unclassified",
       "definition_status": "unknown",
       "unit_status": "unknown",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.PB_MRQ",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PB_MRQ",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.PCF_OCF_LAR",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PCF_OCF_LAR",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "unknown",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.PCF_OCF_TTM",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PCF_OCF_TTM",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.PS_TTM",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PS_TTM",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "confirmed",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": true,
+      "classification_basis": "field plan or design exact reference"
+    },
+    {
+      "field_id": "market_cap.PEG_CAR",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "PEG_CAR",
+      "observed_json_types": [
+        "number"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "unclassified",
+      "definition_status": "unknown",
+      "unit_status": "unknown",
+      "period_semantics": "point_in_time",
+      "scope_semantics": "supplier response field in its registered dataset and company/report scope",
+      "formula_eligible": false,
+      "classification_basis": "preserved observed position pending semantic classification"
+    },
+    {
+      "field_id": "market_cap.TRADE_DATE",
+      "dataset_id": "market_cap",
+      "plan_group_id": "M01",
+      "raw_name": "TRADE_DATE",
+      "observed_json_types": [
+        "string"
+      ],
+      "nonempty_in_sample": true,
+      "nature": "observed",
+      "definition_status": "confirmed",
+      "unit_status": "not_applicable",
       "period_semantics": "date_or_period_locator",
       "scope_semantics": "supplier response field in its registered dataset and company/report scope",
       "formula_eligible": false,
-      "classification_basis": "preserved observed position pending semantic classification"
+      "classification_basis": "field plan or design exact reference"
     },
     {
       "field_id": "macro_cpi.CITY_ACCUMULATE",
@@ -42599,14 +42888,110 @@
       "validation_status": "validated"
     },
     {
-      "route_id": "ROUTE.market_cap.f116.primary",
-      "standard_field_id": "structured.market_cap.f116",
+      "route_id": "ROUTE.market_cap.TOTAL_MARKET_CAP.primary",
+      "standard_field_id": "structured.market_cap.TOTAL_MARKET_CAP",
       "period_semantics": "point_in_time",
       "consolidation_scope": "registered_supplier_scope",
       "business_dimension": "registered_raw_dimension",
       "definition_version": "1.0.0",
       "dataset_id": "market_cap",
-      "raw_name": "f116",
+      "raw_name": "TOTAL_MARKET_CAP",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.NOTLIMITED_MARKETCAP_A.primary",
+      "standard_field_id": "structured.market_cap.NOTLIMITED_MARKETCAP_A",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "NOTLIMITED_MARKETCAP_A",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.CLOSE_PRICE.primary",
+      "standard_field_id": "structured.market_cap.CLOSE_PRICE",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "CLOSE_PRICE",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.TOTAL_SHARES.primary",
+      "standard_field_id": "structured.market_cap.TOTAL_SHARES",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "TOTAL_SHARES",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.FREE_SHARES_A.primary",
+      "standard_field_id": "structured.market_cap.FREE_SHARES_A",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "FREE_SHARES_A",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.PE_TTM.primary",
+      "standard_field_id": "structured.market_cap.PE_TTM",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "PE_TTM",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.PB_MRQ.primary",
+      "standard_field_id": "structured.market_cap.PB_MRQ",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "PB_MRQ",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.PCF_OCF_TTM.primary",
+      "standard_field_id": "structured.market_cap.PCF_OCF_TTM",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "PCF_OCF_TTM",
+      "role": "primary",
+      "validation_status": "validated"
+    },
+    {
+      "route_id": "ROUTE.market_cap.PS_TTM.primary",
+      "standard_field_id": "structured.market_cap.PS_TTM",
+      "period_semantics": "point_in_time",
+      "consolidation_scope": "registered_supplier_scope",
+      "business_dimension": "registered_raw_dimension",
+      "definition_version": "1.0.0",
+      "dataset_id": "market_cap",
+      "raw_name": "PS_TTM",
       "role": "primary",
       "validation_status": "validated"
     }

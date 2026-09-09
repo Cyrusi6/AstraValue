@@ -7,7 +7,7 @@
   "scope": "target 600519 and six selected peers; sampled periods only",
   "coverage_note": "字段出现不等于字段非空、定义全部确认、独立指标计数或全历史验收；完整原始响应不进入Git。所有字段须按实施附录完成类型/单位整理后消费。",
   "dataset_count": 55,
-  "dataset_field_entries": 2487,
+  "dataset_field_entries": 2504,
   "field_class_exceptions": {
     "company_basic": {
       "ORG_PROFILE": "source_text",
@@ -17812,58 +17812,182 @@
     {
       "dataset_id": "market_cap",
       "provider": "eastmoney",
-      "endpoint": "https://push2.eastmoney.com/api/qt/stock/get",
-      "report_name": null,
+      "endpoint": "https://datacenter.eastmoney.com/securities/api/data/get",
+      "report_name": "RPT_VALUEANALYSIS_DET",
       "sample_status": "response_fields_observed",
       "samples": [
         {
-          "retrieved_at": "2026-09-08T06:16:08.689387+00:00",
+          "retrieved_at": "2026-09-09T04:11:12Z",
           "params": {
-            "secid": "1.600519",
-            "fields": "f57,f58,f86,f116,f117",
-            "fltt": "2",
-            "invt": "2"
+            "reportName": "RPT_VALUEANALYSIS_DET",
+            "columns": "ALL",
+            "filter": "(SECUCODE=\"600519.SH\")",
+            "pageNumber": "1",
+            "pageSize": "500",
+            "sortColumns": "TRADE_DATE",
+            "sortTypes": "-1",
+            "source": "HSF10",
+            "client": "PC"
           },
-          "response_sha256": "f7cb81b1ff17d41c602b6c5b40455bd3db4f0b5ac0c91d0e91cee97878aade08",
-          "rows_observed": 1,
-          "provider_total": null,
-          "provider_pages": null
+          "response_sha256": "49a98081855305ce394aa27277120adf7352b4673d42219cd0d6ff6ccd82736b",
+          "rows_observed": 500,
+          "provider_total": 2108,
+          "provider_pages": 5
         }
       ],
-      "field_count": 5,
+      "field_count": 22,
       "fields": [
         {
-          "name": "f116",
-          "observed_json_types": [
-            "number"
-          ],
-          "nonempty_in_sample": true
-        },
-        {
-          "name": "f117",
-          "observed_json_types": [
-            "number"
-          ],
-          "nonempty_in_sample": true
-        },
-        {
-          "name": "f57",
+          "name": "SECURITY_CODE",
           "observed_json_types": [
             "string"
           ],
           "nonempty_in_sample": true
         },
         {
-          "name": "f58",
+          "name": "SECUCODE",
           "observed_json_types": [
             "string"
           ],
           "nonempty_in_sample": true
         },
         {
-          "name": "f86",
+          "name": "SECURITY_NAME_ABBR",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "ORG_CODE",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "TRADE_MARKET",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "BOARD_CODE",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "BOARD_NAME",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "ORIG_BOARD_CODE",
+          "observed_json_types": [
+            "string"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "TOTAL_MARKET_CAP",
           "observed_json_types": [
             "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "NOTLIMITED_MARKETCAP_A",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "CLOSE_PRICE",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "CHANGE_RATE",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "TOTAL_SHARES",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "FREE_SHARES_A",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PE_TTM",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PE_LAR",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PB_MRQ",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PCF_OCF_LAR",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PCF_OCF_TTM",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PS_TTM",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "PEG_CAR",
+          "observed_json_types": [
+            "number"
+          ],
+          "nonempty_in_sample": true
+        },
+        {
+          "name": "TRADE_DATE",
+          "observed_json_types": [
+            "string"
           ],
           "nonempty_in_sample": true
         }

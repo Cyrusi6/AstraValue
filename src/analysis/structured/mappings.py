@@ -46,7 +46,10 @@ _PROTOCOL_SUPPORT_ROWS = (
     *_support(
         ProtocolFamily.EM_M,
         "eastmoney",
-        (("em_metrics", "F05", "RPT_F10_FINANCE_MAINFINADATA"),),
+        (
+            ("em_metrics", "F05", "RPT_F10_FINANCE_MAINFINADATA"),
+            ("market_cap", "M01", "RPT_VALUEANALYSIS_DET"),
+        ),
     ),
     *_support(
         ProtocolFamily.EM_S,
@@ -97,11 +100,6 @@ _PROTOCOL_SUPPORT_ROWS = (
             ("macro_cpi", "I01", "RPT_ECONOMY_CPI"),
             ("macro_retail", "I02", "RPT_ECONOMY_TOTAL_RETAIL"),
         ),
-    ),
-    *_support(
-        ProtocolFamily.EM_Q,
-        "eastmoney",
-        (("market_cap", "M01", "api/qt/stock/get"),),
     ),
     *_support(
         ProtocolFamily.BAOSTOCK,
@@ -362,8 +360,15 @@ _ALL_FIELD_RULES = (
     *_field_rules(
         "market_cap",
         {
-            "f116": ("total_market_cap", "CNY", _QUOTE, _STOCK),
-            "f117": ("float_market_cap", "CNY", _QUOTE, _STOCK),
+            "TOTAL_MARKET_CAP": ("total_market_cap", "CNY", _QUOTE, _STOCK),
+            "NOTLIMITED_MARKETCAP_A": ("float_market_cap", "CNY", _QUOTE, _STOCK),
+            "CLOSE_PRICE": ("market_close", "CNY", _QUOTE, _STOCK),
+            "TOTAL_SHARES": ("total_shares", "shares", _QUOTE, _STOCK),
+            "FREE_SHARES_A": ("free_float_shares", "shares", _QUOTE, _STOCK),
+            "PE_TTM": ("pe_ttm", "multiple", _QUOTE, _RATIO),
+            "PB_MRQ": ("pb_mrq", "multiple", _QUOTE, _RATIO),
+            "PS_TTM": ("ps_ttm", "multiple", _QUOTE, _RATIO),
+            "PCF_OCF_TTM": ("pcf_net_cashflow_ttm", "multiple", _QUOTE, _RATIO),
         },
     ),
     *_field_rules(

@@ -308,6 +308,11 @@ class StructuredDataRuntime:
             planning_datasets = tuple(
                 {
                     **item.model_dump(mode="json"),
+                    # The dataset registry version is also the frozen version
+                    # of the generated source definitions.  Keep it on each
+                    # planning item so a registry bump cannot fall back to
+                    # planner's legacy 1.0.0 default and miss the bound source.
+                    "source_definition_version": self.bundle.datasets.version,
                     "earliest_available_at": _SUPPLIER_QUERY_FLOORS[
                         item.provider
                     ].isoformat(),

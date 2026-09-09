@@ -22,6 +22,15 @@ OUTPUT_DIR = ROOT / "config" / "structured_data"
 
 SCHEMA_VERSION = "structured-registry.v1"
 VERSION = "1.0.0"
+REGISTRY_VERSIONS = {
+    "datasets": "1.1.0",
+    "fields": "1.1.0",
+    "schedules": "1.1.0",
+    "research_requirements": "1.1.0",
+    "peer_sets": VERSION,
+    "reading_rules": VERSION,
+    "industry_profiles": VERSION,
+}
 GENERATED_FROM = (
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -39,7 +48,7 @@ COMPANY_FILTER_FIELDS = {
     "capital_projects": "SECURITY_CODE",
 }
 NO_COMPANY_FILTER = {"macro_cpi", "macro_retail", "baostock_calendar"}
-SNAPSHOT_DATASETS = {"company_basic", "market_cap", "baostock_basic"}
+SNAPSHOT_DATASETS = {"company_basic", "baostock_basic"}
 ON_DEMAND_DATASETS = {"macro_cpi", "macro_retail", "tags", "forecasts"}
 MARKET_DATASETS = {
     "market_cap",
@@ -71,6 +80,7 @@ KEY_FIELD_OVERRIDES: dict[str, tuple[str, ...]] = {
     "tags": ("SECUCODE", "BOARD_CODE"),
     "macro_cpi": ("REPORT_DATE",),
     "macro_retail": ("REPORT_DATE",),
+    "market_cap": ("SECUCODE", "TRADE_DATE"),
     "surveys": (
         "SECUCODE",
         "NOTICE_DATE",
@@ -179,7 +189,7 @@ def _envelope(kind: str, registry_id: str) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "registry_kind": kind,
         "registry_id": registry_id,
-        "version": VERSION,
+        "version": REGISTRY_VERSIONS[kind],
         "content_sha256": "0" * 64,
         "generated_from": list(GENERATED_FROM),
     }
@@ -277,20 +287,21 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
             contract["page_size"] = PAGE_SIZE_OVERRIDES[dataset_id]
         return contract
     if protocol == "em_m":
+        fixed_parameters = {
+            "type": report_name,
+            "sty": "ALL" if dataset_id == "market_cap" else "APP_F10_MAINFINADATA",
+            "sr": "-1",
+            "st": "TRADE_DATE" if dataset_id == "market_cap" else "REPORT_DATE",
+            "source": "HSF10",
+            "client": "PC",
+        }
         return {
             "protocol": protocol,
             "method": "GET",
             "endpoint": dataset["endpoint"],
             "report_name": report_name,
             "allowed_parameters": ["type", "sty", "filter", "p", "ps", "sr", "st", "source", "client"],
-            "fixed_parameters": {
-                "type": report_name,
-                "sty": "APP_F10_MAINFINADATA",
-                "sr": "-1",
-                "st": "REPORT_DATE",
-                "source": "HSF10",
-                "client": "PC",
-            },
+            "fixed_parameters": fixed_parameters,
             "parameter_template": {
                 "filter": '(SECUCODE="{provider_code}")',
                 "p": "{page_number}",
@@ -770,7 +781,7 @@ QUESTION_SPECS: list[tuple[str, str, tuple[str, ...], str, tuple[str, ...], tupl
     ("ES04.Q04", "融资与募集资金使用完成到哪里？", ("EVT",), "all industries after financing existence check", ("f:seo.ISSUE_NUM", "f:seo.ISSUE_PRICE", "f:seo.TOTAL_RAISE_FUNDS", "record:allotment", "f:capital_raise.FINANCE_TYPE", "f:capital_raise.NET_RAISE_FUNDS", "f:capital_projects.ACTUAL_INPUT_RF", "rd:RD08"), ("research:IssuanceDiscountRecord",)),
     ("ES04.Q05", "并购、出售与商誉形成有哪些责任？", ("EVT",), "all industries after transaction existence check", ("rd:RD08", "record:subsidiaries", "f:balance_fields.GOODWILL", "f:goodwill.GOODWILL_CHANGE", "rd:RD05", "gap:GAP04"), ("research:IntegrationEffectRecord",)),
     ("ES04.Q06", "债券、可转债与资本配置回报如何？", ("EVT", "FIN"), "bond events and non-financial project return", ("f:bond_issuance.BOND_COMBINE_CODE", "f:bond_issuance.ISSUE_SCALE", "f:bond_issuance.ISSUE_COUPON_IR", "f:bond_issuance.EXPIRE_DATE", "f:bond_issuance.INITIAL_TRANSFER_PRICE", "rd:RD08", "rd:RD06", "k:K03", "k:K06", "gap:GAP04"), ("research:AnnouncedProjectYield",)),
-    ("ES05.Q01", "当前价格、股本和估值口径是什么？", ("NOW",), "all industries by applicable metric", ("f:baostock_daily.date", "f:baostock_daily.close", "f:baostock_daily.tradestatus", "f:baostock_daily.peTTM", "f:baostock_daily.pbMRQ", "f:baostock_daily.psTTM", "f:baostock_daily.pcfNcfTTM", "f:market_cap.f116", "f:market_cap.f117", "f:market_cap.f86", "f:equity.TOTAL_SHARES", "record:baostock_adjust", "record:baostock_basic"), ("research:EnterpriseValueSalesRecord",)),
+    ("ES05.Q01", "当前价格、股本和估值口径是什么？", ("NOW",), "all industries by applicable metric", ("f:baostock_daily.date", "f:baostock_daily.close", "f:baostock_daily.tradestatus", "f:baostock_daily.peTTM", "f:baostock_daily.pbMRQ", "f:baostock_daily.psTTM", "f:baostock_daily.pcfNcfTTM", "f:market_cap.TOTAL_MARKET_CAP", "f:market_cap.NOTLIMITED_MARKETCAP_A", "f:market_cap.TRADE_DATE", "f:equity.TOTAL_SHARES", "record:baostock_adjust", "record:baostock_basic"), ("research:EnterpriseValueSalesRecord",)),
     ("ES05.Q02", "历史估值处于什么位置？", ("FIN",), "all industries by applicable valuation metric", ("record:baostock_daily", "record:baostock_calendar", "k:K09"), ("research:ValuationWindowSensitivity",)),
     ("ES05.Q03", "同行估值是否可比？", ("NOW", "FIN"), "all industries", ("research:PeerSetVersion", "record:baostock_daily", "record:income_fields", "k:K09", "rd:RD01", "rd:RD02"), ("record:forecasts",)),
     ("ES05.Q04", "适用绝对估值模型需要哪些输入？", ("SCN",), "selected industry and operating state", ("k:K05", "k:K06", "k:K11", "research:MethodSpec", "research:AssumptionRecord", "gap:GAP11"), ("research:ReverseDCFRun",)),
@@ -834,7 +845,7 @@ CALCULATION_INPUT_REFS = {
     "K06": ("f:cashflow_fields.NETCASH_OPERATE", "f:cashflow_fields.CONSTRUCT_LONG_ASSET", "f:cashflow_fields.FA_IR_DEPR", "f:cashflow_fields.IA_AMORTIZE", "rd:RD06", "research:MethodSpec"),
     "K07": ("f:dividend.PRETAX_BONUS_RMB", "f:dividend.REPORT_DATE", "f:dividend.ASSIGN_PROGRESS", "f:income_fields.PARENT_NETPROFIT", "f:equity.TOTAL_SHARES", "rd:RD08"),
     "K08": ("f:income_fields.BASIC_EPS", "f:income_fields.DILUTED_EPS", "f:income_fields.PARENT_NETPROFIT", "f:equity.TOTAL_SHARES", "rd:RD11"),
-    "K09": ("f:baostock_daily.peTTM", "f:baostock_daily.pbMRQ", "f:baostock_daily.psTTM", "f:baostock_daily.pcfNcfTTM", "f:market_cap.f116", "k:K05", "research:PeerSetVersion"),
+    "K09": ("f:baostock_daily.peTTM", "f:baostock_daily.pbMRQ", "f:baostock_daily.psTTM", "f:baostock_daily.pcfNcfTTM", "f:market_cap.TOTAL_MARKET_CAP", "f:market_cap.NOTLIMITED_MARKETCAP_A", "f:market_cap.TRADE_DATE", "k:K05", "research:PeerSetVersion"),
     "K10": ("f:segments.MAIN_BUSINESS_INCOME", "f:segments.MAIN_BUSINESS_COST", "rd:RD03", "rd:RD09"),
     "K11": ("research:MethodSpec", "research:AssumptionRecord", "research:ModelRun", "k:K05", "k:K08"),
 }
@@ -1168,8 +1179,8 @@ def main() -> None:
     plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
     if plan.get("document_role") != "planning_evidence_not_runtime_config":
         raise ValueError("输入必须是冻结的规划证据，而不是未知运行配置")
-    if plan.get("dataset_count") != 55 or plan.get("dataset_field_entries") != 2487:
-        raise ValueError("规划证据计数不符合55数据集/2487字段位置基线")
+    if plan.get("dataset_count") != 55 or plan.get("dataset_field_entries") != 2504:
+        raise ValueError("规划证据计数不符合55数据集/2504字段位置基线")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     datasets = _build_datasets(plan)

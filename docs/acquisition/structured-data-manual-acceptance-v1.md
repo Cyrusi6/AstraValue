@@ -4,7 +4,7 @@
 
 ## 自动准备的样本证据
 
-本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。本次行键/分页/EM-F 修复冻结的 `datasets.v1.json` 版本为 `1.0.0`，`content_sha256=f6496acaf154d8c848b619a0673677e0d9e3abc6f8a22ddcc90e90f4ed004723`；人工抽样记录必须引用该配置 hash。
+本轮隔离样本位于 Git 忽略目录 `var/structured-live-20260908/evidence/`。最终 `summary.json` SHA-256 为 `3e74f07630b5ce934af8de237e91040d36dda2fa0cd696a9b3829bb7ad4aa7d4`，记录 `isolated=true`、`full_history_executed=false`、`production_data_modified=false` 和 `manual_acceptance=pending`。本次 `market_cap` 换源冻结的 `datasets.v1.json` 版本为 `1.1.0`，`content_sha256=dc45cab9c8ebc79746f5c473a944740f55e39adadcfa62063edacedf92fe0d8d`；人工抽样记录必须引用该配置 hash。
 
 | 样本 | 自动检查内容 | 自动结果 | 人工状态 |
 |---|---|---|---|

@@ -7,6 +7,12 @@ from pathlib import Path
 import pytest
 
 from analysis.structured.records import stable_row_key
+from analysis.structured.protocols import (
+    EastmoneyRequest,
+    ProtocolFamily,
+    ResultStatus,
+    parse_eastmoney_response,
+)
 from analysis.structured.registry import StructuredRegistryLoader
 from analysis.structured.runtime import _bind_parameters
 
@@ -30,6 +36,7 @@ EXPECTED_KEYS = {
     "tags": ("SECUCODE", "BOARD_CODE"),
     "macro_cpi": ("REPORT_DATE",),
     "macro_retail": ("REPORT_DATE",),
+    "market_cap": ("SECUCODE", "TRADE_DATE"),
     "surveys": (
         "SECUCODE",
         "NOTICE_DATE",
@@ -127,3 +134,138 @@ def test_fund_holds_sort_covers_report_period_and_row_identity():
     assert sort_columns == ("REPORT_DATE", "TOTAL_SHARES", "HOLDER_CODE")
     assert set(EXPECTED_KEYS["fund_holds"][1:]).issubset(sort_columns)
     assert tuple(fixed["sortTypes"].split(",")) == ("-1",) * len(sort_columns)
+
+
+def test_market_cap_history_key_sort_and_secucode_binding_contract():
+    bundle = StructuredRegistryLoader().load()
+    market_cap = bundle.dataset("market_cap")
+    assert market_cap.request.protocol == "em_m"
+    assert market_cap.history_mode == "all_available_history"
+    assert market_cap.history_enumeration == "complete_pagination"
+    assert tuple(market_cap.primary_key_fields) == EXPECTED_KEYS["market_cap"]
+    rows = [
+        {"SECUCODE": "600519.SH", "TRADE_DATE": "2026-09-08"},
+        {"SECUCODE": "600519.SH", "TRADE_DATE": "2026-09-07"},
+    ]
+    keys = [
+        stable_row_key("market_cap", row, market_cap.primary_key_fields)
+        for row in rows
+    ]
+    assert len(keys) == len(set(keys))
+    with pytest.raises(ValueError, match="TRADE_DATE"):
+        stable_row_key(
+            "market_cap",
+            {"SECUCODE": "600519.SH", "TRADE_DATE": ""},
+            market_cap.primary_key_fields,
+        )
+    fixed = market_cap.request.fixed_parameters
+    sort_columns = tuple(str(fixed["st"]).split(","))
+    assert set(EXPECTED_KEYS["market_cap"][1:]).issubset(sort_columns)
+    assert fixed == {
+        "type": "RPT_VALUEANALYSIS_DET",
+        "sty": "ALL",
+        "sr": "-1",
+        "st": "TRADE_DATE",
+        "source": "HSF10",
+        "client": "PC",
+    }
+    source_plan = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "docs"
+            / "acquisition"
+            / "structured-data-interface-fields-v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    source_market_cap = next(
+        item for item in source_plan["datasets"] if item["dataset_id"] == "market_cap"
+    )
+    sample_params = source_market_cap["samples"][0]["params"]
+    sample_sort_columns = tuple(sample_params["sortColumns"].split(","))
+    assert set(EXPECTED_KEYS["market_cap"][1:]).issubset(sample_sort_columns)
+    assert tuple(sample_params["sortTypes"].split(",")) == (
+        "-1",
+    ) * len(sample_sort_columns)
+
+    identity = {"market": "SSE", "security_code": "600519"}
+    job = {
+        "time_start": datetime(2018, 1, 1, tzinfo=timezone.utc).isoformat(),
+        "time_end": datetime(2026, 9, 9, tzinfo=timezone.utc).isoformat(),
+        "purpose": "dataset",
+    }
+    params = _bind_parameters(
+        market_cap.model_dump(mode="json"),
+        identity,
+        job,
+        page_number=1,
+    )
+    assert params["filter"] == '(SECUCODE="600519.SH")'
+    assert params["p"] == "1"
+    assert params["ps"] == "500"
+
+
+def test_market_cap_pagination_terminal_and_valid_empty_result_are_distinct():
+    endpoint = "https://datacenter.eastmoney.com/securities/api/data/get"
+
+    def request(page: int) -> EastmoneyRequest:
+        return EastmoneyRequest(
+            ProtocolFamily.EM_M,
+            endpoint,
+            {
+                "type": "RPT_VALUEANALYSIS_DET",
+                "sty": "ALL",
+                "filter": '(SECUCODE="600519.SH")',
+                "p": str(page),
+                "ps": "500",
+                "sr": "-1",
+                "st": "TRADE_DATE",
+                "source": "HSF10",
+                "client": "PC",
+            },
+        )
+
+    terminal = parse_eastmoney_response(
+        request(5),
+        status_code=200,
+        body=json.dumps(
+            {
+                "success": True,
+                "code": 0,
+                "result": {
+                    "data": [{"SECUCODE": "600519.SH", "TRADE_DATE": "2026-09-08"}],
+                    "count": 2108,
+                    "pages": 5,
+                },
+            }
+        ).encode(),
+    )
+    assert terminal.status is ResultStatus.SUCCESS
+    assert terminal.terminal is True
+    assert terminal.declared_total == 2108
+    assert terminal.declared_pages == 5
+
+    empty = parse_eastmoney_response(
+        request(1),
+        status_code=200,
+        body=json.dumps({"success": False, "code": 9201, "result": None}).encode(),
+    )
+    assert empty.status is ResultStatus.EMPTY
+    assert empty.terminal is True
+    assert empty.rows == ()
+
+
+def test_market_cap_requirement_references_have_no_legacy_field_ids():
+    root = Path(__file__).resolve().parents[2]
+    payload = json.loads(
+        (
+            root
+            / "config"
+            / "structured_data"
+            / "research_requirements.v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    serialized = json.dumps(payload, ensure_ascii=False)
+    for legacy in tuple(
+        f"market_cap.{suffix}" for suffix in ("f" + "116", "f" + "117", "f" + "86")
+    ):
+        assert legacy not in serialized

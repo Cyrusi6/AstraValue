@@ -2,8 +2,8 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "research_requirements",
   "registry_id": "eight_step_research_requirements",
-  "version": "1.0.0",
-  "content_sha256": "472c2081443720c350def58415626bbd4f153b97212b34350b7fbd8430e6f122",
+  "version": "1.1.0",
+  "content_sha256": "fca27c66b80ba5923718cba6bf3fa3d6b82f1a2f6695a25e30edb111237c967b",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -8799,11 +8799,11 @@
       "paths": [
         {
           "dataset_id": "market_cap",
-          "raw_name": "f116",
+          "raw_name": "TOTAL_MARKET_CAP",
           "route_id": null,
           "gap_id": null,
           "research_object_kind": null,
-          "semantic_key": "ES05.Q01:f:market_cap.f116",
+          "semantic_key": "ES05.Q01:f:market_cap.TOTAL_MARKET_CAP",
           "period_semantics": "NOW",
           "scope_semantics": "question company, requested analysis period and registered business dimension",
           "unit_semantics": "registered provider unit or requirement-specific declared unit",
@@ -8826,16 +8826,16 @@
       "paths": [
         {
           "dataset_id": "market_cap",
-          "raw_name": "f117",
+          "raw_name": "NOTLIMITED_MARKETCAP_A",
           "route_id": null,
           "gap_id": null,
           "research_object_kind": null,
-          "semantic_key": "ES05.Q01:f:market_cap.f117",
+          "semantic_key": "ES05.Q01:f:market_cap.NOTLIMITED_MARKETCAP_A",
           "period_semantics": "NOW",
           "scope_semantics": "question company, requested analysis period and registered business dimension",
           "unit_semantics": "registered provider unit or requirement-specific declared unit",
           "kind": "raw_field",
-          "support_status": "candidate_mapping"
+          "support_status": "supported"
         }
       ],
       "applicability_condition": "all industries by applicable metric",
@@ -8853,16 +8853,16 @@
       "paths": [
         {
           "dataset_id": "market_cap",
-          "raw_name": "f86",
+          "raw_name": "TRADE_DATE",
           "route_id": null,
           "gap_id": null,
           "research_object_kind": null,
-          "semantic_key": "ES05.Q01:f:market_cap.f86",
+          "semantic_key": "ES05.Q01:f:market_cap.TRADE_DATE",
           "period_semantics": "NOW",
           "scope_semantics": "question company, requested analysis period and registered business dimension",
           "unit_semantics": "registered provider unit or requirement-specific declared unit",
           "kind": "raw_field",
-          "support_status": "candidate_mapping"
+          "support_status": "supported"
         }
       ],
       "applicability_condition": "all industries by applicable metric",
@@ -12545,7 +12545,9 @@
         "f:baostock_daily.pbMRQ",
         "f:baostock_daily.psTTM",
         "f:baostock_daily.pcfNcfTTM",
-        "f:market_cap.f116",
+        "f:market_cap.TOTAL_MARKET_CAP",
+        "f:market_cap.NOTLIMITED_MARKETCAP_A",
+        "f:market_cap.TRADE_DATE",
         "k:K05",
         "research:PeerSetVersion"
       ],

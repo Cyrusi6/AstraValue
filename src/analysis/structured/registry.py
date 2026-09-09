@@ -404,9 +404,9 @@ class StructuredRegistryLoader:
                     raise StructuredRegistryError(f"{dataset.dataset_id}: 分页参数合同不完整")
 
         fields = bundle.fields.fields
-        if bundle.fields.declared_field_positions != len(fields) or len(fields) != 2487:
+        if bundle.fields.declared_field_positions != len(fields) or len(fields) != 2504:
             raise StructuredRegistryError(
-                "字段位置必须完整登记2487项: "
+                "字段位置必须完整登记2504项: "
                 f"declared={bundle.fields.declared_field_positions}, actual={len(fields)}"
             )
         expected_summary = {

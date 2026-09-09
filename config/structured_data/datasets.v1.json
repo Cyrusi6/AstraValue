@@ -2,8 +2,8 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
-  "version": "1.0.0",
-  "content_sha256": "c5a644c67b90a9b76730a2eb96bf224abcb322571463a6d408ce90934620520c",
+  "version": "1.1.0",
+  "content_sha256": "dc45cab9c8ebc79746f5c473a944740f55e39adadcfa62063edacedf92fe0d8d",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -2746,38 +2746,48 @@
       "provider": "eastmoney",
       "upstream_identity": "eastmoney",
       "request": {
-        "protocol": "em_q",
+        "protocol": "em_m",
         "method": "GET",
-        "endpoint": "https://push2.eastmoney.com/api/qt/stock/get",
-        "report_name": null,
+        "endpoint": "https://datacenter.eastmoney.com/securities/api/data/get",
+        "report_name": "RPT_VALUEANALYSIS_DET",
         "allowed_parameters": [
-          "secid",
-          "fields",
-          "fltt",
-          "invt"
+          "type",
+          "sty",
+          "filter",
+          "p",
+          "ps",
+          "sr",
+          "st",
+          "source",
+          "client"
         ],
         "fixed_parameters": {
-          "fields": "f57,f58,f86,f116,f117",
-          "fltt": "2",
-          "invt": "2"
+          "type": "RPT_VALUEANALYSIS_DET",
+          "sty": "ALL",
+          "sr": "-1",
+          "st": "TRADE_DATE",
+          "source": "HSF10",
+          "client": "PC"
         },
         "parameter_template": {
-          "secid": "{provider_secid}"
+          "filter": "(SECUCODE=\"{provider_code}\")",
+          "p": "{page_number}",
+          "ps": "{bounded_page_size}"
         },
-        "company_filter_field": "secid",
-        "provider_code_format": "{market_number}.{security_code}"
+        "company_filter_field": "SECUCODE",
+        "provider_code_format": "{security_code}.{exchange}"
       },
-      "history_mode": "snapshot_from_first_retrieval",
-      "history_enumeration": "current_snapshot",
+      "history_mode": "all_available_history",
+      "history_enumeration": "complete_pagination",
       "primary_key_fields": [
-        "f57",
-        "f86"
+        "SECUCODE",
+        "TRADE_DATE"
       ],
       "date_fields": [
-        "f86"
+        "TRADE_DATE"
       ],
-      "pagination": "none",
-      "update_category": "snapshot",
+      "pagination": "page_number",
+      "update_category": "market",
       "empty_result": {
         "success_evidence": [
           "protocol success and required response shape"
@@ -2791,11 +2801,11 @@
           "fact was not disclosed"
         ]
       },
-      "expected_field_count": 5,
+      "expected_field_count": 22,
       "field_coverage_status": "response_fields_observed",
       "applicability": "resolved company, market, report companyType and research category must match the registered protocol",
       "sample_evidence_hashes": [
-        "f7cb81b1ff17d41c602b6c5b40455bd3db4f0b5ac0c91d0e91cee97878aade08"
+        "49a98081855305ce394aa27277120adf7352b4673d42219cd0d6ff6ccd82736b"
       ]
     },
     {

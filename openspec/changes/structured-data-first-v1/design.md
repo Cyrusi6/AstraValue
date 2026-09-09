@@ -336,7 +336,7 @@ ES01.Q01–Q10 按序关联旧 BM 十主题；其他 ES ID 为本变更新增需
 
 | 问题 ID 与问题 | 必需数据及取得路径 | 可选增强 | 适用与期间；明确缺口 |
 |---|---|---|---|
-| ES05.Q01 当前价格、股本和估值口径是什么？ | B01.date/close/tradestatus/peTTM/pbMRQ/psTTM/pcfNcfTTM；M01.f116/f117/f86；G02 股本，B08 复权/证券类别 | EV/Sales | 全行业按有效指标；NOW；多证券市值不能一律总股数乘 A 股价，PCF 不改口径 |
+| ES05.Q01 当前价格、股本和估值口径是什么？ | B01.date/close/tradestatus/peTTM/pbMRQ/psTTM/pcfNcfTTM；M01.TOTAL_MARKET_CAP/M01.NOTLIMITED_MARKETCAP_A/M01.CLOSE_PRICE/M01.TOTAL_SHARES/M01.FREE_SHARES_A/M01.PE_TTM/M01.PB_MRQ/M01.PS_TTM/M01.PCF_OCF_TTM/M01.TRADE_DATE；G02 股本，B08 复权/证券类别 | EV/Sales | 全行业按有效指标；NOW；多证券市值不能一律总股数乘 A 股价，PCF 不改口径；M01 为 T+1 收盘历史序列 |
 | ES05.Q02 历史估值处于什么位置？ | B01 日期、有效估值序列、交易日历覆盖、K09 的窗口/分位规则 | 不同窗口敏感性 | 全行业按模型适用；FIN 对应交易日窗口；历史空日与非适用负 PE 单列，不用今日市值回填 |
 | ES05.Q03 同行估值是否可比？ | 已选同行版本、同期间财务与 B01 估值、经营/规模/地域/模式证据；K09 指标可比子集 | 机构一致预测单列 | 全行业；NOW+FIN；同行不足列缺，不直接机械平均成目标公允价值 |
 | ES05.Q04 适用绝对估值模型需要哪些输入？ | 第 E 节行业模型输入；非金融 K05/K06 的历史基线及 K11 的现金流/增长/税率/折现/终值假设；方法引用 | 逆向 DCF | 由行业和经营状态决定；SCN；方法骨架、利率未实测和假设未确认分别显示，不能自填假设 |
