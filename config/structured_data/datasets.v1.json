@@ -3,7 +3,7 @@
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
   "version": "1.0.0",
-  "content_sha256": "f6496acaf154d8c848b619a0673677e0d9e3abc6f8a22ddcc90e90f4ed004723",
+  "content_sha256": "c5a644c67b90a9b76730a2eb96bf224abcb322571463a6d408ce90934620520c",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
@@ -2484,8 +2484,8 @@
         "fixed_parameters": {
           "reportName": "RPT_MAIN_ORGHOLDDETAIL",
           "columns": "ALL",
-          "sortColumns": "TOTAL_SHARES,HOLDER_CODE",
-          "sortTypes": "-1,-1",
+          "sortColumns": "REPORT_DATE,TOTAL_SHARES,HOLDER_CODE",
+          "sortTypes": "-1,-1,-1",
           "source": "HSF10",
           "client": "PC"
         },
@@ -2554,8 +2554,8 @@
         "fixed_parameters": {
           "reportName": "RPT_ORG_SURVEY",
           "columns": "ALL",
-          "sortColumns": "NOTICE_DATE",
-          "sortTypes": "-1",
+          "sortColumns": "NOTICE_DATE,NUM,RECEIVE_OBJECT,RECEIVE_START_DATE",
+          "sortTypes": "-1,-1,-1,-1",
           "source": "WEB",
           "client": "WEB"
         },
@@ -2572,8 +2572,10 @@
       "history_enumeration": "complete_pagination",
       "primary_key_fields": [
         "SECUCODE",
-        "END_DATE",
-        "ORG_CODE"
+        "NOTICE_DATE",
+        "NUM",
+        "RECEIVE_OBJECT",
+        "RECEIVE_START_DATE"
       ],
       "date_fields": [
         "END_DATE",

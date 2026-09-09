@@ -71,6 +71,25 @@ KEY_FIELD_OVERRIDES: dict[str, tuple[str, ...]] = {
     "tags": ("SECUCODE", "BOARD_CODE"),
     "macro_cpi": ("REPORT_DATE",),
     "macro_retail": ("REPORT_DATE",),
+    "surveys": (
+        "SECUCODE",
+        "NOTICE_DATE",
+        "NUM",
+        "RECEIVE_OBJECT",
+        "RECEIVE_START_DATE",
+    ),
+}
+
+# 某些分页接口的原始样本排序不是行键的全序。对已实测存在跨页漂移的
+# 数据集声明完整排序覆盖；排序方向沿用供应商样本的降序约定。
+SORT_COLUMN_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "surveys": (
+        "NOTICE_DATE",
+        "NUM",
+        "RECEIVE_OBJECT",
+        "RECEIVE_START_DATE",
+    ),
+    "fund_holds": ("REPORT_DATE", "TOTAL_SHARES", "HOLDER_CODE"),
 }
 
 SORT_TIE_BREAKER_OVERRIDES: dict[str, tuple[str, ...]] = {
@@ -208,20 +227,25 @@ def _request_contract(dataset: dict[str, Any]) -> dict[str, Any]:
         ]
         source = "WEB" if protocol == "em_w" else "HSF10"
         client = "WEB" if protocol == "em_w" else "PC"
-        sort_columns = _safe_sort(dataset, "sortColumns")
-        sort_types = _safe_sort(dataset, "sortTypes")
-        tie_breakers = SORT_TIE_BREAKER_OVERRIDES.get(dataset_id, ())
-        if tie_breakers:
-            existing_columns = tuple(
-                value for value in sort_columns.split(",") if value
-            )
-            existing_types = tuple(value for value in sort_types.split(",") if value)
-            for tie_breaker in tie_breakers:
-                if tie_breaker not in existing_columns:
-                    existing_columns += (tie_breaker,)
-                    existing_types += ("-1",)
-            sort_columns = ",".join(existing_columns)
-            sort_types = ",".join(existing_types)
+        sort_override = SORT_COLUMN_OVERRIDES.get(dataset_id)
+        if sort_override:
+            sort_columns = ",".join(sort_override)
+            sort_types = ",".join("-1" for _ in sort_override)
+        else:
+            sort_columns = _safe_sort(dataset, "sortColumns")
+            sort_types = _safe_sort(dataset, "sortTypes")
+            tie_breakers = SORT_TIE_BREAKER_OVERRIDES.get(dataset_id, ())
+            if tie_breakers:
+                existing_columns = tuple(
+                    value for value in sort_columns.split(",") if value
+                )
+                existing_types = tuple(value for value in sort_types.split(",") if value)
+                for tie_breaker in tie_breakers:
+                    if tie_breaker not in existing_columns:
+                        existing_columns += (tie_breaker,)
+                        existing_types += ("-1",)
+                sort_columns = ",".join(existing_columns)
+                sort_types = ",".join(existing_types)
         fixed = {
             "reportName": report_name,
             "columns": "ALL",

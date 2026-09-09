@@ -16,6 +16,7 @@ EXPECTED_KEYS = {
     "float_holders_history": ("SECUCODE", "END_DATE", "HOLDER_NAME"),
     "management_roster": ("SECUCODE", "PERSON_CODE"),
     "block_trade": ("SECUCODE", "TRADE_DATE", "DAILY_RANK"),
+    "fund_holds": ("SECUCODE", "REPORT_DATE", "HOLDER_CODE"),
     "institution_holds": ("SECUCODE", "REPORT_DATE", "ORG_TYPE"),
     "segments": ("SECUCODE", "REPORT_DATE", "ITEM_CODE", "MAINOP_TYPE"),
     "staff_structure": ("SECUCODE", "REPORT_DATE", "DISTRIBUTION_NAME"),
@@ -29,6 +30,13 @@ EXPECTED_KEYS = {
     "tags": ("SECUCODE", "BOARD_CODE"),
     "macro_cpi": ("REPORT_DATE",),
     "macro_retail": ("REPORT_DATE",),
+    "surveys": (
+        "SECUCODE",
+        "NOTICE_DATE",
+        "NUM",
+        "RECEIVE_OBJECT",
+        "RECEIVE_START_DATE",
+    ),
 }
 
 
@@ -98,3 +106,24 @@ def test_page_size_overrides_are_dataset_specific_and_bind_into_requests():
     }
     assert _bind_parameters(surveys, identity, job, page_number=1)["pageSize"] == "50"
     assert _bind_parameters(fund_holds, identity, job, page_number=1)["pageSize"] == "100"
+
+
+def test_surveys_key_and_sort_form_a_stable_business_total_order():
+    bundle = StructuredRegistryLoader().load()
+    surveys = bundle.dataset("surveys")
+    assert tuple(surveys.primary_key_fields) == EXPECTED_KEYS["surveys"]
+    fixed = surveys.request.fixed_parameters
+    sort_columns = tuple(fixed["sortColumns"].split(","))
+    assert sort_columns == EXPECTED_KEYS["surveys"][1:]
+    assert tuple(fixed["sortTypes"].split(",")) == ("-1",) * len(sort_columns)
+    assert "EUTIME" not in sort_columns
+
+
+def test_fund_holds_sort_covers_report_period_and_row_identity():
+    bundle = StructuredRegistryLoader().load()
+    fund_holds = bundle.dataset("fund_holds")
+    fixed = fund_holds.request.fixed_parameters
+    sort_columns = tuple(fixed["sortColumns"].split(","))
+    assert sort_columns == ("REPORT_DATE", "TOTAL_SHARES", "HOLDER_CODE")
+    assert set(EXPECTED_KEYS["fund_holds"][1:]).issubset(sort_columns)
+    assert tuple(fixed["sortTypes"].split(",")) == ("-1",) * len(sort_columns)
