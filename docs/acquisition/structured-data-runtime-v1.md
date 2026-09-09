@@ -109,6 +109,54 @@ python -m analysis.cli acquisition-db backup `
 
 恢复同一运行时使用 `structured resume RUN_ID`。已提交页、原始 snapshot、失败 attempt 和冻结配置继续保留；达到尝试上限的失败不会无限循环。模块迁移 `structured_data_0001` 为追加、原子且幂等，不提供破坏性 down migration。
 
+### 终态失败的定向补采
+
+普通 `resume` 不领取已经达到两次尝试上限的 `failed` job。只有 baseline supervisor 已退出、活动租约为零且操作者明确发出启动消息后，才可使用独立的 repair 入口；它不会删除原 attempt，也不会创建 incremental。先用终态事件中的完整 `reason_code` 和数据集精确生成内容寻址 manifest：
+
+```powershell
+$revision = git rev-parse HEAD
+python -m analysis.cli structured repair-plan RUN_ID `
+  --dataset baostock_balance `
+  --reason "EXACT_REASON_CODE_FROM_TERMINAL_EVENT" `
+  --revision $revision `
+  --output var/pilots/structured-repair/repair.json `
+  --db D:\path\to\analysis.db `
+  --data-root D:\path\to\data --json
+
+python -m analysis.cli structured repair-status `
+  var/pilots/structured-repair/repair.json `
+  --revision $revision `
+  --db D:\path\to\analysis.db `
+  --data-root D:\path\to\data --json
+
+# 每次命令只执行一轮；同一 manifest 对每个 job 最多追加两次 attempt。
+python -m analysis.cli structured repair-run `
+  var/pilots/structured-repair/repair.json `
+  --revision $revision --max-jobs 25 `
+  --db D:\path\to\analysis.db `
+  --data-root D:\path\to\data --json
+```
+
+生产使用监督脚本时，必须显式传入已退出的原 supervisor PID、revision、namespace 和 manifest hash。脚本最多执行两轮，不等待或轮询 baseline，不安装计划任务：
+
+```powershell
+python scripts/supervise_structured_repair.py `
+  --workspace D:\path\to\frozen-repair-worktree `
+  --db D:\path\to\analysis.db --data-root D:\path\to\data `
+  --manifest D:\path\to\repair.json `
+  --expected-revision GIT_SHA `
+  --expected-namespace NAMESPACE_ID `
+  --expected-manifest-sha256 MANIFEST_SHA256 `
+  --supervisor-pid EXITED_BASELINE_PID `
+  --evidence-dir D:\path\to\repair-evidence
+```
+
+BaoStock repair 会先做一次匿名登录探针，再为本轮多个 job 复用同一会话；登录失败返回 `source_unavailable` 且不创建 job attempt。已有有效 observation 的共享日历 snapshot 优先离线重放，状态中的 `query_io_count=0` 表示没有再次发出数据查询；登录探针仍单独记录为来源 I/O。
+
+原渠道不可用不授权自动换源。备用渠道只有在逐数据集真实样本确认字段语义、单位、期间、主键、排序/分页、PIT 可得时间、许可与缺失语义等价，并建立新的真实来源身份和版本后，才能通过独立 change/manifest 执行。否则保持 `fallback_unqualified` 或来源缺口，不能把东方财富近似字段写成 BaoStock。
+
+repair 代码本身没有数据库迁移。回滚时停止 repair 进程并切回原 revision；已经追加的 attempt、snapshot、page、record 和 coverage 是合法不可变历史，不删除。自动测试、隔离真实样本、生产 repair 与独立人工抽样分别记录，任何一项都不自动将 `manual_acceptance` 改为通过。
+
 需要暂时回到旧业务入口时，明确传 `source_strategy=legacy-v1` 和旧 providers；这只切换新请求策略，不倒改已有结构化记录。若必须回退隔离数据库文件，应先停止对应 worker、核对 database/data-root/namespace 与备份清单，再使用已验证备份恢复；不要在生产库上删除结构化表模拟回滚。
 
 ## 七家公司生产执行与终验方案（尚未运行）

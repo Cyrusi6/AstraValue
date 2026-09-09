@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
@@ -50,6 +51,12 @@ from .protocols import (
     plan_em_f,
 )
 from .records import RecordVersion
+from .repair import (
+    RepairManifest,
+    plan_repair as build_repair_manifest,
+    repair_candidates,
+    repair_status as build_repair_status,
+)
 from .registry import StructuredRegistryBundle, StructuredRegistryLoader
 from .scheduler import StructuredExecutionBridge
 from .storage import (
@@ -235,6 +242,9 @@ class StructuredDataRuntime:
             snapshot_service=acquisition_runtime.snapshot_service,
         )
         self.sdk = sdk
+        self._sdk_session_active = False
+        self._repair_active = False
+        self._repair_query_io_count = 0
         self._sources = _build_sources(self.bundle)
         # Coverage entries and physical plan items are protected by the
         # acquisition control-plane foreign keys.  Persist the immutable
@@ -548,6 +558,182 @@ class StructuredDataRuntime:
                 "schedule": context.schedule_version,
                 "policy": context.policy_version,
             },
+        }
+
+    def repair_plan(
+        self,
+        run_id: str,
+        *,
+        dataset_filters: Sequence[str],
+        reason_filters: Sequence[str],
+        code_revision: str,
+    ) -> RepairManifest:
+        return build_repair_manifest(
+            bridge=self.bridge,
+            storage=self.storage,
+            repository=self.repository,
+            run_id=run_id,
+            dataset_filters=dataset_filters,
+            reason_filters=reason_filters,
+            code_revision=code_revision,
+        )
+
+    def repair_status(
+        self,
+        manifest: RepairManifest,
+        *,
+        expected_code_revision: str | None = None,
+    ) -> dict[str, Any]:
+        return build_repair_status(
+            manifest,
+            bridge=self.bridge,
+            storage=self.storage,
+            repository=self.repository,
+            expected_code_revision=expected_code_revision,
+        )
+
+    def repair_execute(
+        self,
+        manifest: RepairManifest,
+        *,
+        expected_code_revision: str,
+        max_jobs_per_round: int = 25,
+    ) -> dict[str, Any]:
+        """Execute one explicit, bounded repair round from a verified manifest."""
+
+        if max_jobs_per_round < 1:
+            raise ValueError("max_jobs_per_round must be positive")
+        context = self.bridge.prepare_execution(manifest.run_id)
+        candidates = repair_candidates(
+            manifest,
+            bridge=self.bridge,
+            storage=self.storage,
+            repository=self.repository,
+            expected_code_revision=expected_code_revision,
+        )[:max_jobs_per_round]
+        if not candidates:
+            return {
+                **self.repair_status(
+                    manifest, expected_code_revision=expected_code_revision
+                ),
+                "single_round": True,
+                "attempted_job_ids": [],
+            }
+
+        frozen = _validate_frozen_config(context.frozen_config)
+        datasets = {
+            str(item["dataset_id"]): item for item in frozen["datasets"]
+        }
+        providers = {
+            str(datasets[candidate.dataset_id]["provider"])
+            for candidate in candidates
+            if candidate.dataset_id in datasets
+        }
+        if len(providers) != 1 or not providers.issubset({"baostock", "eastmoney"}):
+            raise StructuredRuntimeError(
+                "repair round must contain one frozen supported provider"
+            )
+        source_keys = {
+            (
+                str(job["source_definition_id"]),
+                str(job["source_definition_version"]),
+            )
+            for candidate in candidates
+            for job in (self.storage.get_job(candidate.job_id),)
+        }
+        sources = {
+            (item.source_definition_id, item.version): item
+            for item in (
+                FrozenSource.from_mapping(value)
+                for value in frozen["source_definitions"]
+            )
+        }
+        if len(source_keys) != 1 or next(iter(source_keys)) not in sources:
+            raise StructuredRuntimeError(
+                "repair round must contain one frozen source version"
+            )
+        source = sources[next(iter(source_keys))]
+
+        lease, owner_token = self.bridge.claim_lease(
+            manifest.run_id,
+            now=self.acquisition_runtime.clock(),
+            ttl_seconds=120,
+        )
+        attempted: list[str] = []
+        source_status = "available"
+        source_diagnostic: str | None = None
+        source_probe_performed = False
+        self._repair_active = True
+        self._repair_query_io_count = 0
+        try:
+            with ExitStack() as stack:
+                if providers == {"baostock"}:
+                    if self.sdk is None:
+                        source_status = "source_unavailable"
+                        source_diagnostic = "StructuredRuntimeError:BaoStock SDK is not bound"
+                    else:
+                        guard = self._lease_guard(
+                            manifest.run_id,
+                            owner_token=owner_token,
+                            lease_epoch=lease.lease_epoch,
+                        )
+                        with self.bridge.hold_source(
+                            run_id=manifest.run_id,
+                            source_definition=source,
+                            host="baostock-sdk.local",
+                            deadline_monotonic=(
+                                self.acquisition_runtime.monotonic_clock()
+                                + float(
+                                    source.retry_policy.attempt_deadline_seconds
+                                )
+                            ),
+                            lease_guard=guard,
+                        ):
+                            guard(force=True)
+                            source_probe_performed = True
+                            try:
+                                stack.enter_context(
+                                    baostock_anonymous_session(self.sdk)
+                                )
+                            except Exception as exc:
+                                source_status = "source_unavailable"
+                                source_diagnostic = _safe_diagnostic(exc)
+                            else:
+                                guard(force=True)
+                                self._sdk_session_active = True
+                if source_status == "available":
+                    for candidate in candidates:
+                        attempted.append(candidate.job_id)
+                        self._execute_job(
+                            context,
+                            candidate,
+                            owner_token=owner_token,
+                            lease_epoch=lease.lease_epoch,
+                        )
+        finally:
+            self._sdk_session_active = False
+            self._repair_active = False
+            self.repository.release_lease(
+                manifest.run_id,
+                owner_token=owner_token,
+                lease_epoch=lease.lease_epoch,
+                now=self.acquisition_runtime.clock(),
+            )
+        status = self.repair_status(
+            manifest, expected_code_revision=expected_code_revision
+        )
+        return {
+            **status,
+            "single_round": True,
+            "source_status": source_status,
+            "source_diagnostic": source_diagnostic,
+            "fallback_required": source_status != "available",
+            "attempted_job_ids": attempted,
+            "source_probe_performed": source_probe_performed,
+            "query_io_count": self._repair_query_io_count,
+            "performed_network_io": (
+                source_probe_performed or self._repair_query_io_count > 0
+            ),
         }
 
     def _frozen_config(
@@ -1152,7 +1338,7 @@ class StructuredDataRuntime:
             if snapshot.query_page_canonical != expected_query:
                 continue
             observation = self.repository.get_discovery_observation(
-                snapshot.creating_observation_id
+                self.storage.snapshot_observation_id(job["job_id"], snapshot_id)
             )
             if str(observation.response_summary.get("status")) in {
                 ResultStatus.SUCCESS.value,
@@ -1186,7 +1372,7 @@ class StructuredDataRuntime:
                 "unprojected snapshot does not match the frozen query page"
             )
         observation = self.repository.get_discovery_observation(
-            snapshot.creating_observation_id
+            self.storage.snapshot_observation_id(job["job_id"], snapshot_id)
         )
         body = self.acquisition_runtime.blob_store.read_verified(
             snapshot.archive_relative_path,
@@ -1323,6 +1509,8 @@ class StructuredDataRuntime:
             deadline_monotonic=deadline,
             lease_guard=lease_guard,
         ):
+            if self._repair_active:
+                self._repair_query_io_count += 1
             built = self.acquisition_runtime.http_client.build_request(
                 "GET", endpoint, params=request.params
             )
@@ -1413,8 +1601,13 @@ class StructuredDataRuntime:
             lease_guard=lease_guard,
         ):
             lease_guard(force=True)
-            with baostock_anonymous_session(self.sdk):
+            if self._repair_active:
+                self._repair_query_io_count += 1
+            if self._sdk_session_active:
                 result = execute_baostock_query(self.sdk, query)
+            else:
+                with baostock_anonymous_session(self.sdk):
+                    result = execute_baostock_query(self.sdk, query)
             lease_guard(force=True)
         body = canonical_json(
             {
@@ -1942,6 +2135,11 @@ def _aware(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("structured timestamp must be timezone-aware")
     return value.astimezone(timezone.utc)
+
+
+def _safe_diagnostic(exc: Exception) -> str:
+    text = str(exc).replace("\r", " ").replace("\n", " ")[:500]
+    return f"{type(exc).__name__}:{text}"
 
 
 def _status_mapping(value: Any) -> dict[str, Any]:

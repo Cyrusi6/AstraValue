@@ -24,6 +24,7 @@ from .registry import (
     StructuredRegistryBundle,
     StructuredRegistryLoader,
 )
+from .repair import load_repair_manifest, write_repair_manifest
 from .runtime import StructuredDataRuntime, StructuredPlanResult
 from .storage import (
     StructuredNamespaceMismatch,
@@ -287,6 +288,61 @@ class StructuredDataService:
 
     def status(self, run_id: str) -> dict[str, Any]:
         return self._execute(self.runtime.status, run_id)
+
+    def repair_plan(
+        self,
+        run_id: str,
+        *,
+        datasets: Sequence[str],
+        reasons: Sequence[str],
+        code_revision: str,
+        output: Path | str,
+    ) -> dict[str, Any]:
+        manifest = self.runtime.repair_plan(
+            run_id,
+            dataset_filters=tuple(datasets),
+            reason_filters=tuple(reasons),
+            code_revision=code_revision,
+        )
+        write_repair_manifest(output, manifest)
+        return {
+            **manifest.model_dump(mode="json"),
+            "target_count": len(manifest.items),
+            "manifest_written": True,
+            "performed_network_io": False,
+        }
+
+    def repair_run(
+        self,
+        manifest_path: Path | str,
+        *,
+        code_revision: str,
+        max_jobs_per_round: int = 25,
+    ) -> dict[str, Any]:
+        manifest = load_repair_manifest(manifest_path)
+        try:
+            return self.runtime.repair_execute(
+                manifest,
+                expected_code_revision=code_revision,
+                max_jobs_per_round=max_jobs_per_round,
+            )
+        except (LeaseConflictError, StorageBusyError) as exc:
+            raise StructuredBusyError(str(exc)) from exc
+        except StructuredSchemaError as exc:
+            raise StructuredIntegrityError(str(exc)) from exc
+        except (StructuredNamespaceMismatch, StructuredStorageError) as exc:
+            raise StructuredConflictError(str(exc)) from exc
+
+    def repair_status(
+        self,
+        manifest_path: Path | str,
+        *,
+        code_revision: str | None = None,
+    ) -> dict[str, Any]:
+        manifest = load_repair_manifest(manifest_path)
+        return self.runtime.repair_status(
+            manifest, expected_code_revision=code_revision
+        )
 
     def records(
         self,

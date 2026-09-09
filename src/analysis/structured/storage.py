@@ -762,7 +762,9 @@ class StructuredStorage:
             (_required(value, "attempt_id"),),
         ).fetchone()
         snapshot = connection.execute(
-            "SELECT storage_namespace_id,physical_query_plan_item_id FROM "
+            "SELECT storage_namespace_id,physical_query_plan_item_id,"
+            "source_definition_id,source_definition_version,content_sha256,byte_length,"
+            "query_page_canonical FROM "
             "raw_resource_snapshots WHERE snapshot_id=?",
             (_required(value, "snapshot_id"),),
         ).fetchone()
@@ -774,9 +776,37 @@ class StructuredStorage:
             or int(attempt["lease_epoch"]) != int(lease_epoch)
         ):
             raise StructuredStorageError("structured page attempt lineage mismatch")
+        if snapshot["storage_namespace_id"] != self.storage_namespace_id:
+            raise StructuredNamespaceMismatch("structured page snapshot lineage mismatch")
+        direct_plan = snapshot["physical_query_plan_item_id"] == job["plan_item_id"]
+        observed_plan = connection.execute(
+            "SELECT o.payload FROM discovery_observations o "
+            "JOIN acquisition_attempts a ON a.attempt_id=o.attempt_id "
+            "WHERE o.snapshot_id=? AND o.physical_query_plan_item_id=? "
+            "AND a.run_id=? AND a.physical_query_plan_item_id=? "
+            "AND a.source_definition_id=? AND a.source_definition_version=? "
+            "AND a.attempt_kind='discovery' LIMIT 1",
+            (
+                _required(value, "snapshot_id"),
+                job["plan_item_id"],
+                job["run_id"],
+                job["plan_item_id"],
+                job["source_definition_id"],
+                job["source_definition_version"],
+            ),
+        ).fetchone()
+        observed_payload = (
+            None if observed_plan is None else json.loads(observed_plan["payload"])
+        )
+        observation_valid = observed_payload is not None and _observation_matches_snapshot(
+            observed_payload, snapshot
+        )
         if (
-            snapshot["storage_namespace_id"] != self.storage_namespace_id
-            or snapshot["physical_query_plan_item_id"] != job["plan_item_id"]
+            str(snapshot["source_definition_id"])
+            != str(job["source_definition_id"])
+            or str(snapshot["source_definition_version"])
+            != str(job["source_definition_version"])
+            or (not direct_plan and not observation_valid)
         ):
             raise StructuredNamespaceMismatch("structured page snapshot lineage mismatch")
         data = dict(value)
@@ -919,13 +949,62 @@ class StructuredStorage:
     def unprojected_snapshot_ids(self, job_id: str) -> tuple[str, ...]:
         with self._connect(readonly=True) as connection:
             rows = connection.execute(
-                "SELECT s.snapshot_id FROM structured_jobs j "
-                "JOIN raw_resource_snapshots s ON s.physical_query_plan_item_id=j.plan_item_id "
+                "SELECT DISTINCT s.snapshot_id,s.created_at FROM structured_jobs j "
+                "JOIN raw_resource_snapshots s ON "
+                "(s.physical_query_plan_item_id=j.plan_item_id OR EXISTS ("
+                "SELECT 1 FROM discovery_observations o "
+                "JOIN acquisition_attempts a ON a.attempt_id=o.attempt_id "
+                "WHERE o.snapshot_id=s.snapshot_id "
+                "AND o.physical_query_plan_item_id=j.plan_item_id "
+                "AND a.run_id=j.run_id "
+                "AND a.physical_query_plan_item_id=j.plan_item_id "
+                "AND a.source_definition_id=j.source_definition_id "
+                "AND a.source_definition_version=j.source_definition_version "
+                "AND a.attempt_kind='discovery')) "
                 "LEFT JOIN structured_pages p ON p.snapshot_id=s.snapshot_id AND p.job_id=j.job_id "
-                "WHERE j.job_id=? AND p.page_id IS NULL ORDER BY s.created_at,s.snapshot_id",
+                "WHERE j.job_id=? AND p.page_id IS NULL "
+                "AND s.storage_namespace_id=j.storage_namespace_id "
+                "AND s.source_definition_id=j.source_definition_id "
+                "AND s.source_definition_version=j.source_definition_version "
+                "ORDER BY s.created_at,s.snapshot_id",
                 (job_id,),
             ).fetchall()
         return tuple(str(row["snapshot_id"]) for row in rows)
+
+    def snapshot_observation_id(self, job_id: str, snapshot_id: str) -> str:
+        """Return the observation proving this job plan saw the snapshot."""
+
+        with self._connect(readonly=True) as connection:
+            rows = connection.execute(
+                "SELECT o.observation_id,o.payload,s.content_sha256,s.byte_length,"
+                "s.query_page_canonical FROM structured_jobs j "
+                "JOIN discovery_observations o "
+                "ON o.physical_query_plan_item_id=j.plan_item_id "
+                "JOIN acquisition_attempts a ON a.attempt_id=o.attempt_id "
+                "JOIN raw_resource_snapshots s ON s.snapshot_id=o.snapshot_id "
+                "WHERE j.job_id=? AND o.snapshot_id=? "
+                "AND a.run_id=j.run_id "
+                "AND a.physical_query_plan_item_id=j.plan_item_id "
+                "AND a.source_definition_id=j.source_definition_id "
+                "AND a.source_definition_version=j.source_definition_version "
+                "AND a.attempt_kind='discovery' "
+                "AND s.storage_namespace_id=j.storage_namespace_id "
+                "AND s.source_definition_id=j.source_definition_id "
+                "AND s.source_definition_version=j.source_definition_version "
+                "ORDER BY o.observed_at DESC,o.observation_id DESC LIMIT 1",
+                (job_id, snapshot_id),
+            ).fetchall()
+        for row in rows:
+            payload = json.loads(row["payload"])
+            if _observation_matches_snapshot(payload, row):
+                return str(row["observation_id"])
+        if not rows:
+            raise StructuredStorageError(
+                "structured snapshot has no observation for the job plan"
+            )
+        raise StructuredStorageError(
+            "structured snapshot observation does not match the saved response"
+        )
 
     def append_acquisition_coverage(self, value: Mapping[str, Any]) -> None:
         data = dict(value)
@@ -1378,6 +1457,20 @@ def _json_default(value: Any) -> Any:
     if hasattr(value, "value"):
         return value.value
     raise TypeError(f"cannot serialize {type(value).__name__}")
+
+
+def _observation_matches_snapshot(
+    observation: Mapping[str, Any], snapshot: Mapping[str, Any]
+) -> bool:
+    try:
+        return (
+            observation.get("response_sha256") == snapshot["content_sha256"]
+            and int(observation.get("response_byte_length", -1))
+            == int(snapshot["byte_length"])
+            and bool(snapshot["query_page_canonical"])
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 def _required(value: Mapping[str, Any], name: str) -> str:

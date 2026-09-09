@@ -26,6 +26,31 @@ class FakeService:
     def status(self, run_id):
         return {"run_id": run_id, "status": "partial"}
 
+    def repair_plan(self, run_id, **kwargs):
+        self.calls.append(("repair-plan", run_id, kwargs))
+        return {
+            "run_id": run_id,
+            "manifest_id": "structured-repair-" + "a" * 24,
+            "manifest_sha256": "a" * 64,
+            "target_count": 2,
+            "performed_network_io": False,
+        }
+
+    def repair_run(self, manifest, **kwargs):
+        self.calls.append(("repair-run", manifest, kwargs))
+        return {
+            "manifest_id": "structured-repair-" + "a" * 24,
+            "attempted_job_ids": ["job-1"],
+            "single_round": True,
+        }
+
+    def repair_status(self, manifest, **kwargs):
+        self.calls.append(("repair-status", manifest, kwargs))
+        return {
+            "manifest_id": "structured-repair-" + "a" * 24,
+            "performed_network_io": False,
+        }
+
     def records(self, **kwargs):
         return {"total": 501, "items": [{"record_id": "last"}]}
 
@@ -99,3 +124,57 @@ def test_query_subcommands_bind_database_and_do_not_install_scheduler(monkeypatc
     ):
         code, _ = invoke(monkeypatch, capsys, fake, *arguments)
         assert code == 0
+
+
+def test_repair_commands_are_explicit_bounded_and_do_not_echo_storage_paths(
+    monkeypatch, capsys
+):
+    fake = FakeService()
+    code, planned = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "repair-plan",
+        "run:1",
+        "--dataset",
+        "baostock_calendar",
+        "--reason",
+        "ProtocolError:BaoStock login failed: blocked",
+        "--revision",
+        "d" * 40,
+        "--output",
+        "ignored/private/repair.json",
+    )
+    assert code == 0
+    assert planned["performed_network_io"] is False
+    assert "isolated.db" not in json.dumps(planned)
+    assert "isolated-data" not in json.dumps(planned)
+    assert fake.calls[-1][2]["datasets"] == ("baostock_calendar",)
+
+    code, executed = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "repair-run",
+        "ignored/private/repair.json",
+        "--revision",
+        "d" * 40,
+        "--max-jobs",
+        "2",
+    )
+    assert code == 0
+    assert executed["single_round"] is True
+    assert fake.calls[-1][2]["max_jobs_per_round"] == 2
+
+    code, status = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "repair-status",
+        "ignored/private/repair.json",
+        "--revision",
+        "d" * 40,
+    )
+    assert code == 0
+    assert status["performed_network_io"] is False
+    assert fake.calls[-1][0] == "repair-status"

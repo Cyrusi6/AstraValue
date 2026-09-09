@@ -541,3 +541,220 @@ def test_shared_attempt_snapshot_page_resume_and_stale_lease_fencing(acquisition
             owner_token=old_token,
             lease_epoch=lease.lease_epoch,
         )
+
+
+def test_shared_snapshot_requires_current_plan_observation_and_namespace(acquisition_store):
+    store = acquisition_store
+    storage, _ = _initialize(store)
+    context, _ = _attach_existing_plan(store, storage)
+    run2 = store.run.model_copy(update={"run_id": "run-shared-2"})
+    context2 = _context(store, run_id=run2.run_id)
+    plan2 = store.plan_item.model_copy(
+        update={
+            "run_id": run2.run_id,
+            "plan_item_id": "plan-shared-2",
+            "execution_key": "execution-shared-2",
+        }
+    )
+    coverage2 = tuple(
+        entry.model_copy(
+            update={
+                "run_id": run2.run_id,
+                "coverage_entry_id": f"{entry.coverage_entry_id}-shared-2",
+            }
+        )
+        for entry in store.coverage_entries
+    )
+    links2 = tuple(
+        PhysicalQueryCoverageLink(
+            plan_item_id=plan2.plan_item_id,
+            coverage_entry_id=entry.coverage_entry_id,
+        )
+        for entry in coverage2
+    )
+    job2 = _job(store, context2, job_id="job-shared-2", plan_item=plan2, ordinal=2)
+    storage.persist_plan_bundle(
+        store.repository,
+        run=run2,
+        context=context2,
+        plan_items=(plan2,),
+        coverage_entries=coverage2,
+        links=links2,
+        jobs=(job2,),
+    )
+    bridge = StructuredExecutionBridge(
+        repository=store.repository,
+        storage=storage,
+        source_gate=CrossProcessSourceGate(store.data_root),
+        snapshot_service=SnapshotService(
+            ContentAddressedBlobStore(store.data_root, store.namespace),
+            store.repository,
+        ),
+    )
+    lease1, token1 = bridge.claim_lease(
+        store.run.run_id,
+        owner_token="shared-snapshot-owner-1",
+        now=store.now,
+        ttl_seconds=3600,
+    )
+
+    def attempt(plan, attempt_id, run_id, lease, token):
+        value = AcquisitionAttempt(
+            attempt_id=attempt_id,
+            run_id=run_id,
+            source_definition_id=plan.source_definition_id,
+            source_definition_version=plan.source_definition_version,
+            physical_query_plan_item_id=plan.plan_item_id,
+            execution_key=plan.execution_key,
+            attempt_kind="discovery",
+            query_id=plan.query_id,
+            time_start=plan.time_start,
+            time_end=plan.time_end,
+            page_number=1,
+            work_position="page:1",
+            retry_group_id=f"retry-{attempt_id}",
+            retry_ordinal=0,
+            lease_epoch=lease.lease_epoch,
+            started_at=store.now,
+        )
+        bridge.save_attempt(value, owner_token=token)
+        return value
+
+    first_attempt = attempt(
+        store.plan_item,
+        "attempt-shared-1",
+        store.run.run_id,
+        lease1,
+        token1,
+    )
+    snapshot_service = bridge.snapshot_service
+    first = snapshot_service.freeze_discovery_response(
+        b'{"rows":[]}',
+        DiscoverySnapshotRequest(
+            attempt_id=first_attempt.attempt_id,
+            physical_query_plan_item_id=store.plan_item.plan_item_id,
+            source_definition_id=store.plan_item.source_definition_id,
+            source_definition_version=store.plan_item.source_definition_version,
+            query_page_canonical="shared-calendar:page:1",
+            mime_type="application/json",
+            observed_at=store.now + timedelta(seconds=1),
+            retrieved_at=store.now + timedelta(seconds=2),
+            page_number=1,
+            observation_id="observation-shared-1",
+        ),
+        owner_token=token1,
+        lease_epoch=lease1.lease_epoch,
+    )
+    store.repository.release_lease(
+        store.run.run_id,
+        owner_token=token1,
+        lease_epoch=lease1.lease_epoch,
+        now=store.now + timedelta(seconds=3),
+    )
+    lease, token = bridge.claim_lease(
+        run2.run_id,
+        owner_token="shared-snapshot-owner-2",
+        now=store.now,
+        ttl_seconds=3600,
+    )
+    second_attempt = attempt(
+        plan2,
+        "attempt-shared-2",
+        run2.run_id,
+        lease,
+        token,
+    )
+    page = {
+        "page_id": "page-shared-2",
+        "job_id": job2["job_id"],
+        "attempt_id": second_attempt.attempt_id,
+        "snapshot_id": first.snapshot.snapshot_id,
+        "page_number": 1,
+        "position_key": "page:1",
+        "row_count": 0,
+        "total_count": 0,
+        "terminal": True,
+        "content_hash": first.snapshot.sha256,
+        "lease_epoch": lease.lease_epoch,
+        "committed_at": store.now + timedelta(seconds=3),
+    }
+    with pytest.raises(StructuredNamespaceMismatch, match="snapshot lineage"):
+        bridge.commit_page_bundle(
+            page=page,
+            owner_token=token,
+            lease_epoch=lease.lease_epoch,
+        )
+    assert storage.list_pages(job2["job_id"]) == []
+
+    repeated = snapshot_service.freeze_discovery_response(
+        b'{"rows":[]}',
+        DiscoverySnapshotRequest(
+            attempt_id=second_attempt.attempt_id,
+            physical_query_plan_item_id=plan2.plan_item_id,
+            source_definition_id=plan2.source_definition_id,
+            source_definition_version=plan2.source_definition_version,
+            query_page_canonical="shared-calendar:page:1",
+            mime_type="application/json",
+            observed_at=store.now + timedelta(seconds=4),
+            retrieved_at=store.now + timedelta(seconds=5),
+            page_number=1,
+            observation_id="observation-shared-2",
+        ),
+        owner_token=token,
+        lease_epoch=lease.lease_epoch,
+    )
+    assert repeated.snapshot.snapshot_id == first.snapshot.snapshot_id
+    assert repeated.created_snapshot is False
+    assert storage.unprojected_snapshot_ids(job2["job_id"]) == (
+        first.snapshot.snapshot_id,
+    )
+
+    with sqlite3.connect(store.db_path) as connection:
+        original_observation = connection.execute(
+            "SELECT payload FROM discovery_observations WHERE observation_id=?",
+            ("observation-shared-2",),
+        ).fetchone()[0]
+        connection.execute(
+            "UPDATE discovery_observations SET payload=? WHERE observation_id=?",
+            (
+                original_observation.replace(first.snapshot.sha256, "0" * 64),
+                "observation-shared-2",
+            ),
+        )
+    with pytest.raises(StructuredNamespaceMismatch, match="snapshot lineage"):
+        bridge.commit_page_bundle(
+            page=page,
+            owner_token=token,
+            lease_epoch=lease.lease_epoch,
+        )
+    assert storage.list_pages(job2["job_id"]) == []
+    with sqlite3.connect(store.db_path) as connection:
+        connection.execute(
+            "UPDATE discovery_observations SET payload=? WHERE observation_id=?",
+            (original_observation, "observation-shared-2"),
+        )
+
+    with sqlite3.connect(store.db_path) as connection:
+        connection.execute(
+            "UPDATE raw_resource_snapshots SET storage_namespace_id=? WHERE snapshot_id=?",
+            ("foreign-namespace", first.snapshot.snapshot_id),
+        )
+    with pytest.raises(StructuredNamespaceMismatch, match="snapshot lineage"):
+        bridge.commit_page_bundle(
+            page=page,
+            owner_token=token,
+            lease_epoch=lease.lease_epoch,
+        )
+    assert storage.list_pages(job2["job_id"]) == []
+
+    with sqlite3.connect(store.db_path) as connection:
+        connection.execute(
+            "UPDATE raw_resource_snapshots SET storage_namespace_id=? WHERE snapshot_id=?",
+            (store.namespace.namespace_id, first.snapshot.snapshot_id),
+        )
+    bridge.commit_page_bundle(
+        page=page,
+        owner_token=token,
+        lease_epoch=lease.lease_epoch,
+    )
+    assert storage.list_pages(job2["job_id"])[0]["snapshot_id"] == first.snapshot.snapshot_id

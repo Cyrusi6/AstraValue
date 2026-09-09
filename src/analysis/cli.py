@@ -177,6 +177,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("run_id")
         _add_bound_storage_arguments(command)
 
+    structured_repair_plan = structured_commands.add_parser(
+        "repair-plan", help="只读生成终态失败补采 manifest"
+    )
+    structured_repair_plan.add_argument("run_id")
+    structured_repair_plan.add_argument(
+        "--dataset", action="append", dest="datasets", required=True
+    )
+    structured_repair_plan.add_argument(
+        "--reason", action="append", dest="reasons", required=True
+    )
+    structured_repair_plan.add_argument("--revision", required=True)
+    structured_repair_plan.add_argument("--output", required=True)
+    _add_bound_storage_arguments(structured_repair_plan)
+
+    structured_repair_run = structured_commands.add_parser(
+        "repair-run", help="显式执行一轮有界终态失败补采"
+    )
+    structured_repair_run.add_argument("manifest")
+    structured_repair_run.add_argument("--revision", required=True)
+    structured_repair_run.add_argument(
+        "--max-jobs", type=_positive_int, default=25
+    )
+    _add_bound_storage_arguments(structured_repair_run)
+
+    structured_repair_status = structured_commands.add_parser(
+        "repair-status", help="只读核对补采 manifest 状态"
+    )
+    structured_repair_status.add_argument("manifest")
+    structured_repair_status.add_argument("--revision", required=True)
+    _add_bound_storage_arguments(structured_repair_status)
+
     structured_records = structured_commands.add_parser("records", help="分页查询结构化记录")
     structured_records.add_argument("--run-id")
     structured_records.add_argument("--dataset-id")
@@ -296,6 +327,11 @@ def _run_structured_command(args: argparse.Namespace) -> int:
     try:
         service = _create_structured_service(args.db, args.data_root)
         command = args.structured_command
+        if command == "repair-run" and getattr(service, "runtime", None) is not None:
+            if service.runtime.sdk is None:
+                import baostock as bs
+
+                service.runtime.sdk = bs
         if command == "plan":
             value = service.plan(
                 args.ticker,
@@ -310,6 +346,24 @@ def _run_structured_command(args: argparse.Namespace) -> int:
             value = service.resume(args.run_id)
         elif command == "status":
             value = service.status(args.run_id)
+        elif command == "repair-plan":
+            value = service.repair_plan(
+                args.run_id,
+                datasets=tuple(args.datasets),
+                reasons=tuple(args.reasons),
+                code_revision=args.revision,
+                output=args.output,
+            )
+        elif command == "repair-run":
+            value = service.repair_run(
+                args.manifest,
+                code_revision=args.revision,
+                max_jobs_per_round=args.max_jobs,
+            )
+        elif command == "repair-status":
+            value = service.repair_status(
+                args.manifest, code_revision=args.revision
+            )
         elif command == "records":
             value = service.records(
                 run_id=args.run_id,
