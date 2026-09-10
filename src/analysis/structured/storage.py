@@ -946,6 +946,38 @@ class StructuredStorage:
             ).fetchall()
         return [json.loads(row["payload"]) for row in rows]
 
+    def list_records_for_jobs(
+        self, job_ids: Iterable[str], *, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Read committed records for a run with one bounded SQL query."""
+        ids = tuple(dict.fromkeys(str(item) for item in job_ids))
+        if not ids:
+            return []
+        placeholders = ",".join("?" for _ in ids)
+        with self._connect(readonly=True) as connection:
+            rows = connection.execute(
+                f"SELECT payload FROM structured_records WHERE job_id IN ({placeholders}) "
+                "ORDER BY job_id,row_key,available_at,record_version_id LIMIT ?",
+                (*ids, -1 if limit is None else int(limit)),
+            ).fetchall()
+        return [json.loads(row["payload"]) for row in rows]
+
+    def list_record_fields_for_records(
+        self, record_ids: Iterable[str], *, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Read field projections for many records without N+1 SQLite calls."""
+        ids = tuple(dict.fromkeys(str(item) for item in record_ids))
+        if not ids:
+            return []
+        placeholders = ",".join("?" for _ in ids)
+        with self._connect(readonly=True) as connection:
+            rows = connection.execute(
+                f"SELECT payload FROM structured_record_fields WHERE record_version_id IN ({placeholders}) "
+                "ORDER BY record_version_id,field_path,field_value_id LIMIT ?",
+                (*ids, -1 if limit is None else int(limit)),
+            ).fetchall()
+        return [json.loads(row["payload"]) for row in rows]
+
     def unprojected_snapshot_ids(self, job_id: str) -> tuple[str, ...]:
         with self._connect(readonly=True) as connection:
             rows = connection.execute(

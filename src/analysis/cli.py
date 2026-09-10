@@ -177,6 +177,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         command.add_argument("run_id")
         _add_bound_storage_arguments(command)
 
+    structured_materialize = structured_commands.add_parser(
+        "materialize", help="将已提交结构化记录物化为报告事实"
+    )
+    structured_materialize.add_argument("run_id")
+    structured_materialize.add_argument("--as-of")
+    structured_materialize.add_argument("--strict-historical", action="store_true")
+    structured_materialize.add_argument("--no-persist", action="store_true")
+    _add_bound_storage_arguments(structured_materialize)
+
     structured_repair_plan = structured_commands.add_parser(
         "repair-plan", help="只读生成终态失败补采 manifest"
     )
@@ -346,6 +355,13 @@ def _run_structured_command(args: argparse.Namespace) -> int:
             value = service.resume(args.run_id)
         elif command == "status":
             value = service.status(args.run_id)
+        elif command == "materialize":
+            value = service.materialize(
+                args.run_id,
+                as_of=_parse_datetime(args.as_of) if args.as_of else None,
+                strict_historical=bool(args.strict_historical),
+                persist=not bool(args.no_persist),
+            )
         elif command == "repair-plan":
             value = service.repair_plan(
                 args.run_id,

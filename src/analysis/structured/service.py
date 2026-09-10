@@ -19,6 +19,7 @@ from .exceptions import (
     StructuredIntegrityError,
 )
 from .identity import CompanyResolver, ResolutionStatus, SecurityIdentity
+from .materialization import MaterializationResult, StructuredFactMaterializer
 from .registry import (
     DEFAULT_CONFIG_DIR,
     StructuredRegistryBundle,
@@ -288,6 +289,41 @@ class StructuredDataService:
 
     def status(self, run_id: str) -> dict[str, Any]:
         return self._execute(self.runtime.status, run_id)
+
+    def materialize(
+        self,
+        run_id: str,
+        *,
+        as_of: datetime | None = None,
+        strict_historical: bool = False,
+        persist: bool = True,
+    ) -> dict[str, Any]:
+        """Turn committed structured rows into the report fact projection.
+
+        Materialization is read-only with respect to the structured control
+        plane.  The optional report projection uses the same bound database as
+        the acquisition runtime, so a report can consume the result without a
+        second store or a second source of truth.
+        """
+        result: MaterializationResult = StructuredFactMaterializer(
+            self.storage, self.runtime.repository
+        ).materialize(
+            run_id,
+            as_of=as_of,
+            strict_historical=strict_historical,
+        )
+        if persist and result.facts:
+            report_storage = self.acquisition_runtime.report_storage
+            report_storage.save_sources(list(result.sources))
+            report_storage.save_facts(list(result.facts))
+            if result.dimensional_facts:
+                report_storage.save_dimensional_facts(list(result.dimensional_facts))
+        return {
+            **result.to_mapping(),
+            "persisted": bool(persist and result.facts),
+            "facts": [item.model_dump(mode="json") for item in result.facts],
+            "sources": [item.model_dump(mode="json") for item in result.sources],
+        }
 
     def repair_plan(
         self,
