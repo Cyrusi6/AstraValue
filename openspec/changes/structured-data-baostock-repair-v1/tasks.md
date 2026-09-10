@@ -22,6 +22,6 @@
 ## 5. 验证与后续生产门
 
 - [x] 5.1 运行 repair 聚焦测试、`tests/structured`、后端全量、`compileall`、注册表校验、strict OpenSpec 和 `git diff --check`；分别记录实际退出状态，不用局部测试代替全量。
-- [ ] 5.2 待当前生产 supervisor 结束且用户发出消息后，在隔离 store 执行一次 BaoStock 单登录/多 job 真实样本和共享日历离线 replay；如实记录来源可用性、login/logout 次数、网络 I/O 与失败，不在等待期间自动监控或执行。
+- [x] 5.2 待当前生产 supervisor 结束且用户发出消息后，在隔离 store 执行一次 BaoStock 单登录/多 job 真实样本和共享日历离线 replay；如实记录来源可用性、login/logout 次数、网络 I/O 与失败，不在等待期间自动监控或执行。
 - [ ] 5.3 经用户消息确认后，对生产终态生成 manifest、备份并显式执行有界 repair；逐项核对 attempt/snapshot/page/row-key/pagination/coverage/safe-through，若原渠道不可用则先完成独立等价来源变更，不静默换源、不创建 incremental。
 - [ ] 5.4 由独立执行者完成人工抽样与签署；自动测试、隔离真实样本和生产 repair 均不得代替人工验收。
