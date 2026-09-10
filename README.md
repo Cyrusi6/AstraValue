@@ -68,6 +68,10 @@ python -m analysis.cli acquisition-db backup `
 
 独立 backup 命令只做只读 preflight 和验证后的备份输出；它不会创建 binding intent、namespace、migration、runtime 或 acquisition run，也不会触发迁移。原始响应、PDF、数据库、备份、派生文本、证据清单文件和试点输出都位于 Git 忽略的数据根中，不应提交到仓库。
 
+## 结构化数据优先（v1）
+
+新同步以东方财富和 BaoStock 的版本化字段路由为默认策略，主源字段有效时直接消费，只有实际缺口才进入已登记备用。运行、恢复、API/CLI、隔离真实样本、回滚和已知缺口见 [结构化数据优先 v1 运行说明](docs/acquisition/structured-data-runtime-v1.md)；人工签署保持独立，使用 [人工验收清单](docs/acquisition/structured-data-manual-acceptance-v1.md)。
+
 ## 快速开始
 
 ```powershell

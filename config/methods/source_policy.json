@@ -1,7 +1,15 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
+  "default_strategy": "structured-first-v1",
+  "legacy_strategy": "legacy-v1",
   "priority": ["交易所或巨潮正式披露", "独立政府或行业协会", "免费结构化数据适配器", "媒体与二次转载"],
-  "statuses": ["双源一致", "权威单源", "待核验", "估算", "未披露", "暂无该数据", "不适用"],
+  "statuses": ["双源一致", "权威单源", "供应商直采", "待核验", "估算", "未披露", "暂无该数据", "不适用"],
+  "supplier_direct_source_types": ["supplier-structured"],
+  "structured_supplier_rule": "必须绑定实际供应商、策略与字段定义版本、不可变快照、稳定行键和字段路径；仅 observed/deterministic 且质量 passed 可直接消费",
+  "strategy_compatibility": {
+    "structured-first-v1": "新请求按字段唯一主路由；主源成功不双抓，实际缺口才走已登记同义备用",
+    "legacy-v1": "显式旧 providers 保留七种旧状态及 pair verification 行为"
+  },
   "independence_rule": "两个记录的upstream_source_id不同才视为独立来源",
   "conflict_rule": "先核对期间、披露日、重述、合并范围、单位和复权；重大冲突不得取平均",
   "default_relative_tolerance": 0.001,

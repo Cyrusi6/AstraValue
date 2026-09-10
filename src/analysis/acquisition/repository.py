@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Mapping, Sequence, TypeVar
+from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence, TypeVar
 
 from .migrations import LATEST_SCHEMA_VERSION, MigrationCoordinator
 
@@ -823,7 +823,17 @@ class AcquisitionRepository:
         plan_items: Iterable[Any],
         coverage_entries: Iterable[Any],
         links: Iterable[Any],
+        *,
+        extension_writer: Callable[[sqlite3.Connection], None] | None = None,
     ) -> None:
+        """Commit a shared plan and optional module projections atomically.
+
+        ``extension_writer`` receives the same open transaction after the
+        control-plane graph exists.  It is deliberately generic so modules can
+        bind immutable context without duplicating run, lease, or attempt
+        tables.
+        """
+
         run_data = _payload(run)
         with self._write() as connection:
             self._save_run(
@@ -841,6 +851,27 @@ class AcquisitionRepository:
             for link in links:
                 data = _payload(link)
                 self._save_plan_coverage_link(connection, data, _canonical_json(data))
+            if extension_writer is not None:
+                extension_writer(connection)
+
+    def commit_extension_with_lease(
+        self,
+        run_id: str,
+        *,
+        owner_token: str,
+        lease_epoch: int,
+        writer: Callable[[sqlite3.Connection], None],
+    ) -> None:
+        """Fence and commit one module projection in the shared transaction."""
+
+        with self._write() as connection:
+            self._assert_lease(
+                connection,
+                run_id,
+                lease_epoch,
+                owner_token=owner_token,
+            )
+            writer(connection)
 
     def append_coverage_resolution(
         self,

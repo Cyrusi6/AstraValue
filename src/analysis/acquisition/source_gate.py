@@ -23,6 +23,7 @@ class SourceGatePermit:
     host: str
     acquired_monotonic: float
     request_not_before_monotonic: float
+    upstream_identity: str | None = None
 
 
 class CrossProcessSourceGate:
@@ -60,13 +61,24 @@ class CrossProcessSourceGate:
         self._sleep = sleeper
 
     @staticmethod
-    def _gate_key(source_definition_id: str, host: str) -> str:
+    def _gate_key(
+        source_definition_id: str,
+        host: str,
+        *,
+        upstream_identity: str | None = None,
+    ) -> str:
         normalized_source = source_definition_id.strip().lower()
         normalized_host = host.strip().lower().rstrip(".")
         if not normalized_source or not normalized_host:
             raise ValueError("source_definition_id and host are required")
+        normalized_upstream = (upstream_identity or "").strip().lower()
+        identity = (
+            f"upstream\n{normalized_upstream}"
+            if normalized_upstream
+            else f"source-host\n{normalized_source}\n{normalized_host}"
+        )
         return hashlib.sha256(
-            f"{normalized_source}\n{normalized_host}".encode("utf-8")
+            identity.encode("utf-8")
         ).hexdigest()
 
     @property
@@ -82,10 +94,15 @@ class CrossProcessSourceGate:
         min_interval_seconds: float,
         deadline_monotonic: float,
         lease_guard: Callable[..., None] | None = None,
+        upstream_identity: str | None = None,
     ) -> Iterator[SourceGatePermit]:
         if min_interval_seconds <= 0:
             raise ValueError("min_interval_seconds must be positive")
-        gate_key = self._gate_key(source_definition_id, host)
+        gate_key = self._gate_key(
+            source_definition_id,
+            host,
+            upstream_identity=upstream_identity,
+        )
         path = self._directory / f"{gate_key}.lock"
         path.touch(exist_ok=True)
         # Initialize the lock byte before opening the random-access handle.
@@ -125,6 +142,7 @@ class CrossProcessSourceGate:
                     handle,
                     {
                         "source_definition_id": source_definition_id,
+                        "upstream_identity": upstream_identity,
                         "host": host.lower().rstrip("."),
                         "request_started_monotonic": started,
                         "pid": os.getpid(),
@@ -135,6 +153,7 @@ class CrossProcessSourceGate:
                     host=host.lower().rstrip("."),
                     acquired_monotonic=acquired,
                     request_not_before_monotonic=not_before,
+                    upstream_identity=upstream_identity,
                 )
             finally:
                 self._release(handle)

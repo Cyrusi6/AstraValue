@@ -149,6 +149,103 @@ def main(argv: Sequence[str] | None = None) -> int:
     acquisition_backup.add_argument("--label")
     _add_bound_storage_arguments(acquisition_backup)
 
+    structured = subparsers.add_parser("structured", help="结构化字段计划、执行与查询")
+    structured_commands = structured.add_subparsers(
+        dest="structured_command", required=True
+    )
+
+    structured_plan = structured_commands.add_parser("plan", help="生成零网络计划预览")
+    structured_plan.add_argument("ticker")
+    structured_plan.add_argument(
+        "--mode", choices=["baseline", "incremental", "due"], default="incremental"
+    )
+    structured_plan.add_argument(
+        "--company-scope",
+        choices=["company-only", "company-with-peers", "peer-set"],
+        default="company-only",
+    )
+    structured_plan.add_argument("--dataset", action="append", dest="datasets")
+    structured_plan.add_argument("--as-of")
+    _add_bound_storage_arguments(structured_plan)
+
+    for name, help_text in (
+        ("run", "执行一轮已持久化任务"),
+        ("resume", "从未完成范围恢复一轮任务"),
+        ("status", "查询运行与全部任务状态"),
+    ):
+        command = structured_commands.add_parser(name, help=help_text)
+        command.add_argument("run_id")
+        _add_bound_storage_arguments(command)
+
+    structured_repair_plan = structured_commands.add_parser(
+        "repair-plan", help="只读生成终态失败补采 manifest"
+    )
+    structured_repair_plan.add_argument("run_id")
+    structured_repair_plan.add_argument(
+        "--dataset", action="append", dest="datasets", required=True
+    )
+    structured_repair_plan.add_argument(
+        "--reason", action="append", dest="reasons", required=True
+    )
+    structured_repair_plan.add_argument("--revision", required=True)
+    structured_repair_plan.add_argument("--output", required=True)
+    _add_bound_storage_arguments(structured_repair_plan)
+
+    structured_repair_run = structured_commands.add_parser(
+        "repair-run", help="显式执行一轮有界终态失败补采"
+    )
+    structured_repair_run.add_argument("manifest")
+    structured_repair_run.add_argument("--revision", required=True)
+    structured_repair_run.add_argument(
+        "--max-jobs", type=_positive_int, default=25
+    )
+    _add_bound_storage_arguments(structured_repair_run)
+
+    structured_repair_status = structured_commands.add_parser(
+        "repair-status", help="只读核对补采 manifest 状态"
+    )
+    structured_repair_status.add_argument("manifest")
+    structured_repair_status.add_argument("--revision", required=True)
+    _add_bound_storage_arguments(structured_repair_status)
+
+    structured_records = structured_commands.add_parser("records", help="分页查询结构化记录")
+    structured_records.add_argument("--run-id")
+    structured_records.add_argument("--dataset-id")
+    structured_records.add_argument("--limit", type=_positive_int, default=500)
+    structured_records.add_argument("--offset", type=int, default=0)
+    _add_bound_storage_arguments(structured_records)
+
+    structured_reading = structured_commands.add_parser("reading-tasks", help="分页查询阅读任务")
+    structured_reading.add_argument("--run-id")
+    structured_reading.add_argument("--limit", type=_positive_int, default=500)
+    structured_reading.add_argument("--offset", type=int, default=0)
+    _add_bound_storage_arguments(structured_reading)
+
+    structured_resolve = structured_commands.add_parser("resolve", help="从本地主数据解析公司身份")
+    structured_resolve.add_argument("query")
+    structured_resolve.add_argument("--market")
+    structured_resolve.add_argument("--as-of")
+    _add_bound_storage_arguments(structured_resolve)
+
+    structured_profile = structured_commands.add_parser("profile", help="查询行业画像状态")
+    structured_profile.add_argument("ticker")
+    _add_bound_storage_arguments(structured_profile)
+
+    structured_peers = structured_commands.add_parser("peers", help="查询有界同行选择")
+    structured_peers.add_argument("ticker")
+    structured_peers.add_argument(
+        "--company-scope",
+        choices=["company-only", "company-with-peers", "peer-set"],
+        default="company-with-peers",
+    )
+    _add_bound_storage_arguments(structured_peers)
+
+    structured_coverage = structured_commands.add_parser("coverage", help="分页查询逐题覆盖")
+    structured_coverage.add_argument("snapshot_id")
+    structured_coverage.add_argument("--limit", type=_positive_int, default=500)
+    structured_coverage.add_argument("--offset", type=int, default=0)
+    _add_bound_storage_arguments(structured_coverage)
+
     args = parser.parse_args(argv)
     if args.command == "serve":
         import uvicorn
@@ -194,6 +291,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {"acquire", "smoke-sources"}:
         return _run_acquisition_command(args)
 
+    if args.command == "structured":
+        return _run_structured_command(args)
+
     service = AnalysisService()
     if args.command == "demo":
         report = service.create_report(build_demo_request())
@@ -215,6 +315,92 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps([{"report_id": item.report_id, "ticker": item.ticker, "version": item.version, "status": item.status.value} for item in rows], ensure_ascii=False, indent=2))
         return 0
     return 1
+
+
+def _create_structured_service(db_path: str, data_root: str) -> Any:
+    from .structured.service import StructuredDataService
+
+    return StructuredDataService.create(db_path, data_root)
+
+
+def _run_structured_command(args: argparse.Namespace) -> int:
+    try:
+        service = _create_structured_service(args.db, args.data_root)
+        command = args.structured_command
+        if command == "repair-run" and getattr(service, "runtime", None) is not None:
+            if service.runtime.sdk is None:
+                import baostock as bs
+
+                service.runtime.sdk = bs
+        if command == "plan":
+            value = service.plan(
+                args.ticker,
+                mode=args.mode,
+                company_scope=args.company_scope,
+                datasets=tuple(args.datasets or ()),
+                as_of=_parse_datetime(args.as_of) if args.as_of else None,
+            )
+        elif command == "run":
+            value = service.run(args.run_id)
+        elif command == "resume":
+            value = service.resume(args.run_id)
+        elif command == "status":
+            value = service.status(args.run_id)
+        elif command == "repair-plan":
+            value = service.repair_plan(
+                args.run_id,
+                datasets=tuple(args.datasets),
+                reasons=tuple(args.reasons),
+                code_revision=args.revision,
+                output=args.output,
+            )
+        elif command == "repair-run":
+            value = service.repair_run(
+                args.manifest,
+                code_revision=args.revision,
+                max_jobs_per_round=args.max_jobs,
+            )
+        elif command == "repair-status":
+            value = service.repair_status(
+                args.manifest, code_revision=args.revision
+            )
+        elif command == "records":
+            value = service.records(
+                run_id=args.run_id,
+                dataset_id=args.dataset_id,
+                limit=args.limit,
+                offset=args.offset,
+            )
+        elif command == "reading-tasks":
+            value = service.reading_tasks(
+                run_id=args.run_id, limit=args.limit, offset=args.offset
+            )
+        elif command == "resolve":
+            value = service.resolve_company(
+                args.query,
+                market=args.market,
+                as_of=date.fromisoformat(args.as_of) if args.as_of else None,
+            )
+        elif command == "profile":
+            value = service.industry_profile(args.ticker)
+        elif command == "peers":
+            value = service.peer_candidates(
+                args.ticker, company_scope=args.company_scope
+            )
+        elif command == "coverage":
+            value = service.coverage(
+                args.snapshot_id, limit=args.limit, offset=args.offset
+            )
+        else:
+            raise ValueError(f"unknown structured command: {command}")
+        _emit(_safe_json_value(value), json_output=args.json_output)
+        return EXIT_OK
+    except (ValueError, SourceRegistryError, StorageNamespaceMismatch) as exc:
+        return _emit_error(EXIT_USAGE, "validation", exc, args.json_output)
+    except (StorageBusyError, BootstrapLockTimeout) as exc:
+        return _emit_error(EXIT_RETRYABLE, "storage_busy", exc, args.json_output)
+    except Exception as exc:
+        return _emit_error(EXIT_INTERNAL, "structured_error", exc, args.json_output)
 
 
 def _run_acquisition_command(args: argparse.Namespace) -> int:

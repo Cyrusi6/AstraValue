@@ -7,13 +7,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .adapters.manager import AdapterManager
+from .adapters.manager import AdapterManager, StructuredServiceUnavailable
 from .documents import SourceReviewRequired, ingest_registered_document
 from .exports import export_report
 from .models import (
@@ -60,6 +60,11 @@ from .acquisition.security import (
     redact_url,
 )
 from .acquisition.snapshots import SnapshotPipelineError
+from .structured.exceptions import (
+    StructuredBusyError,
+    StructuredConflictError,
+    StructuredIntegrityError,
+)
 
 
 MEDIA_TYPES = {
@@ -95,11 +100,33 @@ class AcquisitionExecuteRequest(BaseModel):
     lease_ttl_seconds: int = Field(default=60, ge=5, le=3600)
 
 
+class StructuredPlanRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ticker: str = Field(pattern=r"^\d{6}$")
+    mode: str = Field(default="incremental", pattern="^(baseline|incremental|due)$")
+    company_scope: str = Field(
+        default="company-only",
+        pattern="^(company-only|company-with-peers|peer-set)$",
+    )
+    datasets: list[str] = Field(default_factory=list)
+    as_of: datetime | None = None
+
+
+class StructuredResolveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1)
+    market: str | None = None
+    as_of: date | None = None
+
+
 def create_app(
     service: AnalysisService | None = None,
     acquisition_runtime: AcquisitionRuntime | None = None,
     *,
     acquisition_enabled: bool | None = None,
+    structured_service: Any | None = None,
 ) -> FastAPI:
     application = FastAPI(
         title="A股全行业八步财报分析系统",
@@ -121,11 +148,14 @@ def create_app(
     application.state.service = service or AnalysisService()
     application.state.acquisition_runtime = bound_runtime
     application.state.acquisition_v1_enabled = enabled
+    application.state.structured_service = structured_service
     application.state.adapters = (
         bound_runtime.adapter_manager
         if bound_runtime is not None
-        else AdapterManager()
+        else AdapterManager(structured_service=structured_service)
     )
+    if structured_service is not None:
+        application.state.adapters.structured_service = structured_service
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -193,6 +223,46 @@ def create_app(
                 "detail": _safe_error_detail(exc),
                 "error": "storage_busy",
                 "retryable": True,
+            },
+        )
+
+    @application.exception_handler(StructuredServiceUnavailable)
+    async def structured_service_unavailable(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "structured_service_unavailable",
+                "retryable": False,
+            },
+        )
+
+    @application.exception_handler(StructuredConflictError)
+    async def structured_conflict(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=409,
+            content={"detail": _safe_error_detail(exc), "error": "structured_conflict"},
+        )
+
+    @application.exception_handler(StructuredBusyError)
+    async def structured_busy(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "structured_busy",
+                "retryable": True,
+            },
+        )
+
+    @application.exception_handler(StructuredIntegrityError)
+    async def structured_integrity(_: Request, exc: Exception):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": _safe_error_detail(exc),
+                "error": "structured_integrity_error",
+                "retryable": False,
             },
         )
 
@@ -612,10 +682,133 @@ def create_app(
         )
         return [_redacted(item) for item in rows]
 
+    @application.get("/api/structured/registry")
+    def structured_registry(
+        request: Request,
+        limit: int = Query(default=500, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        return _redacted(_structured_service(request).registry(limit=limit, offset=offset))
+
+    @application.get("/api/structured/fields")
+    def structured_fields(
+        request: Request,
+        dataset_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).fields(
+                dataset_id=dataset_id, limit=limit, offset=offset
+            )
+        )
+
+    @application.post("/api/structured/company-resolution")
+    def structured_company_resolution(
+        payload: StructuredResolveRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).resolve_company(
+                payload.query, market=payload.market, as_of=payload.as_of
+            )
+        )
+
+    @application.get("/api/structured/companies/{ticker}/industry-profile")
+    def structured_industry_profile(ticker: str, request: Request) -> dict[str, Any]:
+        return _redacted(_structured_service(request).industry_profile(ticker))
+
+    @application.get("/api/structured/companies/{ticker}/peer-candidates")
+    def structured_peer_candidates(
+        ticker: str,
+        request: Request,
+        company_scope: str = Query(default="company-with-peers"),
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).peer_candidates(
+                ticker, company_scope=company_scope
+            )
+        )
+
+    @application.post("/api/structured/plans", status_code=201)
+    def structured_plan(
+        payload: StructuredPlanRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).plan(
+                payload.ticker,
+                mode=payload.mode,
+                company_scope=payload.company_scope,
+                datasets=tuple(payload.datasets),
+                as_of=payload.as_of,
+            )
+        )
+
+    @application.post("/api/structured/runs/{run_id}/execute")
+    async def structured_run(run_id: str, request: Request) -> dict[str, Any]:
+        return _redacted(
+            await run_in_threadpool(_structured_service(request).run, run_id)
+        )
+
+    @application.post("/api/structured/runs/{run_id}/resume")
+    async def structured_resume(run_id: str, request: Request) -> dict[str, Any]:
+        return _redacted(
+            await run_in_threadpool(_structured_service(request).resume, run_id)
+        )
+
+    @application.get("/api/structured/runs/{run_id}")
+    def structured_status(run_id: str, request: Request) -> dict[str, Any]:
+        return _redacted(_structured_service(request).status(run_id))
+
+    @application.get("/api/structured/records")
+    def structured_records(
+        request: Request,
+        run_id: str | None = None,
+        dataset_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).records(
+                run_id=run_id,
+                dataset_id=dataset_id,
+                limit=limit,
+                offset=offset,
+            )
+        )
+
+    @application.get("/api/structured/reading-tasks")
+    def structured_reading_tasks(
+        request: Request,
+        run_id: str | None = None,
+        limit: int = Query(default=500, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).reading_tasks(
+                run_id=run_id, limit=limit, offset=offset
+            )
+        )
+
+    @application.get("/api/structured/research-coverage/{snapshot_id}")
+    def structured_research_coverage(
+        snapshot_id: str,
+        request: Request,
+        limit: int = Query(default=500, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        return _redacted(
+            _structured_service(request).coverage(
+                snapshot_id, limit=limit, offset=offset
+            )
+        )
+
     @application.post("/api/companies/{ticker}/sync")
     async def sync_company(
         ticker: str,
         request: Request,
+        response: Response,
         options: SyncRequest = Body(default_factory=SyncRequest),
     ) -> dict:
         current = _service(request)
@@ -631,6 +824,8 @@ def create_app(
                 ),
             )
         result = await run_in_threadpool(application.state.adapters.sync, ticker, options)
+        if result.source_strategy == "structured-first-v1":
+            response.status_code = 202
         current.storage.save_sync_result(result)
         current.timeseries.append_facts(result.facts)
         research_records = {
@@ -939,6 +1134,15 @@ def _acquisition_runtime(request: Request) -> AcquisitionRuntime:
             detail="acquisition v1写入口未启用；旧报告与financial sync仍可用",
         )
     return runtime
+
+
+def _structured_service(request: Request) -> Any:
+    service = getattr(request.app.state, "structured_service", None)
+    if service is None:
+        raise StructuredServiceUnavailable(
+            "structured-data入口需要显式绑定隔离database/data_root服务"
+        )
+    return service
 
 
 def _redacted(value: Any, *, field_name: str | None = None) -> Any:

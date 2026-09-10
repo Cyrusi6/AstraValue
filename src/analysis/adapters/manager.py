@@ -29,6 +29,10 @@ from .tushare_adapter import TushareProAdapter
 LegacyAdapterBuilder = Callable[[], Any]
 
 
+class StructuredServiceUnavailable(RuntimeError):
+    pass
+
+
 DEFAULT_LEGACY_ADAPTER_BUILDERS: dict[str, LegacyAdapterBuilder] = {
     # This is an installed-capability map, not a source-selection list.  The
     # versioned registry decides which definitions and aliases are exposed.
@@ -55,6 +59,7 @@ class AdapterManager:
         *,
         loaded_registry: LoadedSourceRegistry | None = None,
         acquisition_runtime: Any | None = None,
+        structured_service: Any | None = None,
         legacy_adapter_builders: dict[str, LegacyAdapterBuilder] | None = None,
     ) -> None:
         if loaded_registry is None:
@@ -75,6 +80,9 @@ class AdapterManager:
             )
         self.loaded_registry = loaded_registry
         self.acquisition_runtime = acquisition_runtime
+        self.structured_service = structured_service or getattr(
+            acquisition_runtime, "structured_service", None
+        )
         builders = dict(DEFAULT_LEGACY_ADAPTER_BUILDERS)
         if legacy_adapter_builders:
             builders.update(legacy_adapter_builders)
@@ -113,10 +121,15 @@ class AdapterManager:
             provider_results={},
             scopes=options.scopes,
             as_of=options.as_of,
+            source_strategy=options.effective_source_strategy,
         )
         requested_scopes = set(options.scopes)
         business_model_requested = "business_model" in requested_scopes
         legacy_scopes = requested_scopes - {"business_model"}
+        structured_requested = (
+            not business_model_requested
+            and options.effective_source_strategy == "structured-first-v1"
+        )
 
         if business_model_requested and legacy_scopes:
             raise ValueError(
@@ -137,6 +150,19 @@ class AdapterManager:
                 acquisition.raw_resource_snapshot_ids
             )
             combined.warnings.extend(acquisition.warnings)
+
+        if structured_requested:
+            if self.structured_service is None:
+                raise StructuredServiceUnavailable(
+                    "structured-first-v1需要显式绑定隔离database/data_root的结构化服务"
+                )
+            structured = self.structured_service.sync(ticker, options)
+            if not isinstance(structured, SyncResult):
+                structured = SyncResult.model_validate(structured)
+            combined = structured.model_copy(
+                update={"source_strategy": "structured-first-v1"}
+            )
+            legacy_scopes = set()
 
         if legacy_scopes:
             legacy_options = options.model_copy(

@@ -27,11 +27,66 @@ def aware_utc(value: datetime) -> datetime:
 class VerificationStatus(str, Enum):
     DUAL_SOURCE = "双源一致"
     AUTHORITATIVE_SINGLE = "权威单源"
+    SUPPLIER_DIRECT = "供应商直采"
     PENDING = "待核验"
     ESTIMATED = "估算"
     NOT_DISCLOSED = "未披露"
     UNAVAILABLE = "暂无该数据"
     NOT_APPLICABLE = "不适用"
+
+
+class StructuredAcquisitionMethod(str, Enum):
+    SUPPLIER_STRUCTURED = "supplier_structured"
+    DOCUMENT_EXTRACTION = "document_extraction"
+    FORMULA = "formula"
+    LEGACY = "legacy"
+
+
+class StructuredFactNature(str, Enum):
+    OBSERVED = "observed"
+    DETERMINISTIC = "deterministic"
+    PROVIDER_ESTIMATE = "provider_estimate"
+    FORECAST = "forecast"
+    PLATFORM_LABEL = "platform_label"
+    SOURCE_TEXT = "source_text"
+    UNCLASSIFIED = "unclassified"
+
+
+class StructuredQualityStatus(str, Enum):
+    PASSED = "passed"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    DEFINITION_UNKNOWN = "definition_unknown"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class StructuredFactAdmission(BaseModel):
+    """可复算的供应商字段准入依据；不采信调用者自填布尔值。"""
+
+    acquisition_method: StructuredAcquisitionMethod
+    nature: StructuredFactNature
+    quality: StructuredQualityStatus
+    source_policy_id: str = Field(min_length=1)
+    source_policy_version: str = Field(min_length=1)
+    field_definition_id: str = Field(min_length=1)
+    field_definition_version: str = Field(min_length=1)
+    raw_resource_snapshot_id: str = Field(min_length=1)
+    snapshot_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    row_key: str = Field(min_length=1)
+    field_path: str = Field(min_length=1)
+    original_value: Any = None
+    original_unit: str | None = None
+    retrieved_at: datetime
+    available_at: datetime | None = None
+
+    @property
+    def programmatic_eligible(self) -> bool:
+        return (
+            self.acquisition_method == StructuredAcquisitionMethod.SUPPLIER_STRUCTURED
+            and self.nature
+            in {StructuredFactNature.OBSERVED, StructuredFactNature.DETERMINISTIC}
+            and self.quality == StructuredQualityStatus.PASSED
+        )
 
 
 class ClaimKind(str, Enum):
@@ -137,14 +192,21 @@ class FactRecord(BaseModel):
     restatement_version: str | None = None
     is_restated: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
+    structured_admission: StructuredFactAdmission | None = None
 
     @model_validator(mode="after")
     def validate_lineage(self) -> "FactRecord":
         if self.verification_status in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
         } and not self.source_ids:
             raise ValueError(f"{self.verification_status.value}事实必须关联来源")
+        if self.verification_status == VerificationStatus.SUPPLIER_DIRECT:
+            if self.structured_admission is None:
+                raise ValueError("供应商直采事实必须关联结构化准入依据")
+            if not self.structured_admission.programmatic_eligible:
+                raise ValueError("供应商直采事实未通过结构化准入谓词")
         if self.verification_status == VerificationStatus.ESTIMATED and not (
             self.method_ref and (self.source_ids or self.derived_from_fact_ids)
         ):
@@ -213,6 +275,7 @@ class DimensionalFactRecord(BaseModel):
     data_snapshot_id: str = Field(min_length=1)
     disclosed_as: DisclosureForm = DisclosureForm.EXACT
     metadata: dict[str, Any] = Field(default_factory=dict)
+    structured_admission: StructuredFactAdmission | None = None
 
     @model_validator(mode="after")
     def validate_contract(self) -> "DimensionalFactRecord":
@@ -221,11 +284,15 @@ class DimensionalFactRecord(BaseModel):
         unique_sources = set(self.source_ids)
         if self.verification_status == VerificationStatus.DUAL_SOURCE and len(unique_sources) < 2:
             raise ValueError("双源一致的维度事实必须关联至少两个来源")
-        if self.verification_status == VerificationStatus.AUTHORITATIVE_SINGLE and not unique_sources:
-            raise ValueError("权威单源的维度事实必须关联来源")
+        if self.verification_status in {
+            VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
+        } and not unique_sources:
+            raise ValueError("单源准入的维度事实必须关联来源")
         if self.verification_status in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
             VerificationStatus.ESTIMATED,
         } and self.value is None:
             raise ValueError("可使用的维度数值事实必须包含数值")
@@ -233,6 +300,11 @@ class DimensionalFactRecord(BaseModel):
             self.method_ref and (unique_sources or self.supporting_fact_ids)
         ):
             raise ValueError("估算维度事实必须关联方法及来源事实")
+        if self.verification_status == VerificationStatus.SUPPLIER_DIRECT and (
+            self.structured_admission is None
+            or not self.structured_admission.programmatic_eligible
+        ):
+            raise ValueError("供应商直采维度事实未通过结构化准入谓词")
         return self
 
 
@@ -267,6 +339,7 @@ class EventRecord(BaseModel):
     status_updated_at: datetime = Field(default_factory=utc_now)
     data_snapshot_id: str = Field(min_length=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    structured_admission: StructuredFactAdmission | None = None
 
     @model_validator(mode="after")
     def validate_contract(self) -> "EventRecord":
@@ -281,13 +354,21 @@ class EventRecord(BaseModel):
         unique_sources = set(self.source_ids)
         if self.verification_status == VerificationStatus.DUAL_SOURCE and len(unique_sources) < 2:
             raise ValueError("双源一致事件必须关联至少两个来源")
-        if self.verification_status == VerificationStatus.AUTHORITATIVE_SINGLE and not unique_sources:
-            raise ValueError("权威单源事件必须关联来源")
+        if self.verification_status in {
+            VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
+        } and not unique_sources:
+            raise ValueError("单源准入事件必须关联来源")
         if self.claim_kind == ClaimKind.DISCLOSED_FACT and self.verification_status in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
         } and not (self.document_ids or self.evidence_spans):
             raise ValueError("已核验披露事件必须关联文档或证据片段")
+        if self.verification_status == VerificationStatus.SUPPLIER_DIRECT and (
+            self.structured_admission is None
+            or not self.structured_admission.programmatic_eligible
+        ):
+            raise ValueError("供应商直采事件未通过结构化准入谓词")
         return self
 
 
@@ -319,6 +400,7 @@ class IndustryFactRecord(BaseModel):
     revision_id: str | None = None
     data_snapshot_id: str = Field(min_length=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    structured_admission: StructuredFactAdmission | None = None
 
     @model_validator(mode="after")
     def validate_contract(self) -> "IndustryFactRecord":
@@ -329,17 +411,26 @@ class IndustryFactRecord(BaseModel):
         unique_sources = set(self.source_ids)
         if self.verification_status == VerificationStatus.DUAL_SOURCE and len(unique_sources) < 2:
             raise ValueError("双源一致行业事实必须关联至少两个来源")
-        if self.verification_status == VerificationStatus.AUTHORITATIVE_SINGLE and not unique_sources:
-            raise ValueError("权威单源行业事实必须关联来源")
+        if self.verification_status in {
+            VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
+        } and not unique_sources:
+            raise ValueError("单源准入行业事实必须关联来源")
         if self.verification_status in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
+            VerificationStatus.SUPPLIER_DIRECT,
             VerificationStatus.ESTIMATED,
         } and self.value is None:
             raise ValueError("可使用的行业事实必须包含数值")
         if self.is_estimate or self.verification_status == VerificationStatus.ESTIMATED:
             if not self.calculation_formula or not (unique_sources or self.component_fact_ids):
                 raise ValueError("估算行业事实必须关联公式及构成来源")
+        if self.verification_status == VerificationStatus.SUPPLIER_DIRECT and (
+            self.structured_admission is None
+            or not self.structured_admission.programmatic_eligible
+        ):
+            raise ValueError("供应商直采行业事实未通过结构化准入谓词")
         return self
 
 
@@ -636,6 +727,8 @@ class ReportVersion(BaseModel):
     peer_sets: list[PeerSetVersion] = Field(default_factory=list)
     model_inputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
     request_metadata: dict[str, Any] = Field(default_factory=dict)
+    research_coverage_snapshot_id: str | None = None
+    research_coverage: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("sections")
     @classmethod
@@ -673,6 +766,8 @@ class ReportCreateRequest(BaseModel):
     sync_result_id: str | None = None
     dimensional_sync_result_id: str | None = None
     event_sync_result_id: str | None = None
+    research_coverage_snapshot_id: str | None = None
+    research_coverage: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_price_timestamp(self) -> "ReportCreateRequest":
@@ -709,6 +804,12 @@ class SyncRequest(BaseModel):
         default_factory=lambda: ["official", "akshare", "sina", "baostock"]
     )
     scopes: list[str] = Field(default_factory=lambda: ["financials", "market"])
+    source_strategy: Literal["structured-first-v1", "legacy-v1"] | None = None
+    datasets: list[str] = Field(default_factory=list)
+    structured_mode: Literal["baseline", "incremental", "due"] = "incremental"
+    company_scope: Literal["company-only", "company-with-peers", "peer-set"] = (
+        "company-only"
+    )
     as_of: datetime = Field(default_factory=utc_now)
     annual_years: int = Field(default=5, ge=1, le=10)
     single_quarters: int = Field(default=12, ge=1, le=40)
@@ -753,6 +854,25 @@ class SyncRequest(BaseModel):
             dict.fromkeys(item.strip().lower() for item in event_types if item.strip())
         )
 
+    @field_validator("datasets")
+    @classmethod
+    def normalize_datasets(cls, datasets: list[str]) -> list[str]:
+        normalized = list(dict.fromkeys(item.strip() for item in datasets if item.strip()))
+        if any(not item.replace("_", "").replace("-", "").isalnum() for item in normalized):
+            raise ValueError("结构化数据集ID只能包含字母、数字、下划线或连字符")
+        return normalized
+
+    @property
+    def effective_source_strategy(self) -> str:
+        if self.source_strategy is not None:
+            return self.source_strategy
+        # Explicit provider lists are the compatibility signal for old clients.
+        # Omitted providers select the new field-routed default even though the
+        # model retains legacy defaults for byte-compatible callers/tests.
+        if "providers" in self.model_fields_set:
+            return "legacy-v1"
+        return "structured-first-v1"
+
 
 class SyncResult(BaseModel):
     sync_result_id: str = Field(default_factory=new_id)
@@ -784,6 +904,11 @@ class SyncResult(BaseModel):
     default_consume_eligible: bool = True
     checkpoint_ids: list[str] = Field(default_factory=list)
     raw_resource_snapshot_ids: list[str] = Field(default_factory=list)
+    source_strategy: str = "legacy-v1"
+    structured_plan_id: str | None = None
+    structured_coverage_snapshot_id: str | None = None
+    structured_dataset_coverage: dict[str, Any] = Field(default_factory=dict)
+    fallback_usage: list[dict[str, Any]] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_acquisition_compatibility(self) -> "SyncResult":

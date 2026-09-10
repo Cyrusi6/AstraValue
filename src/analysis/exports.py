@@ -50,6 +50,7 @@ def render_markdown(report: ReportVersion) -> str:
         f"- 安全边际：{_percent(c.margin_of_safety)}",
         f"- 已执行估值方法：{', '.join(used_methods) if used_methods else '暂不估值'}",
         f"- 证据完整度 / 可信度：{_percent(c.evidence_completeness)} / {_percent(c.evidence_confidence)}",
+        f"- 八步数据覆盖快照：`{report.research_coverage_snapshot_id or '该版本未评估'}`",
         f"- 报告版本 / 数据快照 / 方法集合：v{report.version} / `{report.data_snapshot_id}` / `{report.method_bundle_id}`",
         "",
         "### 核心逻辑",
@@ -70,6 +71,19 @@ def render_markdown(report: ReportVersion) -> str:
     ]
     if report.request_metadata.get("report_notes"):
         lines.extend([f"> 备注：{report.request_metadata['report_notes']}", ""])
+
+    lines.extend(
+        [
+            "## 八步数据覆盖",
+            "",
+            f"- 覆盖快照：`{report.research_coverage_snapshot_id or '该版本未评估'}`",
+            f"- 数据状态：{report.research_coverage.get('overall_status', '未评估')}",
+            f"- 研究窗口：{_stringify(report.research_coverage.get('analysis_scope', {})) or '未评估'}",
+            "",
+            _markdown_table(_coverage_rows(report)),
+            "",
+        ]
+    )
 
     for section in report.sections:
         lines.extend([f"## {section.number}. {section.title}", "", section.summary, ""])
@@ -239,6 +253,7 @@ def render_html(report: ReportVersion) -> str:
         }
         for item in report.assumptions
     ]
+    coverage_rows = _coverage_rows(report)
     audit_blocks = "".join(
         [
             "<h3>来源清单</h3>" + _html_table(source_rows),
@@ -274,8 +289,11 @@ def render_html(report: ReportVersion) -> str:
 <article><label>安全边际</label><strong>{_percent(c.margin_of_safety)}</strong><small>相对基准价值</small></article>
 </div>
 <div class="triad"><div><h3>核心逻辑</h3>{_html_list(c.core_theses)}</div><div><h3>主要风险</h3>{_html_list(c.major_risks)}</div><div><h3>失效条件</h3>{_html_list(c.invalidation_conditions)}</div></div>
-<p class="meta">证据完整度 {_percent(c.evidence_completeness)} · 可信度 {_percent(c.evidence_confidence)} · 快照 {html.escape(report.data_snapshot_id)} · 方法 {html.escape(report.method_bundle_id)}</p>
+<p class="meta">证据完整度 {_percent(c.evidence_completeness)} · 可信度 {_percent(c.evidence_confidence)} · 八步数据覆盖 {html.escape(report.research_coverage_snapshot_id or '该版本未评估')} · 快照 {html.escape(report.data_snapshot_id)} · 方法 {html.escape(report.method_bundle_id)}</p>
 {f'<aside class="fixture-note">{html.escape(str(note))}</aside>' if note else ''}</section>
+<section class="audit"><div class="section-heading"><p>DATA READINESS</p><h2>八步数据覆盖</h2></div>
+<p class="meta">覆盖快照 {html.escape(report.research_coverage_snapshot_id or '该版本未评估')} · 数据状态 {html.escape(str(report.research_coverage.get('overall_status', '未评估')))}</p>
+{_html_table(coverage_rows)}</section>
 {''.join(sections)}
 <section class="audit"><div class="section-heading"><p>AUDIT TRAIL</p><h2>审计附录</h2></div>{audit_blocks}</section>
 <footer>个人投研辅助材料，不构成投资建议。评级需由用户确认，所有数字应通过审计附录复核。</footer>
@@ -325,6 +343,7 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
     valuation_sheet = workbook.create_sheet("估值模型")
     audit_sheet = workbook.create_sheet("来源与审计")
     methods_sheet = workbook.create_sheet("方法与版本")
+    coverage_sheet = workbook.create_sheet("八步数据覆盖")
     checks_sheet = workbook.create_sheet("检查")
     _write_summary(summary, report)
     _write_sections(sections_sheet, report)
@@ -336,6 +355,7 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
     _write_valuations(valuation_sheet, report)
     _write_audit(audit_sheet, report)
     _write_methods(methods_sheet, report)
+    _write_coverage(coverage_sheet, report)
     _write_checks(checks_sheet, report)
     for sheet in workbook.worksheets:
         sheet.sheet_view.showGridLines = False
@@ -362,6 +382,8 @@ def _write_summary(sheet, report: ReportVersion) -> None:
         ("评级确认", "已确认" if c.rating_confirmed else "待用户确认"), ("行业", report.industry),
         ("报告版本", report.version), ("数据截止", report.as_of.isoformat()),
         ("数据快照", report.data_snapshot_id), ("方法集合", report.method_bundle_id),
+        ("八步覆盖快照", report.research_coverage_snapshot_id or "该版本未评估"),
+        ("八步数据状态", report.research_coverage.get("overall_status", "未评估")),
     ]
     for index, (label, value) in enumerate(metadata):
         row = 4 + index // 2
@@ -798,6 +820,134 @@ def _write_methods(sheet, report: ReportVersion) -> None:
     headers = ["method_ref", "状态", "适用行业", "文档", "实现", "测试", "内容哈希", "局限"]
     rows = [[item.ref, item.status, ",".join(item.applies_to), item.doc_path, item.implementation_ref, item.test_ref, report.audit.method_bundle.method_hashes.get(item.ref), "；".join(item.limitations)] for item in report.audit.method_bundle.methods]
     _append_table(sheet, headers, rows, [28, 10, 28, 48, 38, 42, 66, 44])
+
+
+def _write_coverage(sheet, report: ReportVersion) -> None:
+    rows = _coverage_rows(report)
+    headers = list(rows[0])
+    _append_table(
+        sheet,
+        headers,
+        [[row.get(header) for header in headers] for row in rows],
+        [36, 12, 18, 14, 14, 34, 34, 34, 24, 34, 48, 42, 16, 16, 16],
+    )
+
+
+def _coverage_rows(report: ReportVersion) -> list[dict[str, Any]]:
+    """Project the frozen coverage payload identically into every export.
+
+    Coverage is stored as JSON so old reports remain readable after the
+    executable requirement registry changes.  Accept the current question
+    projection and the smaller step-only development projection, but never
+    infer readiness from the legacy evidence-completeness score.
+    """
+
+    coverage = report.research_coverage or {}
+    snapshot_id = report.research_coverage_snapshot_id or "该版本未评估"
+    analysis_scope = _stringify(coverage.get("analysis_scope", {})) or "未评估"
+    questions = coverage.get("questions") or coverage.get("question_coverage") or []
+    rows: list[dict[str, Any]] = []
+    for question in questions:
+        if not isinstance(question, dict):
+            continue
+        state = question.get("state", question.get("status", "pending"))
+        applicability = question.get("applicability", "unknown")
+        ready = question.get("ready_requirement_ids", question.get("ready_required_ids", []))
+        missing = question.get("missing_requirement_ids", question.get("missing_required_ids", []))
+        not_applicable = question.get("not_applicable_requirement_ids", [])
+        required = question.get("required_requirement_ids")
+        if required is None:
+            required = _unique_values(ready, missing, not_applicable)
+        optional_summary = {
+            "ready": question.get("optional_ready_ids", []),
+            "missing": question.get("optional_missing_ids", []),
+        }
+        if state == "not_applicable" and not not_applicable:
+            not_applicable = ["问题整体不适用"]
+        rows.append(
+            {
+                "覆盖快照ID": snapshot_id,
+                "步骤": question.get("step_id", "未登记"),
+                "问题": question.get("question_id", "未登记"),
+                "数据状态": state,
+                "适用性": applicability,
+                "必需项": _stringify(required),
+                "已得必需项": _stringify(ready),
+                "待补必需项": _stringify(missing),
+                "不适用项": _stringify(not_applicable),
+                "可选增强": _stringify(optional_summary),
+                "研究窗口": _stringify(question.get("analysis_scope", analysis_scope)),
+                "补充路径": _stringify(
+                    question.get("next_paths", question.get("supplement_paths", []))
+                ),
+                "方法状态": question.get("method_status", "unknown"),
+                "假设状态": question.get("assumption_status", "unknown"),
+                "研究状态": question.get("analysis_status", "not_started"),
+            }
+        )
+    if rows:
+        return rows
+
+    steps = coverage.get("steps") or coverage.get("step_coverage") or []
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        rows.append(
+            {
+                "覆盖快照ID": snapshot_id,
+                "步骤": step.get("step_id", "未登记"),
+                "问题": "步骤汇总",
+                "数据状态": step.get("state", step.get("status", "pending")),
+                "适用性": "见逐题明细",
+                "必需项": "见逐题明细",
+                "已得必需项": _stringify(step.get("ready_question_ids", [])),
+                "待补必需项": _stringify(step.get("pending_question_ids", [])),
+                "不适用项": _stringify(step.get("not_applicable_question_ids", [])),
+                "可选增强": "见逐题明细",
+                "研究窗口": analysis_scope,
+                "补充路径": "见逐题明细",
+                "方法状态": step.get("method_status", "unknown"),
+                "假设状态": step.get("assumption_status", "unknown"),
+                "研究状态": step.get("analysis_status", "not_started"),
+            }
+        )
+    if rows:
+        return rows
+
+    return [
+        {
+            "覆盖快照ID": snapshot_id,
+            "步骤": "ES01-ES08",
+            "问题": "未评估",
+            "数据状态": "未评估",
+            "适用性": "unknown",
+            "必需项": "未评估",
+            "已得必需项": "未评估",
+            "待补必需项": "未评估",
+            "不适用项": "未评估",
+            "可选增强": "未评估",
+            "研究窗口": analysis_scope,
+            "补充路径": "未评估",
+            "方法状态": "unknown",
+            "假设状态": "unknown",
+            "研究状态": "not_started",
+        }
+    ]
+
+
+def _unique_values(*groups: Any) -> list[Any]:
+    values: list[Any] = []
+    for group in groups:
+        if isinstance(group, (list, tuple, set)):
+            candidates = group
+        elif group in (None, ""):
+            candidates = ()
+        else:
+            candidates = (group,)
+        for item in candidates:
+            if item not in values:
+                values.append(item)
+    return values
 
 
 def _write_checks(sheet, report: ReportVersion) -> None:

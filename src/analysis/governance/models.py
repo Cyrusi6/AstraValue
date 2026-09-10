@@ -108,6 +108,7 @@ SortedUniqueQuestionIds = Annotated[
 class SourceRole(str, Enum):
     OFFICIAL_DISCLOSURE = "official_disclosure"
     REGULATOR_EXCHANGE = "regulator_exchange"
+    STRUCTURED_SUPPLIER = "structured_supplier"
     DISCOVERY_ONLY = "discovery_only"
     CONTEXTUAL_EVIDENCE = "contextual_evidence"
     DEFERRED = "deferred"

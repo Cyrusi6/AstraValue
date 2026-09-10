@@ -200,6 +200,9 @@ class RegistryBoundHttpTransport:
                 ),
                 deadline_monotonic=deadline,
                 lease_guard=lease_guard,
+                upstream_identity=getattr(
+                    self.source_definition, "upstream_identity", None
+                ),
             ):
                 # The gate may have blocked longer than the lease TTL.  This
                 # forced repository fence is the last operation before send.

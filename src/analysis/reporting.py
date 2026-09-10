@@ -35,6 +35,7 @@ from .registry import MethodRegistry
 from .scenarios import build_scenario_projections
 from .valuation import execute_valuation
 from .verification import are_independent, evidence_scores, validate_claims
+from .structured.consumption import is_fact_consumable, latest_consumable_facts
 
 
 STEP_METHOD_IDS = [
@@ -206,11 +207,8 @@ class ReportBuilder:
                 for item in critical_facts
                 if item.metric_id == metric_id and item.value is not None
             ]
-            if metric_facts and not all(
-                item.verification_status == VerificationStatus.DUAL_SOURCE
-                for item in metric_facts
-            ):
-                missing.append(f"{metric_id}: 尚有期间未完成正式披露+独立来源双重核验")
+            if metric_facts and not all(is_fact_consumable(item) for item in metric_facts):
+                missing.append(f"{metric_id}: 尚有期间未通过统一事实准入")
 
         valuation_results, model_runs, unreferenced_numbers = self._run_valuations(
             route.valuation_method_ids,
@@ -297,6 +295,8 @@ class ReportBuilder:
                 "dimensional_sync_result_id": request.dimensional_sync_result_id,
                 "event_sync_result_id": request.event_sync_result_id,
             },
+            research_coverage_snapshot_id=request.research_coverage_snapshot_id,
+            research_coverage=dict(request.research_coverage),
         )
 
     @staticmethod
@@ -700,13 +700,22 @@ class ReportBuilder:
         dual_count = sum(
             item.verification_status == VerificationStatus.DUAL_SOURCE for item in critical
         )
+        supplier_count = sum(
+            item.verification_status == VerificationStatus.SUPPLIER_DIRECT
+            and is_fact_consumable(item)
+            for item in critical
+        )
+        consumable_count = sum(is_fact_consumable(item) for item in critical)
         checks.append(
             {
-                "check": "关键字段正式披露+独立来源核验",
-                "status": "OK" if critical and dual_count == len(critical) else "WARN",
-                "actual_difference": dual_count - len(critical),
+                "check": "关键字段统一事实准入",
+                "status": "OK" if critical and consumable_count == len(critical) else "WARN",
+                "actual_difference": consumable_count - len(critical),
                 "tolerance": 0,
-                "message": f"关键字段双源一致={dual_count}/{len(critical)}",
+                "message": (
+                    f"关键字段可消费={consumable_count}/{len(critical)}；"
+                    f"双源一致={dual_count}；供应商直采={supplier_count}"
+                ),
                 "method_ref": "source_policy.json",
             }
         )
@@ -776,15 +785,7 @@ class ReportBuilder:
 
 
 def _latest_numeric_facts(facts: list[FactRecord]) -> dict[str, float]:
-    latest: dict[str, FactRecord] = {}
-    for fact in facts:
-        if fact.value is None or fact.verification_status == VerificationStatus.PENDING:
-            continue
-        existing = latest.get(fact.metric_id)
-        fact_key = (fact.period_end or fact.as_of.date(), fact.as_of)
-        existing_key = (existing.period_end or existing.as_of.date(), existing.as_of) if existing else None
-        if existing is None or fact_key > existing_key:
-            latest[fact.metric_id] = fact
+    latest = latest_consumable_facts(facts)
     return {metric_id: fact.value for metric_id, fact in latest.items() if fact.value is not None}
 
 

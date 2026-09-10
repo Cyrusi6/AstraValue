@@ -1,0 +1,81 @@
+{
+  "schema_version": "structured-registry.v1",
+  "registry_kind": "peer_sets",
+  "registry_id": "structured_data_peer_sets",
+  "version": "1.0.0",
+  "content_sha256": "a1dc422ec1e18cbcc32fd887ea2d4fd4ebc462684eb5b63874f91ca850a7422b",
+  "generated_from": [
+    "docs/acquisition/structured-data-interface-fields-v1.json",
+    "docs/acquisition/structured-data-field-plan-v1.md",
+    "openspec/changes/structured-data-first-v1/design.md"
+  ],
+  "peer_sets": [
+    {
+      "peer_set_id": "peer_set.baijiu_selected.v1",
+      "selected_at": "2026-09-08",
+      "industry_taxonomy_version": "structured_industry_profiles@1.0.0",
+      "decision_kind": "rule_selected",
+      "user_confirmed": false,
+      "companies": [
+        {
+          "company_name": "贵州茅台",
+          "canonical_ticker": "600519.SH",
+          "supplier_security_code": "600519",
+          "baostock_code": "sh.600519",
+          "role": "target",
+          "inclusion_basis": "已有业务采集与重要报告基线，作为本轮目标"
+        },
+        {
+          "company_name": "五粮液",
+          "canonical_ticker": "000858.SZ",
+          "supplier_security_code": "000858",
+          "baostock_code": "sz.000858",
+          "role": "core_peer",
+          "inclusion_basis": "主要酒类业务，可比较产品、渠道、利润与现金回报"
+        },
+        {
+          "company_name": "泸州老窖",
+          "canonical_ticker": "000568.SZ",
+          "supplier_security_code": "000568",
+          "baostock_code": "sz.000568",
+          "role": "core_peer",
+          "inclusion_basis": "酒类及中高档酒业务，可比较产品结构、渠道与现金回报"
+        },
+        {
+          "company_name": "山西汾酒",
+          "canonical_ticker": "600809.SH",
+          "supplier_security_code": "600809",
+          "baostock_code": "sh.600809",
+          "role": "operating_peer",
+          "inclusion_basis": "酒类业务，可比较扩张、周转、渠道和利润变化"
+        },
+        {
+          "company_name": "洋河股份",
+          "canonical_ticker": "002304.SZ",
+          "supplier_security_code": "002304",
+          "baostock_code": "sz.002304",
+          "role": "operating_peer",
+          "inclusion_basis": "以白酒为主，可比较渠道、存货和资本回报"
+        },
+        {
+          "company_name": "古井贡酒",
+          "canonical_ticker": "000596.SZ",
+          "supplier_security_code": "000596",
+          "baostock_code": "sz.000596",
+          "role": "operating_peer",
+          "inclusion_basis": "以白酒为主，保留酒店等其他业务及子公司差异"
+        },
+        {
+          "company_name": "今世缘",
+          "canonical_ticker": "603369.SH",
+          "supplier_security_code": "603369",
+          "baostock_code": "sh.603369",
+          "role": "operating_peer",
+          "inclusion_basis": "以白酒为主，可比较分档产品、渠道、区域业务与成长"
+        }
+      ],
+      "acquisition_scope": "all_applicable_datasets_all_available_history",
+      "display_windows_do_not_limit_acquisition": true
+    }
+  ]
+}

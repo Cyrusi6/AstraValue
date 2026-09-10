@@ -1,0 +1,207 @@
+{
+  "schema_version": "structured-registry.v1",
+  "registry_kind": "reading_rules",
+  "registry_id": "structured_data_reading_rules",
+  "version": "1.0.0",
+  "content_sha256": "23cacad36d0dae6f605e6d26942052e89b13c416b38dd0a896eaa044f151587d",
+  "generated_from": [
+    "docs/acquisition/structured-data-interface-fields-v1.json",
+    "docs/acquisition/structured-data-field-plan-v1.md",
+    "openspec/changes/structured-data-first-v1/design.md"
+  ],
+  "fixed_report_policy": {
+    "complete_chinese_annual_report": "required",
+    "complete_chinese_interim_report": "required",
+    "annual_summary": "catalog_only_unless_question_triggered",
+    "english_annual_report": "body_excluded",
+    "standalone_audit_pdf": "body_excluded"
+  },
+  "rules": [
+    {
+      "rule_id": "R01",
+      "trigger_kind": "quantitative",
+      "expression": "同口径单季营收/归母/扣非同比绝对值>=20%，或同比增速环比变化绝对值>=15个百分点；盈亏切换直接触发",
+      "input_refs": [
+        "income_quarter.TOTAL_OPERATE_INCOME",
+        "income_quarter.PARENT_NETPROFIT",
+        "income_quarter.DEDUCT_PARENT_NETPROFIT"
+      ],
+      "target_routes": [
+        "RD02",
+        "RD10"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R02",
+      "trigger_kind": "quantitative",
+      "expression": "毛利率同比变化绝对值>=3个百分点，或销售/管理/研发费用率同比变化绝对值>=2个百分点",
+      "input_refs": [
+        "baostock_profit.gpMargin",
+        "income_quarter.OPERATE_INCOME",
+        "income_quarter.OPERATE_COST",
+        "income_quarter.SALE_EXPENSE",
+        "income_quarter.MANAGE_EXPENSE",
+        "income_quarter.RESEARCH_EXPENSE"
+      ],
+      "target_routes": [
+        "RD02",
+        "RD04"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R03",
+      "trigger_kind": "quantitative",
+      "expression": "正归母净利下经营现金流转负，或同口径经营现金流/净利润<0.8且同比下降>=0.2",
+      "input_refs": [
+        "cashflow_quarter.NETCASH_OPERATE",
+        "income_quarter.NETPROFIT",
+        "baostock_cash_flow.CFOToNP"
+      ],
+      "target_routes": [
+        "RD05",
+        "RD06"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R04",
+      "trigger_kind": "quantitative",
+      "expression": "应收或存货同比增速超过营收同比>=20个百分点，或周转天数同比上升>=20%且增加>=30天",
+      "input_refs": [
+        "balance_fields.ACCOUNTS_RECE",
+        "balance_fields.INVENTORY",
+        "baostock_operation.NRTurnDays",
+        "baostock_operation.INVTurnDays"
+      ],
+      "target_routes": [
+        "RD02",
+        "RD03",
+        "RD05"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R05",
+      "trigger_kind": "quantitative",
+      "expression": "合同负债同比下降>=20%，或完整有息负债/总资产同比增加>=5个百分点",
+      "input_refs": [
+        "balance_fields.CONTRACT_LIAB",
+        "balance_fields.TOTAL_ASSETS",
+        "K05"
+      ],
+      "target_routes": [
+        "RD05",
+        "RD06"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R06",
+      "trigger_kind": "quantitative",
+      "expression": "新增正额商誉减值，或资产/信用减值损失达到上期末正归母净资产1%",
+      "input_refs": [
+        "goodwill.GOODWILL_CHANGE",
+        "income_fields.ASSET_IMPAIRMENT_LOSS",
+        "income_fields.CREDIT_IMPAIRMENT_LOSS",
+        "balance_fields.TOTAL_PARENT_EQUITY"
+      ],
+      "target_routes": [
+        "RD05"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R07",
+      "trigger_kind": "event",
+      "expression": "实控人、董事长、总经理、财务负责人、审计机构或审计意见类型变化",
+      "input_refs": [
+        "controller",
+        "management_roster",
+        "company_basic.ACCOUNT_FIRM",
+        "balance_fields.OPINION_TYPE"
+      ],
+      "target_routes": [
+        "RD07",
+        "RD12"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R08",
+      "trigger_kind": "event",
+      "expression": "并购、处置、融资或项目金额达到上期末正归母净资产5%，或重大事项影响当前问题",
+      "input_refs": [
+        "seo",
+        "allotment",
+        "bond_issuance",
+        "capital_projects",
+        "capital_raise"
+      ],
+      "target_routes": [
+        "RD08"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R09",
+      "trigger_kind": "event",
+      "expression": "新担保或诉讼/处罚达到上期末正归母净资产1%，或关键主体/资质事件",
+      "input_refs": [
+        "guarantee",
+        "litigation",
+        "violation",
+        "balance_fields.TOTAL_PARENT_EQUITY"
+      ],
+      "target_routes": [
+        "RD07",
+        "RD12"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R10",
+      "trigger_kind": "event",
+      "expression": "已实施年度每股现金分红同比下降>=20%，取消分红/回购、用途改变或回购计划股数达到总股本1%",
+      "input_refs": [
+        "dividend",
+        "repurchase",
+        "equity.TOTAL_SHARES"
+      ],
+      "target_routes": [
+        "RD08"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R11",
+      "trigger_kind": "correction",
+      "expression": "更正关联正在使用的报告/字段且存在异常、实质修订或明确待答问题",
+      "input_refs": [
+        "material_version",
+        "used_field_locator",
+        "open_question"
+      ],
+      "target_routes": [
+        "RD05",
+        "RD12"
+      ],
+      "creates_risk_rating": false
+    },
+    {
+      "rule_id": "R12",
+      "trigger_kind": "research_question",
+      "expression": "新事件或事实直接影响已有问题、关键假设、跟踪项或结论失效条件",
+      "input_refs": [
+        "research_question_id",
+        "assumption_id",
+        "claim_id"
+      ],
+      "target_routes": [
+        "RD10"
+      ],
+      "creates_risk_rating": false
+    }
+  ]
+}

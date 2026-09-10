@@ -22,6 +22,9 @@ class ReportPolicy:
 
 @dataclass(frozen=True)
 class SourcePolicy:
+    schema_version: str
+    default_strategy: str
+    legacy_strategy: str
     default_relative_tolerance: float
     point_in_time_required: bool
     llm_may_fill_missing_values: bool
@@ -29,6 +32,8 @@ class SourcePolicy:
     critical_metrics: tuple[str, ...]
     official_source_types: tuple[str, ...]
     independent_source_types: tuple[str, ...]
+    statuses: tuple[str, ...]
+    supplier_direct_source_types: tuple[str, ...]
 
 
 def _load(name: str, config_dir: Path | str = DEFAULT_CONFIG_DIR) -> dict[str, Any]:
@@ -55,6 +60,9 @@ def load_report_policy(config_dir: str | None = None) -> ReportPolicy:
 def load_source_policy(config_dir: str | None = None) -> SourcePolicy:
     data = _load("source_policy.json", config_dir or DEFAULT_CONFIG_DIR)
     return SourcePolicy(
+        schema_version=str(data.get("schema_version", "1.0.0")),
+        default_strategy=str(data.get("default_strategy", "legacy-v1")),
+        legacy_strategy=str(data.get("legacy_strategy", "legacy-v1")),
         default_relative_tolerance=float(data["default_relative_tolerance"]),
         point_in_time_required=bool(data["point_in_time_required"]),
         llm_may_fill_missing_values=bool(data["llm_may_fill_missing_values"]),
@@ -66,5 +74,9 @@ def load_source_policy(config_dir: str | None = None) -> SourcePolicy:
                 "independent_source_types",
                 ("public", "public-adapter", "government", "industry-association"),
             )
+        ),
+        statuses=tuple(data.get("statuses", ())),
+        supplier_direct_source_types=tuple(
+            data.get("supplier_direct_source_types", ("supplier-structured",))
         ),
     )

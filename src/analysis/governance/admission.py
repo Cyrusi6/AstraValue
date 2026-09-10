@@ -20,6 +20,10 @@ AUTHORITATIVE_SOURCE_ROLES = frozenset(
     {
         SourceRole.OFFICIAL_DISCLOSURE,
         SourceRole.REGULATOR_EXCHANGE,
+        # A structured supplier is not a formal disclosure.  It is admitted
+        # only when the same external validator proves the bound row/field
+        # locator, namespace, type, unit, time and conflict checks below.
+        SourceRole.STRUCTURED_SUPPLIER,
     }
 )
 
