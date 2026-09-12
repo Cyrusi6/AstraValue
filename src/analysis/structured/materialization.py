@@ -1,29 +1,26 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
+from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, time, timezone
-from decimal import Decimal, InvalidOperation
-from typing import Any, Iterable, Mapping
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, DecimalException
+from functools import lru_cache
+from typing import Any, Mapping
 
 from analysis.models import (
-    DimensionalFactRecord,
-    FactRecord,
-    SourceRecord,
-    StructuredAcquisitionMethod,
-    StructuredFactAdmission,
-    StructuredFactNature,
-    StructuredQualityStatus,
-    VerificationStatus,
+    DimensionalFactRecord, EventRecord, FactRecord, SourceRecord,
+    StructuredAcquisitionMethod, StructuredFactAdmission, StructuredFactNature,
+    StructuredQualityStatus, VerificationStatus,
 )
+from .materialization_contracts import LEGACY_CONTRACTS
+from .records import NormalizedValue, PeriodKind, ValueKind, derive_single_quarter, derive_ttm
+from .registry import canonical_registry_sha256
+from .storage import StructuredStorage, canonical_json, canonical_sha256
 
-from .mappings import FIELD_RULES, FieldRule
-from .storage import StructuredStorage
-
-
-MATERIALIZATION_VERSION = "structured-materialization-v1.0.0"
+MATERIALIZATION_VERSION = "structured-materialization-v2.0.0"
+PERIOD_FORMULA_VERSION = "structured-periods-v1.0.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,289 +28,646 @@ class MaterializationResult:
     run_id: str
     facts: tuple[FactRecord, ...]
     dimensional_facts: tuple[DimensionalFactRecord, ...]
+    events: tuple[EventRecord, ...]
     sources: tuple[SourceRecord, ...]
     candidates: int
     skipped: int
     gaps: tuple[str, ...]
+    field_gaps: tuple[dict, ...]
+    selected_fact_ids: tuple[str, ...]
+    selected_dimensional_fact_ids: tuple[str, ...]
     materialization_hash: str
+    as_of: str | None
+    strict_historical: bool
+    contract_hash: str
 
     def to_mapping(self) -> dict[str, Any]:
         return {
-            "run_id": self.run_id,
-            "materialization_version": MATERIALIZATION_VERSION,
+            "run_id": self.run_id, "materialization_version": MATERIALIZATION_VERSION,
             "materialization_hash": self.materialization_hash,
-            "fact_count": len(self.facts),
-            "dimensional_fact_count": len(self.dimensional_facts),
-            "source_count": len(self.sources),
-            "candidate_count": self.candidates,
-            "skipped_count": self.skipped,
-            "gaps": list(self.gaps),
+            "fact_count": len(self.facts), "dimensional_fact_count": len(self.dimensional_facts),
+            "event_count": len(self.events), "source_count": len(self.sources),
+            "candidate_count": self.candidates, "skipped_count": self.skipped,
+            "gaps": list(self.gaps), "gap_counts": dict(sorted(Counter(
+                g["reason"] for g in self.field_gaps).items())),
+            "selected_fact_ids": list(self.selected_fact_ids),
+            "selected_dimensional_fact_ids": list(self.selected_dimensional_fact_ids),
+            "as_of": self.as_of, "strict_historical": self.strict_historical,
+            "contract_hash": self.contract_hash, "performed_network_io": False,
         }
 
 
 class StructuredFactMaterializer:
-    """Project committed structured rows into the existing report fact model.
+    """Append-only evidence projection with a separate, cutoff-specific selection.
 
-    The structured tables remain authoritative.  This class is a deterministic
-    read/transform operation: it never contacts an upstream source and never
-    changes a structured page, record, snapshot or coverage row.
+    Raw SQL input is streamed. Memory is proportional to output evidence and gaps,
+    not to every supplier raw field payload. No acquisition or snapshot mutation.
     """
 
     def __init__(self, storage: StructuredStorage, repository: Any) -> None:
-        self.storage = storage
-        self.repository = repository
+        self.storage, self.repository = storage, repository
 
-    def materialize(
-        self,
-        run_id: str,
-        *,
-        as_of: datetime | None = None,
-        strict_historical: bool = False,
-    ) -> MaterializationResult:
+    def materialize(self, run_id: str, *, as_of: datetime | None = None,
+                    strict_historical: bool = False) -> MaterializationResult:
+        cutoff = _timestamp(as_of) if as_of is not None else None
+        if strict_historical and cutoff is None:
+            raise ValueError("strict_historical requires timezone-aware as_of")
         context = self.storage.get_run_context(run_id)
-        cutoff = _aware(as_of) if as_of is not None else None
-        jobs = self.storage.list_jobs(run_id, limit=None)
-        facts_by_key: dict[tuple[str, str, str, str], FactRecord] = {}
-        sources: dict[str, SourceRecord] = {}
-        snapshots: dict[str, Any] = {}
-        candidates = 0
-        skipped = 0
-        gaps: set[str] = set()
-        jobs_by_id = {str(job["job_id"]): job for job in jobs}
-        records = self.storage.list_records_for_jobs(jobs_by_id, limit=None)
-        fields_by_record: dict[str, list[dict[str, Any]]] = {}
-        all_fields = self.storage.list_record_fields_for_records(
-            (str(item["record_version_id"]) for item in records), limit=None
-        )
-        for item in all_fields:
-            fields_by_record.setdefault(str(item["record_version_id"]), []).append(item)
+        if not any(_enum(_get(e, "event_type")) == "finalized"
+                   for e in self.repository.list_run_events(run_id)):
+            raise ValueError("materialization requires a finalized structured run")
+        contract = _contract(context)
+        contract_hash = canonical_sha256(contract)
+        jobs = {str(j["job_id"]): j for j in self.storage.list_jobs(run_id, limit=None)}
+        datasets = {d["dataset_id"]: d for d in context.frozen_config.get("datasets", [])}
+        frozen_sources = {(s["source_definition_id"], str(s.get("version", s.get("source_definition_version")))): s
+                          for s in context.frozen_config.get("source_definitions", [])}
+        facts, dimensions, events, field_gaps = [], [], [], []
+        sources, gaps = {}, set()
+        candidates = skipped = 0
 
-        for record in records:
-            job = jobs_by_id.get(str(record["job_id"]))
-            if job is None:
+        @lru_cache(maxsize=128)
+        def snapshot_for(snapshot_id):
+            return self.repository.get_raw_resource_snapshot(snapshot_id)
+
+        def gap(reason, record, field=None, **extra):
+            nonlocal skipped
+            skipped += 1
+            field_gaps.append({"record_version_id": record.get("record_version_id"),
+                "job_id": record.get("job_id"), "snapshot_id": record.get("snapshot_id"),
+                "row_key": record.get("row_key"),
+                "field_value_id": (field or {}).get("field_value_id"),
+                "field_path": (field or {}).get("field_path"), "reason": reason, **extra})
+            gaps.add(reason)
+
+        for record, fields in self.storage.iter_committed_record_bundles(run_id):
+            job = jobs.get(str(record.get("job_id")))
+            candidates += len(fields)
+            if job is None or job["dataset_id"] not in datasets:
+                gap("job_not_in_frozen_context", record)
                 continue
-            dataset_id = str(job["dataset_id"])
-            available_at = _parse_datetime(record.get("available_at"))
-            if cutoff is not None and strict_historical and available_at > cutoff:
-                skipped += 1
+            if record.get("_committed_attempt_outcome") != "success":
+                gap("page_attempt_not_successful", record)
                 continue
-            raw_row = record.get("raw_row") or {}
-            for field in fields_by_record.get(str(record["record_version_id"]), ()):
-                candidates += 1
-                standard = field.get("standard_field_id")
-                value = field.get("value")
-                rule = FIELD_RULES.get((dataset_id, str(field.get("raw_field_name"))))
-                if not standard or rule is None:
-                    skipped += 1
+            dataset_id = job["dataset_id"]
+            dataset = datasets[dataset_id]
+            source_definition = frozen_sources.get((job["source_definition_id"], str(job["source_definition_version"])))
+            if source_definition is None:
+                gap("source_not_frozen", record)
+                continue
+            try:
+                available = _timestamp(record.get("available_at"))
+                observed = _timestamp(record.get("observed_at"))
+                snapshot = snapshot_for(str(record["snapshot_id"]))
+                snapshot_available = _timestamp(snapshot.available_at)
+                _timestamp(snapshot.created_at)
+            except (ValueError, KeyError, LookupError, RuntimeError) as exc:
+                gap("timestamp_or_snapshot_missing", record, detail=str(exc))
+                continue
+            if (snapshot.storage_namespace_id != context.storage_namespace_id
+                    or snapshot.source_definition_id != job["source_definition_id"]
+                    or str(snapshot.source_definition_version) != str(job["source_definition_version"])
+                    or snapshot.policy_decision != "allowed"
+                    or snapshot.snapshot_id != record["snapshot_id"]
+                    or len(snapshot.sha256) != 64
+                    or any(c not in "0123456789abcdef" for c in snapshot.sha256)):
+                gap("snapshot_binding_or_policy_invalid", record)
+                continue
+            if snapshot.physical_query_plan_item_id != job["plan_item_id"]:
+                try:
+                    self.storage.snapshot_observation_id(job["job_id"], snapshot.snapshot_id)
+                except (ValueError, LookupError, RuntimeError, AttributeError):
+                    gap("snapshot_binding_or_policy_invalid", record)
                     continue
-                if field.get("quality") != "passed" or field.get("nature") not in {
-                    "observed",
-                    "deterministic",
-                }:
-                    skipped += 1
-                    gaps.add(f"{dataset_id}.{field.get('raw_field_name')}:field_not_admissible")
+            # The local observation is proof of availability, never backdate it to
+            # a vendor publication string attached to today's revised history.
+            effective_available = max(available, observed, snapshot_available)
+            if cutoff is not None and strict_historical and effective_available > cutoff:
+                gap("not_available_at_cutoff", record)
+                continue
+            row = record.get("raw_row") or {}
+            source = _source_for_snapshot(snapshot, job, source_definition)
+            for field in fields:
+                raw_name = field.get("raw_field_name")
+                rule = contract["rules"].get(f"{dataset_id}.{raw_name}")
+                reason = _field_failure(context, job, record, field, rule, row, contract.get("rejections", {}))
+                if reason:
+                    gap(reason, record, field)
                     continue
-                numeric = _number(value)
-                if numeric is None:
-                    skipped += 1
-                    gaps.add(f"{standard}:value_missing_or_non_numeric")
+                try:
+                    numeric = _number(field.get("value"))
+                    converted = numeric * Decimal(rule["multiplier"])
+                    if not math.isfinite(float(converted)):
+                        raise ValueError("float overflow")
+                except (ValueError, DecimalException, OverflowError):
+                    gap("value_missing_or_non_numeric", record, field)
                     continue
-                snapshot_id = str(record["snapshot_id"])
-                snapshot = snapshots.get(snapshot_id)
-                if snapshot is None:
-                    snapshot = self.repository.get_raw_resource_snapshot(snapshot_id)
-                    snapshots[snapshot_id] = snapshot
-                source = _source_for_snapshot(snapshot, job)
-                sources[source.source_id] = source
-                period_end = _period_end(field.get("period_key"), raw_row)
+                period_end = _period_end(field.get("period_key"), row, dataset)
                 if period_end is None:
-                    skipped += 1
-                    gaps.add(f"{standard}:period_missing")
+                    gap("period_missing_or_conflicting", record, field)
                     continue
-                converted = numeric * _decimal(rule.multiplier)
-                fact = self._fact(
-                    context=context,
-                    job=job,
-                    record=record,
-                    field=field,
-                    rule=rule,
-                    value=converted,
-                    period_end=period_end,
-                    source=source,
-                    snapshot=snapshot,
-                )
-                key = (fact.metric_id, fact.period_end.isoformat(), fact.scope, fact.period_type)
-                current = facts_by_key.get(key)
-                if current is None or _priority(fact) < _priority(current):
-                    facts_by_key[key] = fact
+                period_kind, value_kind = rule["period_kind"], rule["value_kind"]
+                if rule["nature"] != "announced_plan" and period_end > effective_available.date():
+                    gap("period_after_observation", record, field)
+                    continue
+                if value_kind == "flow" and period_kind in {"cumulative", "annual", "single_quarter"}:
+                    if (period_end.month, period_end.day) not in {(3, 31), (6, 30), (9, 30), (12, 31)}:
+                        gap("non_calendar_quarter", record, field)
+                        continue
+                metadata = _lineage(context, job, record, field, rule, snapshot, contract_hash)
+                metadata.update(value_kind=value_kind, decimal_value=format(converted, "f"),
+                    available_at=effective_available.isoformat(),
+                    original_available_at=available.isoformat(),
+                    point_in_time_basis="max_record_observation_snapshot_availability",
+                    historical_publication_proven=False,
+                    requires_materialization_selection=True)
+                identity = {"version": MATERIALIZATION_VERSION, "contract": contract_hash,
+                    "namespace": context.storage_namespace_id, "run": run_id,
+                    "job": job["job_id"], "record": record["record_version_id"],
+                    "snapshot": snapshot.sha256, "field": field["field_path"],
+                    "definition": field["definition_version"]}
+                fact_id = _id("structured-fact", identity)
+                admission = _admission(job, record, field, rule, snapshot, observed, effective_available)
+                if rule["nature"] == "announced_plan":
+                    announced = _event_date(row.get("NOTICE_DATE") or row.get("PUBLISH_DATE"))
+                    if announced is None or announced > effective_available:
+                        gap("event_announcement_time_missing_or_future", record, field)
+                        continue
+                    events.append(EventRecord(
+                        event_id=_id("structured-event", identity), ticker=context.ticker,
+                        event_type="dividend", event_subtype="cash_dividend_plan_terms",
+                        announced_at=announced, available_at=effective_available,
+                        period_end=period_end, lifecycle_state="announced_plan",
+                        summary="供应商记录的每股税前现金分红方案；不代表已实施或已支付",
+                        event_terms={"cash_dividend_per_share_plan": float(converted),
+                                     "unit": rule["unit"], "nature": "announced_plan"},
+                        source_ids=[source.source_id], status_updated_at=effective_available,
+                        data_snapshot_id=_id("structured-input", {"run": run_id, "contract": contract_hash}),
+                        metadata=metadata | {"lifecycle_basis": "registered_plan_field",
+                            "announcement_timezone": "Asia/Shanghai",
+                            "announcement_date_policy": "date_only_end_of_day",
+                            "original_lifecycle": row.get("ASSIGN_PROGRESS")},
+                        verification_status=VerificationStatus.PENDING))
+                    sources[source.source_id] = source
+                    continue
+                dim = _dimension(dataset_id, row)
+                if dataset_id in {"segments", "float_holders_history"} and dim is None:
+                    gap("dimension_identity_missing", record, field)
+                    continue
+                sources[source.source_id] = source
+                common = dict(ticker=context.ticker, metric_id=field["standard_field_id"],
+                    value=float(converted), unit=rule["unit"], currency="CNY",
+                    period_start=_period_start(period_end, period_kind), period_end=period_end,
+                    period_type=period_kind, scope=rule["scope"], source_ids=[source.source_id],
+                    structured_admission=admission, verification_status=VerificationStatus.SUPPLIER_DIRECT,
+                    metadata=metadata)
+                if dim:
+                    dimensions.append(DimensionalFactRecord(
+                        **common, dimensional_fact_id=fact_id.replace("structured-fact", "structured-dimension"),
+                        **dim, available_at=effective_available,
+                        data_snapshot_id=_id("structured-input", {"run": run_id, "contract": contract_hash})))
+                else:
+                    facts.append(FactRecord(**common, fact_id=fact_id, as_of=effective_available,
+                        original_label=raw_name, restatement_version=record["record_version_id"],
+                        is_restated=bool(record.get("supersedes_record_version_id"))))
 
-        facts = tuple(sorted(facts_by_key.values(), key=lambda item: (
-            item.metric_id, item.period_end or date.min, item.as_of, item.fact_id
-        )))
-        payload = {
-            "run_id": run_id,
-            "version": MATERIALIZATION_VERSION,
-            "facts": [item.model_dump(mode="json") for item in facts],
-            "sources": [item.model_dump(mode="json") for item in sorted(sources.values(), key=lambda item: item.source_id)],
-            "gaps": sorted(gaps),
-        }
-        digest = hashlib.sha256(
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
-        return MaterializationResult(
-            run_id=run_id,
-            facts=facts,
-            dimensional_facts=(),
-            sources=tuple(sorted(sources.values(), key=lambda item: item.source_id)),
-            candidates=candidates,
-            skipped=skipped,
-            gaps=tuple(sorted(gaps)),
-            materialization_hash=digest,
-        )
-
-    @staticmethod
-    def _fact(*, context: Any, job: Mapping[str, Any], record: Mapping[str, Any],
-              field: Mapping[str, Any], rule: FieldRule, value: Decimal,
-              period_end: date, source: SourceRecord, snapshot: Any) -> FactRecord:
-        raw_name = str(field["raw_field_name"])
-        row_key = str(record["row_key"])
-        identity = {
-            "run_id": context.run_id,
-            "dataset_id": job["dataset_id"],
-            "row_key": row_key,
-            "standard_field": field["standard_field_id"],
-            "period_end": period_end.isoformat(),
-            "snapshot": str(record["snapshot_id"]),
-        }
-        fact_id = "structured-fact-" + hashlib.sha256(
-            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()[:32]
-        nature = StructuredFactNature(str(field["nature"]))
-        admission = StructuredFactAdmission(
-            acquisition_method=StructuredAcquisitionMethod.SUPPLIER_STRUCTURED,
-            nature=nature,
-            quality=StructuredQualityStatus.PASSED,
-            source_policy_id=str(job["source_definition_id"]),
-            source_policy_version=str(job["source_definition_version"]),
-            field_definition_id=rule.definition_id,
-            field_definition_version=str(field.get("definition_version") or context.field_registry_version),
-            raw_resource_snapshot_id=str(record["snapshot_id"]),
-            snapshot_sha256=str(snapshot.sha256),
-            row_key=row_key,
-            field_path=str(field["field_path"]),
-            original_value=field.get("value"),
-            original_unit=field.get("unit"),
-            retrieved_at=_parse_datetime(record.get("observed_at") or record.get("available_at")),
-            available_at=_parse_datetime(record.get("available_at")),
-        )
-        metadata = {
-            "materialization_version": MATERIALIZATION_VERSION,
-            "structured_run_id": context.run_id,
-            "structured_job_id": job["job_id"],
-            "structured_dataset_id": job["dataset_id"],
-            "structured_record_version_id": record["record_version_id"],
-            "structured_snapshot_id": record["snapshot_id"],
-            "structured_row_key": row_key,
-            "structured_field_path": field["field_path"],
-        }
-        return FactRecord(
-            fact_id=fact_id,
-            ticker=str(context.ticker),
-            metric_id=str(field["standard_field_id"]),
-            value=float(value) if math.isfinite(float(value)) else None,
-            unit=str(rule.unit),
-            currency="CNY",
-            period_start=None,
-            period_end=period_end,
-            period_type=_period_type(rule),
-            as_of=_parse_datetime(record.get("available_at")),
-            scope=rule.scope,
-            original_label=raw_name,
-            source_ids=[source.source_id],
-            verification_status=VerificationStatus.SUPPLIER_DIRECT,
-            structured_admission=admission,
-            metadata=metadata,
-        )
+        selected, selection_gaps = _select(facts)
+        selected_dimensions, dimension_gaps = _select(dimensions)
+        gaps.update(selection_gaps | dimension_gaps)
+        derived, derivation_gaps = _derive(selected)
+        facts.extend(derived)
+        selected.extend(derived)
+        gaps.update(derivation_gaps)
+        ratios, ratio_gaps = _derive_gross_margin(selected)
+        facts.extend(ratios)
+        selected.extend(ratios)
+        gaps.update(ratio_gaps)
+        facts.sort(key=lambda x: x.fact_id)
+        dimensions.sort(key=lambda x: x.dimensional_fact_id)
+        events.sort(key=lambda x: x.event_id)
+        field_gaps.sort(key=canonical_json)
+        sources_tuple = tuple(sorted(sources.values(), key=lambda x: x.source_id))
+        selected_ids = tuple(sorted(f.fact_id for f in selected))
+        selected_dim_ids = tuple(sorted(f.dimensional_fact_id for f in selected_dimensions))
+        # Incremental digest avoids duplicating the complete projection JSON in RAM.
+        digest = hashlib.sha256()
+        header = {"run_id": run_id, "version": MATERIALIZATION_VERSION,
+                  "contract_hash": contract_hash, "as_of": cutoff.isoformat() if cutoff else None,
+                  "strict_historical": strict_historical, "gaps": sorted(gaps),
+                  "selected_fact_ids": selected_ids, "selected_dimension_ids": selected_dim_ids,
+                  "candidates": candidates, "skipped": skipped}
+        for group in ([header], facts, dimensions, events, sources_tuple, field_gaps):
+            for item in group:
+                payload = item.model_dump(mode="json") if hasattr(item, "model_dump") else item
+                digest.update(canonical_json(payload).encode("utf-8") + b"\n")
+            digest.update(b"\n")
+        return MaterializationResult(run_id, tuple(facts), tuple(dimensions), tuple(events),
+            sources_tuple, candidates, skipped, tuple(sorted(gaps)), tuple(field_gaps),
+            selected_ids, selected_dim_ids, digest.hexdigest(), header["as_of"],
+            strict_historical, contract_hash)
 
 
-def _source_for_snapshot(snapshot: Any, job: Mapping[str, Any]) -> SourceRecord:
-    source_id = "structured-source-" + hashlib.sha256(
-        f"{job['source_definition_id']}@{job['source_definition_version']}:{snapshot.snapshot_id}".encode()
-    ).hexdigest()[:32]
+def _contract(context):
+    # New contexts may carry their complete registry and explicit rule semantics.
+    # The registry digest must match the already persisted context, not today's config.
+    embedded = context.frozen_config.get("materialization_contract")
+    if embedded is not None:
+        registry = embedded["field_registry"]
+        if (canonical_registry_sha256(registry) != context.field_registry_hash
+                or registry["version"] != context.field_registry_version
+                or registry["registry_id"] != context.field_registry_id):
+            raise ValueError("frozen materialization registry mismatch")
+        definitions = {f["field_id"]: f for f in registry["fields"]}
+        rules = {}
+        for key, rule in embedded["rules"].items():
+            definition = definitions.get(key, {})
+            if (definition.get("definition_status") == "confirmed"
+                    and definition.get("unit_status") == "confirmed"
+                    and definition.get("formula_eligible")):
+                _validate_rule(key, rule)
+                rules[key] = rule
+        return {"field_registry_version": context.field_registry_version, "rules": rules}
+    contract = LEGACY_CONTRACTS.get(context.field_registry_hash)
+    if contract is None or contract["field_registry_version"] != context.field_registry_version or contract["field_registry_id"] != context.field_registry_id:
+        raise ValueError("unsupported frozen field registry; explicit versioned materialization contract required")
+    return contract
+
+
+def _validate_rule(key, rule):
+    for name in ("dataset_id", "raw_field", "standard_field", "nature", "unit", "stored_unit",
+                 "original_unit", "period_kind", "value_kind", "definition_id", "multiplier", "scope"):
+        if not rule.get(name):
+            raise ValueError(f"incomplete materialization rule: {key}.{name}")
+    if key != f"{rule['dataset_id']}.{rule['raw_field']}":
+        raise ValueError("materialization rule identity mismatch")
+    PeriodKind(rule["period_kind"])
+    ValueKind(rule["value_kind"])
+    if _number(rule["multiplier"]) <= 0:
+        raise ValueError("unit multiplier must be positive")
+
+
+def _field_failure(context, job, record, field, rule, row, rejections):
+    if rule is None:
+        if field.get("nature") in {"forecast", "provider_estimate", "platform_label", "source_text"}:
+            return "nature_not_actual_fact"
+        if field.get("raw_field_name") not in context.frozen_config.get("known_fields", {}).get(job["dataset_id"], []):
+            return "unknown_field"
+        return rejections.get(f"{job['dataset_id']}.{field.get('raw_field_name')}", "standard_mapping_missing")
+    if field.get("definition_version") != context.field_registry_version:
+        return "definition_version_missing_or_mismatched"
+    if (field.get("raw_field_name") not in context.frozen_config.get("known_fields", {}).get(job["dataset_id"], [])
+            or field.get("standard_field_id") != rule["standard_field"]
+            or field.get("dataset_id") != job["dataset_id"]
+            or field.get("record_version_id") != record["record_version_id"]):
+        return "field_mapping_or_identity_mismatch"
+    if not record.get("row_key") or field.get("field_path") != f"$.{field.get('raw_field_name')}":
+        return "field_locator_missing_or_mismatched"
+    if field["raw_field_name"] not in row or row[field["raw_field_name"]] != field.get("value"):
+        return "original_value_mismatch"
+    if not field.get("unit") or field["unit"] != rule["stored_unit"]:
+        return "unit_missing_or_conflicting"
+    if field.get("quality") != "passed" or field.get("nature") != rule["nature"]:
+        return "quality_or_nature_not_admissible"
+    if rule["nature"] not in {"observed", "deterministic", "announced_plan"}:
+        return "nature_not_actual_fact"
+    if rule["nature"] == "announced_plan" and job["dataset_id"] != "dividend":
+        return "event_definition_missing"
+    return None
+
+
+def _lineage(context, job, record, field, rule, snapshot, contract_hash):
+    return {"materialization_version": MATERIALIZATION_VERSION, "contract_hash": contract_hash,
+        "storage_namespace_id": context.storage_namespace_id,
+        "structured_run_id": context.run_id, "structured_job_id": job["job_id"],
+        "structured_dataset_id": job["dataset_id"], "structured_page_id": record.get("page_id"),
+        "structured_attempt_id": record.get("_committed_attempt_id"),
+        "structured_record_version_id": record["record_version_id"],
+        "supersedes_record_version_id": record.get("supersedes_record_version_id"),
+        "structured_snapshot_id": record["snapshot_id"], "snapshot_sha256": snapshot.sha256,
+        "structured_row_key": record["row_key"], "structured_field_path": field["field_path"],
+        "field_value_id": field["field_value_id"], "original_value": field.get("value"),
+        "original_unit": rule["original_unit"], "stored_unit": field["unit"],
+        "multiplier": rule["multiplier"], "source_definition_id": job["source_definition_id"],
+        "source_definition_version": job["source_definition_version"],
+        "field_definition_id": rule["definition_id"], "field_definition_version": field["definition_version"],
+        "field_registry_hash": context.field_registry_hash,
+        "source_revision_at": record.get("source_updated_at"),
+        "adjustment": (record.get("raw_row") or {}).get("adjustflag"),
+        "nature": rule["nature"]}
+
+
+def _admission(job, record, field, rule, snapshot, observed, available):
+    if rule["nature"] == "announced_plan":
+        return None
+    return StructuredFactAdmission(
+        acquisition_method=StructuredAcquisitionMethod.SUPPLIER_STRUCTURED,
+        nature=StructuredFactNature(rule["nature"]), quality=StructuredQualityStatus.PASSED,
+        source_policy_id=job["source_definition_id"], source_policy_version=job["source_definition_version"],
+        field_definition_id=rule["definition_id"], field_definition_version=field["definition_version"],
+        raw_resource_snapshot_id=record["snapshot_id"], snapshot_sha256=snapshot.sha256,
+        row_key=record["row_key"], field_path=field["field_path"], original_value=field["value"],
+        original_unit=rule["original_unit"], retrieved_at=observed, available_at=available)
+
+
+def _source_for_snapshot(snapshot, job, definition):
     return SourceRecord(
-        source_id=source_id,
-        name=f"{job['source_definition_id']}结构化响应",
-        source_type="structured-supplier",
-        upstream_source_id=str(job["source_definition_id"]),
-        url=getattr(snapshot, "canonical_url", None),
-        retrieved_at=_parse_datetime(getattr(snapshot, "created_at", None)),
-        available_at=_parse_datetime(getattr(snapshot, "available_at", None)),
-        document_hash=str(snapshot.sha256),
-        authority_level=3,
-        source_definition_id=str(job["source_definition_id"]),
-        source_definition_version=str(job["source_definition_version"]),
-        raw_resource_snapshot_id=str(snapshot.snapshot_id),
-        canonical_resource_id=getattr(snapshot, "canonical_resource_id", None),
-        published_at=getattr(snapshot, "published_at", None),
-        notes="由已提交结构化运行物化；不代表人工黄金样本验收",
-    )
+        source_id=_id("structured-source", {"source": job["source_definition_id"],
+            "version": job["source_definition_version"], "snapshot": snapshot.snapshot_id}),
+        name=f"{job['source_definition_id']}结构化响应", source_type="supplier-structured",
+        upstream_source_id=definition.get("upstream_identity", job["source_definition_id"]),
+        url=snapshot.canonical_url, retrieved_at=_timestamp(snapshot.created_at),
+        available_at=_timestamp(snapshot.available_at), document_hash=snapshot.sha256,
+        source_definition_id=job["source_definition_id"], source_definition_version=job["source_definition_version"],
+        raw_resource_snapshot_id=snapshot.snapshot_id,
+        canonical_resource_id=snapshot.canonical_resource_id, published_at=snapshot.published_at,
+        notes="已提交结构化字段投影；历史可得性以本地观察为界；未进行人工验收")
 
 
-def _period_type(rule: FieldRule) -> str:
-    value = rule.period_kind.value
-    return {"cumulative": "cumulative", "single_quarter": "single_quarter", "ttm": "ttm", "instant": "instant", "market_quote": "market_quote"}.get(value, value)
+def _dimension(dataset, row):
+    if dataset == "segments":
+        if any(row.get(k) in (None, "") for k in ("MAINOP_TYPE", "ITEM_CODE")):
+            return None
+        return {"dimension_type": f"segment:{row['MAINOP_TYPE']}",
+            "dimension_name": str(row.get("ACTUAL_ITEM_NAME") or row.get("ITEM_NAME") or row["ITEM_CODE"]),
+            "dimension_code": str(row["ITEM_CODE"]),
+            "parent_dimension": str(row["ITEM_PARENT_CODE"]) if row.get("ITEM_PARENT_CODE") else None,
+            "accounting_basis": str(row.get("ITEM_LEVEL", ""))}
+    if dataset == "float_holders_history" and row.get("HOLDER_NAME"):
+        return {"dimension_type": "free_float_holder", "dimension_name": str(row["HOLDER_NAME"]),
+            "dimension_code": str(row["HOLDER_CODE"]) if row.get("HOLDER_CODE") else None}
+    return None
 
 
-def _priority(fact: FactRecord) -> tuple[int, str]:
-    dataset = str(fact.metadata.get("structured_dataset_id", ""))
-    if fact.metric_id.startswith(("market_", "pe_", "pb_", "ps_", "pcf_", "turnover_", "price_")):
-        return (0 if dataset in {"market_cap", "baostock_daily"} else 1, fact.fact_id)
-    return (0 if dataset.startswith(("income", "balance", "cashflow", "em_")) else 1, fact.fact_id)
-
-
-def _number(value: Any) -> Decimal | None:
-    if value is None or isinstance(value, bool) or not str(value).strip():
-        return None
-    try:
-        number = Decimal(str(value))
-    except (InvalidOperation, ValueError):
-        return None
-    return number if number.is_finite() else None
-
-
-def _decimal(value: Any) -> Decimal:
-    return Decimal("1") if value is None else Decimal(str(value))
-
-
-def _parse_datetime(value: Any) -> datetime:
-    if isinstance(value, datetime):
-        return _aware(value)
-    if value is None:
-        return datetime.now(timezone.utc)
-    text = str(value).strip().replace("Z", "+00:00")
-    return _aware(datetime.fromisoformat(text))
-
-
-def _aware(value: datetime) -> datetime:
-    if value.tzinfo is None or value.utcoffset() is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
-
-
-def _period_end(value: Any, row: Mapping[str, Any]) -> date | None:
-    candidate = value
-    if candidate in (None, ""):
-        for name in ("REPORT_DATE", "date", "trade_date", "交易日期", "NOTICE_DATE"):
-            if row.get(name) not in (None, ""):
-                candidate = row[name]
+def _select(items):
+    groups = defaultdict(list)
+    gaps = set()
+    for fact in items:
+        dim = (fact.dimension_type, fact.dimension_code, fact.dimension_name, fact.parent_dimension,
+               fact.accounting_basis) if isinstance(fact, DimensionalFactRecord) else ()
+        key = (fact.ticker, fact.metric_id, fact.period_end, fact.period_type, fact.scope,
+               fact.metadata.get("adjustment"), dim)
+        groups[key].append(fact)
+    selected = []
+    for key, bucket in sorted(groups.items(), key=lambda p: str(p[0])):
+        by_source = defaultdict(list)
+        for f in bucket:
+            m = f.metadata
+            by_source[(m["structured_dataset_id"], m["source_definition_id"],
+                       m["source_definition_version"], m["field_definition_version"])].append(f)
+        candidates = []
+        conflict = False
+        for source_items in by_source.values():
+            # Supersession is explicit; equal-value repetitions may coalesce. An
+            # unrelated later retrieval is not sufficient proof of a correction.
+            superseded = {f.metadata.get("supersedes_record_version_id") for f in source_items}
+            by_record = {f.metadata["structured_record_version_id"]: f for f in source_items}
+            if any((parent := by_record.get(f.metadata.get("supersedes_record_version_id"))) is not None
+                   and (parent.metadata["structured_row_key"] != f.metadata["structured_row_key"]
+                        or _available(parent) >= _available(f)) for f in source_items):
+                conflict = True
                 break
-    if candidate in (None, ""):
-        return None
-    text = str(candidate).strip()[:10]
+            leaves = [f for f in source_items if f.metadata["structured_record_version_id"] not in superseded]
+            if not leaves or len({(f.value, f.unit) for f in leaves}) != 1:
+                conflict = True
+                break
+            candidates.append(max(leaves, key=lambda f: (_available(f), _fact_id(f))))
+        if conflict or len({(f.value, f.unit) for f in candidates}) > 1:
+            gaps.add(f"source_or_revision_conflict:{key[1]}:{key[2]}:{key[3]}")
+            continue
+        # Exact duplicates can coalesce; prefer BaoStock for market data under the
+        # registered product route. Values from different units never compete.
+        candidates.sort(key=lambda f: (0 if f.metadata["structured_dataset_id"] == "baostock_daily" else 1, _fact_id(f)))
+        if candidates:
+            selected.append(candidates[0])
+    return selected, gaps
+
+
+def _derive(selected):
+    series = defaultdict(list)
+    output, gaps = [], set()
+    direct_ttm = {(_series_key(f), f.period_end) for f in selected
+                  if f.period_type == "ttm" and f.metadata["value_kind"] == "flow"}
+    for fact in selected:
+        m = fact.metadata
+        if m["value_kind"] != "flow" or fact.period_type not in {"annual", "cumulative", "single_quarter"}:
+            continue
+        series[_series_key(fact)].append(fact)
+    for series_key, facts in series.items():
+        cumulative = {f.period_end: f for f in facts if f.period_type in {"cumulative", "annual"}}
+        quarters = {f.period_end: f for f in facts if f.period_type == "single_quarter"}
+        inconsistent = set()
+        for end in cumulative.keys() & quarters.keys():
+            current, direct = cumulative[end], quarters[end]
+            previous_end = date(end.year, end.month - 2, 1) - timedelta(days=1)
+            previous = cumulative.get(previous_end) if end.month != 3 else None
+            if end.month != 3 and previous is None:
+                continue
+            check = derive_single_quarter(_normalized(current), _normalized(previous) if previous else None,
+                fact_id="consistency-check", formula_version=PERIOD_FORMULA_VERSION)
+            if check.value != Decimal(direct.metadata["decimal_value"]):
+                inconsistent.update(f.fact_id for f in [current, direct, *([previous] if previous else [])])
+                gaps.add(f"quarter_cumulative_conflict:{current.metric_id}:{end}")
+        if inconsistent:
+            selected[:] = [f for f in selected if f.fact_id not in inconsistent]
+            continue
+        for end, current in sorted(cumulative.items()):
+            if end in quarters:
+                continue
+            previous_end = date(end.year, end.month - 2, 1) - timedelta(days=1)
+            previous = cumulative.get(previous_end) if end.month != 3 else None
+            inputs = [current] + ([previous] if previous else [])
+            identity = {"formula": PERIOD_FORMULA_VERSION, "kind": "single_quarter", "inputs": [f.fact_id for f in inputs]}
+            try:
+                value = derive_single_quarter(_normalized(current), _normalized(previous) if previous else None,
+                    fact_id=_id("structured-derived", identity), formula_version=PERIOD_FORMULA_VERSION)
+                result = _derived_fact(value, inputs)
+            except ValueError:
+                gaps.add(f"single_quarter_missing_or_incompatible:{current.metric_id}:{end}")
+                continue
+            quarters[end] = result
+            output.append(result)
+        for end in sorted(set(cumulative) | set(quarters)):
+            if (series_key, end) in direct_ttm:
+                continue
+            wanted = [end]
+            for _ in range(3):
+                wanted.append(date(wanted[-1].year, wanted[-1].month - 2, 1) - timedelta(days=1))
+            inputs = [quarters[d] for d in reversed(wanted) if d in quarters]
+            try:
+                value = derive_ttm([_normalized(f) for f in inputs],
+                    fact_id=_id("structured-derived", {"formula": PERIOD_FORMULA_VERSION, "kind": "ttm", "inputs": [f.fact_id for f in inputs]}),
+                    formula_version=PERIOD_FORMULA_VERSION)
+                output.append(_derived_fact(value, inputs))
+            except ValueError:
+                gaps.add(f"ttm_missing_or_incompatible:{series_key[0]}:{end}")
+    return output, gaps
+
+
+def _series_key(fact):
+    m = fact.metadata
+    family = {"income_fields": "income", "income_quarter": "income",
+              "cashflow_fields": "cashflow", "cashflow_quarter": "cashflow"}.get(
+                  m["structured_dataset_id"], m["structured_dataset_id"])
+    return (fact.metric_id, fact.unit, fact.currency, fact.scope,
+            m["source_definition_id"], m["source_definition_version"],
+            family, m["field_definition_version"], m["contract_hash"])
+
+
+def _derive_gross_margin(selected):
+    """Existing metrics.json gross_margin formula on same-source income fields.
+
+    Missing/zero revenue is a gap, negative revenue or profit is not clamped.
+    Period and source matching precede arithmetic. This is a mechanical formula,
+    not acceptance of the skeleton income-statement methodology.
+    """
+    from analysis.formulas import gross_margin
+    groups = defaultdict(dict)
+    for fact in selected:
+        m = fact.metadata
+        if (fact.metric_id not in {"operating_income", "operating_cost"}
+                or m.get("structured_dataset_id") not in {"income_fields", "income_quarter"}):
+            continue
+        key = (fact.period_start, fact.period_end, fact.period_type, fact.unit, fact.currency,
+               fact.scope, m["source_definition_id"], m["source_definition_version"],
+               m["structured_dataset_id"], m["field_definition_version"], m["contract_hash"])
+        groups[key][fact.metric_id] = fact
+    result, gaps = [], set()
+    for key, values in sorted(groups.items(), key=lambda p: str(p[0])):
+        if "operating_income" not in values or "operating_cost" not in values:
+            continue
+        revenue, cost = values["operating_income"], values["operating_cost"]
+        ratio = gross_margin(revenue.value, cost.value)
+        if ratio is None or not math.isfinite(ratio):
+            gaps.add(f"gross_margin_zero_denominator:{revenue.period_end}:{revenue.period_type}")
+            continue
+        formula = "structured-gross-margin-v1.0.0"
+        ids = [revenue.fact_id, cost.fact_id]
+        result.append(FactRecord(
+            fact_id=_id("structured-derived", {"formula": formula, "inputs": ids}),
+            ticker=revenue.ticker, metric_id="gross_margin", value=ratio, unit="ratio",
+            currency=revenue.currency, period_start=revenue.period_start, period_end=revenue.period_end,
+            period_type=revenue.period_type, scope=revenue.scope,
+            as_of=max(revenue.as_of, cost.as_of),
+            source_ids=sorted(set(revenue.source_ids + cost.source_ids)),
+            verification_status=VerificationStatus.DERIVED, method_ref=formula,
+            derived_from_fact_ids=ids, metadata={
+                "materialization_version": MATERIALIZATION_VERSION,
+                "structured_run_id": revenue.metadata["structured_run_id"],
+                "storage_namespace_id": revenue.metadata["storage_namespace_id"],
+                "contract_hash": revenue.metadata["contract_hash"],
+                "value_kind": "ratio", "nature": "deterministic", "formula_version": formula,
+                "formula": "(operating_income-operating_cost)/operating_income",
+                "formula_authority": "config/methods/metrics.json:gross_margin",
+                "input_fact_ids": ids, "requires_materialization_selection": True,
+                "available_at": max(revenue.as_of, cost.as_of).isoformat()}))
+    return result, gaps
+
+
+def _normalized(f):
+    return NormalizedValue(f.fact_id, f.metric_id, Decimal(f.metadata["decimal_value"]),
+        f.unit, f.currency, f.period_start, f.period_end, PeriodKind(f.period_type), ValueKind.FLOW, f.scope)
+
+
+def _derived_fact(value, inputs):
+    if not math.isfinite(float(value.value)):
+        raise ValueError("derived value cannot be represented as a finite fact")
+    metadata = {k: v for k, v in inputs[0].metadata.items() if k in {
+        "materialization_version", "structured_run_id", "storage_namespace_id", "contract_hash",
+        "field_registry_hash", "requires_materialization_selection"}}
+    metadata.update(decimal_value=format(value.value, "f"), value_kind="flow", nature="deterministic",
+        formula_version=value.formula_version, formula_kind=value.period_kind.value,
+        input_fact_ids=[i.fact_id for i in value.inputs],
+        input_values=[{"fact_id": i.fact_id, "value": str(i.value), "unit": i.unit,
+                       "period_end": i.period_end.isoformat()} for i in value.inputs],
+        available_at=max(f.as_of for f in inputs).isoformat(),
+        point_in_time_basis="max_input_available_at", historical_publication_proven=False)
+    return FactRecord(fact_id=value.fact_id, ticker=inputs[0].ticker, metric_id=value.field_id,
+        value=float(value.value), unit=value.unit, currency=value.currency,
+        period_start=value.period_start, period_end=value.period_end, period_type=value.period_kind.value,
+        as_of=max(f.as_of for f in inputs), scope=value.scope,
+        source_ids=sorted({s for f in inputs for s in f.source_ids}),
+        verification_status=VerificationStatus.DERIVED,
+        derived_from_fact_ids=[i.fact_id for i in value.inputs], method_ref=value.formula_version,
+        metadata=metadata)
+
+
+def _period_start(end, kind):
+    if kind in {"cumulative", "annual"}:
+        return date(end.year, 1, 1)
+    if kind == "single_quarter":
+        return date(end.year, end.month - 2, 1)
+    if kind == "ttm":
+        start_end = date(end.year - 1, end.month, end.day)
+        return start_end + timedelta(days=1)
+    return None
+
+
+def _period_end(value, row, dataset):
+    # Only the frozen dataset's business date; never fallback to NOTICE_DATE.
+    dates = [name for name in dataset.get("date_fields", []) if name not in {"NOTICE_DATE", "PUBLISH_DATE"}]
+    business = next((row[n] for n in dates if row.get(n) not in (None, "")), None)
     try:
-        return date.fromisoformat(text)
+        parsed = _business_date(value)
+        if business is None or _business_date(business) != parsed:
+            return None
+        return parsed
     except ValueError:
         return None
 
 
-__all__ = ["MATERIALIZATION_VERSION", "MaterializationResult", "StructuredFactMaterializer"]
+def _business_date(value):
+    text = str(value).strip()
+    return date.fromisoformat(text) if len(text) == 10 else datetime.fromisoformat(text).date()
+
+
+def _event_date(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        # Chinese supplier date-only publications have an explicit source zone;
+        # conservatively become available at the end of that local day.
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(hour=23, minute=59, second=59,
+                tzinfo=timezone(timedelta(hours=8)))
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def _timestamp(value):
+    if value is None:
+        raise ValueError("required timestamp missing")
+    parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("timestamp must be timezone-aware")
+    return parsed.astimezone(timezone.utc)
+
+
+def _number(value):
+    if value is None or isinstance(value, bool) or not str(value).strip():
+        raise ValueError("numeric value missing")
+    number = Decimal(str(value))
+    if not number.is_finite():
+        raise ValueError("nonfinite numeric value")
+    return number
+
+
+def _id(prefix, value):
+    return prefix + "-" + canonical_sha256(value)[:32]
+
+
+def _get(value, key):
+    return value.get(key) if isinstance(value, Mapping) else getattr(value, key)
+
+
+def _enum(value):
+    return getattr(value, "value", value)
+
+
+def _available(fact):
+    return fact.available_at if isinstance(fact, DimensionalFactRecord) else fact.as_of
+
+
+def _fact_id(fact):
+    return fact.dimensional_fact_id if isinstance(fact, DimensionalFactRecord) else fact.fact_id

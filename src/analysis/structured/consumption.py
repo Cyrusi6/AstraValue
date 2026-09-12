@@ -10,6 +10,7 @@ CONSUMABLE_STATUSES = frozenset(
         VerificationStatus.DUAL_SOURCE,
         VerificationStatus.AUTHORITATIVE_SINGLE,
         VerificationStatus.SUPPLIER_DIRECT,
+        VerificationStatus.DERIVED,
         VerificationStatus.ESTIMATED,
     }
 )
@@ -28,10 +29,17 @@ def fact_consumption_failures(
     *,
     as_of: datetime | None = None,
     strict_historical: bool = False,
+    materialization_selected_ids: frozenset[str] | None = None,
 ) -> tuple[str, ...]:
     """Return stable reasons why a fact cannot enter deterministic inputs."""
 
     failures: list[str] = []
+    # Materialization stores all immutable revisions. A caller must first resolve
+    # the cutoff-specific manifest, rather than run a metric-only latest selector
+    # across competing sources, periods or revisions in the evidence table.
+    if (fact.metadata.get("requires_materialization_selection")
+            and fact.fact_id not in (materialization_selected_ids or ())):
+        failures.append("materialization_selection_required")
     if fact.value is None:
         failures.append("value_missing")
     if fact.verification_status not in CONSUMABLE_STATUSES:
@@ -63,11 +71,13 @@ def is_fact_consumable(
     *,
     as_of: datetime | None = None,
     strict_historical: bool = False,
+    materialization_selected_ids: frozenset[str] | None = None,
 ) -> bool:
     return not fact_consumption_failures(
         fact,
         as_of=as_of,
         strict_historical=strict_historical,
+        materialization_selected_ids=materialization_selected_ids,
     )
 
 

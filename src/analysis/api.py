@@ -912,6 +912,10 @@ def create_app(
     def fact_lineage(fact_id: str, request: Request) -> dict:
         return _service(request).storage.fact_lineage(fact_id)
 
+    @application.get("/api/structured/materializations/{materialization_hash}")
+    def materialization_lineage(materialization_hash: str, request: Request) -> dict:
+        return _service(request).storage.get_materialization(materialization_hash)
+
     @application.get("/api/companies/{ticker}/dimensions")
     def list_dimensional_facts(
         ticker: str,

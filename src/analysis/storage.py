@@ -368,6 +368,37 @@ class ReportStorage:
                     raise StorageError(f"来源记录不可覆盖: {source.source_id}")
                 connection.execute("INSERT OR IGNORE INTO sources(source_id, payload) VALUES (?, ?)", (source.source_id, payload))
 
+    def save_materialization(self, result, projection: dict) -> None:
+        """Immutable completion manifest; supplier evidence tables are untouched."""
+        from .structured.storage import canonical_json
+        payload = canonical_json({**result.to_mapping(), "projection": projection,
+            "field_gaps": list(result.field_gaps),
+            "fact_ids": [f.fact_id for f in result.facts],
+            "dimensional_fact_ids": [f.dimensional_fact_id for f in result.dimensional_facts],
+            "event_ids": [e.event_id for e in result.events]})
+        with self._connect() as connection:
+            connection.execute("""CREATE TABLE IF NOT EXISTS structured_fact_materializations (
+                materialization_hash TEXT PRIMARY KEY, run_id TEXT NOT NULL,
+                version TEXT NOT NULL, payload TEXT NOT NULL)""")
+            existing = connection.execute(
+                "SELECT payload FROM structured_fact_materializations WHERE materialization_hash=?",
+                (result.materialization_hash,)).fetchone()
+            if existing and existing["payload"] != payload:
+                raise StorageError("物化清单不可覆盖")
+            connection.execute("INSERT OR IGNORE INTO structured_fact_materializations VALUES (?,?,?,?)",
+                (result.materialization_hash, result.run_id,
+                 result.to_mapping()["materialization_version"], payload))
+
+    def get_materialization(self, materialization_hash: str) -> dict:
+        with self._connect() as connection:
+            exists = connection.execute("SELECT 1 FROM sqlite_master WHERE name='structured_fact_materializations'").fetchone()
+            row = connection.execute(
+                "SELECT payload FROM structured_fact_materializations WHERE materialization_hash=?",
+                (materialization_hash,)).fetchone() if exists else None
+        if row is None:
+            raise StorageError("物化清单不存在")
+        return json.loads(row["payload"])
+
     def save_facts(self, facts: list[FactRecord]) -> None:
         with self._connect() as connection:
             for fact in facts:
@@ -1057,6 +1088,7 @@ class ReportStorage:
         verifications = [VerificationRecord.model_validate_json(row["payload"]) for row in rows]
         return {
             "fact": fact.model_dump(mode="json"),
+            "structured_evidence": self._structured_evidence(fact.metadata),
             "sources": [item.model_dump(mode="json") for item in sources],
             "derived_from": parents,
             "consolidated_from": [item.model_dump(mode="json") for item in raw_facts],
@@ -1070,6 +1102,7 @@ class ReportStorage:
         supporting_facts, missing_facts = self._resolve_facts(fact.supporting_fact_ids)
         return {
             "dimensional_fact": fact.model_dump(mode="json"),
+            "structured_evidence": self._structured_evidence(fact.metadata),
             "sources": sources,
             "documents": documents,
             "supporting_facts": supporting_facts,
@@ -1106,6 +1139,7 @@ class ReportStorage:
                 missing_events.append(f"event:{related_id}")
         return {
             "event": event.model_dump(mode="json"),
+            "structured_evidence": self._structured_evidence(event.metadata),
             "sources": sources,
             "documents": documents,
             "supporting_facts": supporting_facts,
@@ -1117,6 +1151,27 @@ class ReportStorage:
                 *missing_events,
             ],
         }
+
+    def _structured_evidence(self, metadata: dict) -> dict | None:
+        record_id = metadata.get("structured_record_version_id")
+        if not record_id:
+            return None
+        # Follow the exact committed record/field identity, never a latest row.
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT r.payload AS record,j.payload AS job,p.payload AS page,"
+                "f.payload AS field,s.payload AS snapshot FROM structured_records r "
+                "JOIN structured_jobs j ON j.job_id=r.job_id "
+                "JOIN structured_pages p ON p.page_id=r.page_id "
+                "JOIN raw_resource_snapshots s ON s.snapshot_id=r.snapshot_id "
+                "LEFT JOIN structured_record_fields f ON f.record_version_id=r.record_version_id AND f.field_path=? "
+                "WHERE r.record_version_id=? AND j.run_id=? AND j.storage_namespace_id=?",
+                (metadata.get("structured_field_path"), record_id,
+                 metadata.get("structured_run_id"), metadata.get("storage_namespace_id"))).fetchone()
+        if row is None:
+            return {"missing_record_version_id": record_id}
+        return {key: json.loads(row[key]) if row[key] else None
+                for key in ("record", "job", "page", "field", "snapshot")}
 
     def industry_fact_lineage(self, industry_fact_id: str) -> dict:
         fact = self.get_industry_fact(industry_fact_id)

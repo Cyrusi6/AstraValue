@@ -184,6 +184,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     structured_materialize.add_argument("--as-of")
     structured_materialize.add_argument("--strict-historical", action="store_true")
     structured_materialize.add_argument("--no-persist", action="store_true")
+    structured_materialize.add_argument("--summary", action="store_true", help="仅输出计数、缺口汇总和投影定位")
     _add_bound_storage_arguments(structured_materialize)
 
     structured_repair_plan = structured_commands.add_parser(
@@ -361,6 +362,7 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 as_of=_parse_datetime(args.as_of) if args.as_of else None,
                 strict_historical=bool(args.strict_historical),
                 persist=not bool(args.no_persist),
+                include_records=not bool(args.summary),
             )
         elif command == "repair-plan":
             value = service.repair_plan(

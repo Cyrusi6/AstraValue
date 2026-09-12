@@ -949,34 +949,73 @@ class StructuredStorage:
     def list_records_for_jobs(
         self, job_ids: Iterable[str], *, limit: int | None = None
     ) -> list[dict[str, Any]]:
-        """Read committed records for a run with one bounded SQL query."""
-        ids = tuple(dict.fromkeys(str(item) for item in job_ids))
-        if not ids:
-            return []
-        placeholders = ",".join("?" for _ in ids)
+        """Compatibility list API; materialization uses the streaming reader below."""
         with self._connect(readonly=True) as connection:
-            rows = connection.execute(
-                f"SELECT payload FROM structured_records WHERE job_id IN ({placeholders}) "
-                "ORDER BY job_id,row_key,available_at,record_version_id LIMIT ?",
-                (*ids, -1 if limit is None else int(limit)),
-            ).fetchall()
-        return [json.loads(row["payload"]) for row in rows]
+            return self._read_payload_chunks(connection, "structured_records", "job_id",
+                job_ids, "job_id,row_key,available_at,record_version_id", limit)
 
     def list_record_fields_for_records(
         self, record_ids: Iterable[str], *, limit: int | None = None
     ) -> list[dict[str, Any]]:
         """Read field projections for many records without N+1 SQLite calls."""
-        ids = tuple(dict.fromkeys(str(item) for item in record_ids))
-        if not ids:
-            return []
-        placeholders = ",".join("?" for _ in ids)
         with self._connect(readonly=True) as connection:
+            return self._read_payload_chunks(connection, "structured_record_fields", "record_version_id",
+                record_ids, "record_version_id,field_path,field_value_id", limit)
+
+    @staticmethod
+    def _read_payload_chunks(connection, table, key, values, order, limit=None):
+        # Internal table/column constants only. Sorted chunks preserve global order;
+        # reserve one parameter for LIMIT even on a low-limit SQLite build.
+        ids = sorted(set(map(str, values)))
+        size = min(400, connection.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER) - 1)
+        result = []
+        if limit is not None and limit < 0:
+            raise ValueError("limit must be nonnegative")
+        for start in range(0, len(ids), size):
+            remaining = -1 if limit is None else limit - len(result)
+            if remaining == 0:
+                break
+            batch = ids[start:start + size]
+            placeholders = ",".join("?" for _ in batch)
             rows = connection.execute(
-                f"SELECT payload FROM structured_record_fields WHERE record_version_id IN ({placeholders}) "
-                "ORDER BY record_version_id,field_path,field_value_id LIMIT ?",
-                (*ids, -1 if limit is None else int(limit)),
-            ).fetchall()
-        return [json.loads(row["payload"]) for row in rows]
+                f"SELECT payload FROM {table} WHERE {key} IN ({placeholders}) "
+                f"ORDER BY {order} LIMIT ?", (*batch, remaining))
+            result.extend(json.loads(row["payload"]) for row in rows)
+        return result
+
+    def iter_committed_record_bundles(self, run_id: str, *, batch_size: int = 256):
+        """Read one stable SQLite view; retain at most a batch of raw rows/fields.
+
+        The joins prove page/record/job/snapshot membership. No giant IN list,
+        OFFSET scan, all-field materialization or N+1 query per field.
+        """
+        if not 1 <= batch_size <= 1000:
+            raise ValueError("batch_size must be between 1 and 1000")
+        with self._connect(readonly=True) as connection:
+            connection.execute("BEGIN")
+            cursor = connection.execute(
+                "SELECT r.payload,p.attempt_id,(SELECT e.outcome FROM acquisition_attempt_events e "
+                "WHERE e.attempt_id=p.attempt_id AND e.event_type='outcome_terminal' "
+                "ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT 1) AS attempt_outcome "
+                "FROM structured_jobs j "
+                "JOIN structured_records r ON r.job_id=j.job_id "
+                "JOIN structured_pages p ON p.page_id=r.page_id AND p.job_id=j.job_id "
+                "AND p.snapshot_id=r.snapshot_id "
+                "WHERE j.run_id=? AND j.storage_namespace_id=? "
+                "ORDER BY j.job_id,r.row_key,r.available_at,r.record_version_id",
+                (run_id, self.storage_namespace_id))
+            while rows := cursor.fetchmany(batch_size):
+                records = [json.loads(row["payload"]) | {
+                    "_committed_attempt_id": row["attempt_id"],
+                    "_committed_attempt_outcome": row["attempt_outcome"]} for row in rows]
+                fields = self._read_payload_chunks(connection, "structured_record_fields",
+                    "record_version_id", (r["record_version_id"] for r in records),
+                    "record_version_id,field_path,field_value_id")
+                by_record = {}
+                for value in fields:
+                    by_record.setdefault(value["record_version_id"], []).append(value)
+                for record in records:
+                    yield record, by_record.get(record["record_version_id"], [])
 
     def unprojected_snapshot_ids(self, job_id: str) -> tuple[str, ...]:
         with self._connect(readonly=True) as connection:

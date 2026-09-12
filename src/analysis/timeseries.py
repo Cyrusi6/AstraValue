@@ -103,14 +103,7 @@ class TimeSeriesStore:
             )
             for item in facts
         ]
-        with self._connect() as connection:
-            connection.executemany(
-                """
-                INSERT INTO facts_timeseries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(fact_id) DO NOTHING
-                """,
-                rows,
-            )
+        self._append_immutable_rows("facts_timeseries", "fact_id", rows)
 
     def append_research_records(
         self,
@@ -130,15 +123,58 @@ class TimeSeriesStore:
         )
         if not rows:
             return
+        self._append_immutable_rows("research_records_timeseries", "record_key", rows)
+
+    def _append_immutable_rows(self, table, key, rows):
         with self._connect() as connection:
-            connection.executemany(
-                """
-                INSERT INTO research_records_timeseries
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(record_key) DO NOTHING
-                """,
-                rows,
-            )
+            connection.execute("BEGIN")
+            connection.execute(f"CREATE TEMP TABLE incoming AS SELECT * FROM {table} WHERE false")
+            placeholders = ",".join("?" for _ in rows[0])
+            connection.executemany(f"INSERT INTO incoming VALUES ({placeholders})", rows)
+            conflict = connection.execute(
+                f"SELECT 1 FROM incoming i JOIN {table} t USING ({key}) "
+                "WHERE CAST(i.payload AS VARCHAR)<>CAST(t.payload AS VARCHAR) LIMIT 1").fetchone()
+            internal_conflict = connection.execute(
+                f"SELECT 1 FROM incoming GROUP BY {key} HAVING count(DISTINCT CAST(payload AS VARCHAR))>1 LIMIT 1").fetchone()
+            if conflict or internal_conflict:
+                raise TimeSeriesStorageError("时序投影不可覆盖已有身份的不同内容")
+            connection.execute(f"INSERT INTO {table} SELECT DISTINCT * FROM incoming ON CONFLICT ({key}) DO NOTHING")
+            connection.execute("COMMIT")
+
+    def export_materialization(self, result) -> dict:
+        """Content-addressed, atomically replaced snapshots for the exact manifest."""
+        import hashlib
+        from uuid import uuid4
+        target_dir = self.parquet_root / "materializations" / result.materialization_hash
+        target_dir.mkdir(parents=True, exist_ok=True)
+        groups = {
+            "facts": ("facts_timeseries", "fact_id", [f.fact_id for f in result.facts]),
+            "research": ("research_records_timeseries", "record_key",
+                [f"dimensional_fact:{f.dimensional_fact_id}" for f in result.dimensional_facts]
+                + [f"event:{e.event_id}" for e in result.events]),
+        }
+        manifest = {}
+        for name, (table, key, ids) in groups.items():
+            target = target_dir / f"{name}.parquet"
+            temporary = target.with_name(f".{name}-{uuid4().hex}.tmp")
+            try:
+                with self._connect() as connection:
+                    connection.execute("CREATE TEMP TABLE selected_ids (id VARCHAR PRIMARY KEY)")
+                    if ids:
+                        connection.executemany("INSERT INTO selected_ids VALUES (?)", [(i,) for i in ids])
+                    count = connection.execute(
+                        f"SELECT count(*) FROM {table} t JOIN selected_ids s ON t.{key}=s.id").fetchone()[0]
+                    if count != len(ids):
+                        raise TimeSeriesStorageError("物化投影身份数量不一致")
+                    escaped_path = str(temporary).replace("'", "''")
+                    connection.execute(f"COPY (SELECT t.* FROM {table} t JOIN selected_ids s "
+                        f"ON t.{key}=s.id ORDER BY t.{key}) TO '{escaped_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+                temporary.replace(target)
+                manifest[name] = {"path": str(target.resolve()), "count": count,
+                    "sha256": hashlib.sha256(target.read_bytes()).hexdigest()}
+            finally:
+                temporary.unlink(missing_ok=True)
+        return manifest
 
     def export_research_snapshot(
         self,

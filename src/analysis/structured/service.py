@@ -297,6 +297,7 @@ class StructuredDataService:
         as_of: datetime | None = None,
         strict_historical: bool = False,
         persist: bool = True,
+        include_records: bool = True,
     ) -> dict[str, Any]:
         """Turn committed structured rows into the report fact projection.
 
@@ -312,16 +313,39 @@ class StructuredDataService:
             as_of=as_of,
             strict_historical=strict_historical,
         )
-        if persist and result.facts:
+        projection = None
+        if persist:
             report_storage = self.acquisition_runtime.report_storage
+            if report_storage.db_path.resolve() != self.storage.db_path.resolve():
+                raise StructuredIntegrityError("materialization report database binding mismatch")
             report_storage.save_sources(list(result.sources))
             report_storage.save_facts(list(result.facts))
-            if result.dimensional_facts:
-                report_storage.save_dimensional_facts(list(result.dimensional_facts))
-        return {
+            report_storage.save_dimensional_facts(list(result.dimensional_facts))
+            report_storage.save_events(list(result.events))
+            from analysis.timeseries import TimeSeriesStore
+            timeseries = TimeSeriesStore(
+                report_storage.db_path.with_suffix(".duckdb"),
+                report_storage.db_path.parent / "parquet")
+            timeseries.append_facts(list(result.facts))
+            timeseries.append_research_records(
+                dimensional_facts=list(result.dimensional_facts), events=list(result.events))
+            projection = timeseries.export_materialization(result)
+            # Published only after every projection succeeds. A failed partial
+            # write is safely retryable; it never advertises a completed manifest.
+            report_storage.save_materialization(result, projection)
+        summary = {
             **result.to_mapping(),
-            "persisted": bool(persist and result.facts),
+            "persisted": persist,
+            "projection": projection,
+        }
+        if not include_records:
+            return summary
+        return {
+            **summary,
             "facts": [item.model_dump(mode="json") for item in result.facts],
+            "dimensional_facts": [item.model_dump(mode="json") for item in result.dimensional_facts],
+            "events": [item.model_dump(mode="json") for item in result.events],
+            "field_gaps": list(result.field_gaps),
             "sources": [item.model_dump(mode="json") for item in result.sources],
         }
 

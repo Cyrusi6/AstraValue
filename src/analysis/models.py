@@ -28,6 +28,7 @@ class VerificationStatus(str, Enum):
     DUAL_SOURCE = "双源一致"
     AUTHORITATIVE_SINGLE = "权威单源"
     SUPPLIER_DIRECT = "供应商直采"
+    DERIVED = "程序计算"
     PENDING = "待核验"
     ESTIMATED = "估算"
     NOT_DISCLOSED = "未披露"
@@ -196,6 +197,10 @@ class FactRecord(BaseModel):
 
     @model_validator(mode="after")
     def validate_lineage(self) -> "FactRecord":
+        if self.verification_status == VerificationStatus.DERIVED and not (
+            self.method_ref and self.derived_from_fact_ids and self.source_ids
+        ):
+            raise ValueError("程序计算事实必须关联公式版本、输入事实及来源")
         if self.verification_status in {
             VerificationStatus.DUAL_SOURCE,
             VerificationStatus.AUTHORITATIVE_SINGLE,
