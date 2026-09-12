@@ -162,3 +162,9 @@ python -m analysis.structured.materialization_audit --db 'D:/估值模型/tmp/st
 剩余缺口：210 个空值；1,444 个 `reported_period` 数值只确认报告期末、未确认累计/单季窗口，因此不派生单季/TTM；日历无缓存记录且未新增解释；13,618 个身份/日期/文本字段不作为数值；31 个旧技术字段继续 unknown。利润金额的单位为元，股本为股，均已纳入；未把 ratio 当金额。报告/batch/frontend、主工作树、其他任务日志均未修改。公开文档当前联网核实、历史真实缓存回放、人工验收三个状态分别保留，人工验收仍由主 agent/用户独立完成。
 
 本轮提交文件为 `interpretation.py`、解释合同配置及三份源证据/验证文档、`materialization.py`、`materialization_replay.py`、`materialization_audit.py`、`records.py`、`service.py` 的 materialize 参数、`cli.py` 的 materialize 参数、新增专项测试及本交付记录；不提交 OpenSpec planning 或本地原始/大输出文件。
+
+## 主 Agent 收尾复核（2026-09-13）
+
+实施提交为 `9bc8b677128979d58aceaf7a9ed218aa1f63aacd`。主 Agent 独立复跑 `tests/structured/test_baostock_interpretation.py`，结果为 **47 passed in 4.45s**；复跑上文 `materialization_audit` 命令，核验 **100,189 条事实、521 个快照**，`all_mapped_numeric_inputs_accounted_for=true`，物化哈希与交付记录一致。前述 356 项全量相关测试为实施 Agent 的运行记录，本次主 Agent 未重复全量测试。
+
+依据代码交付、专项复测与真实缓存审计，主 Agent 将 OpenSpec **1.4–1.7** 标记完成；事实物化任务为 **7/7**，整个变更为 **7/16**。210 个空值、1,444 个期间窗口未确认事实及空日历缓存的边界保持不变。报告、批处理、前端和全局交付任务继续暂停，未归档整个变更，分支尚未合并；当前行情采集和人工黄金验收未完成。
