@@ -298,6 +298,7 @@ class StructuredDataService:
         strict_historical: bool = False,
         persist: bool = True,
         include_records: bool = True,
+        interpretation_contract: str | None = None,
     ) -> dict[str, Any]:
         """Turn committed structured rows into the report fact projection.
 
@@ -312,6 +313,7 @@ class StructuredDataService:
             run_id,
             as_of=as_of,
             strict_historical=strict_historical,
+            interpretation_contract=interpretation_contract,
         )
         projection = None
         if persist:

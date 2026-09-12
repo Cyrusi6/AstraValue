@@ -1,8 +1,8 @@
 # 结构化事实物化专项交付
 
-本次只完成 `eight-step-production-pipeline-v1` 的 **1.1、1.2、1.3**。工作树为 `D:/估值模型-worktrees/fact-materialization-ultra`，分支为 `codex/fact-materialization-ultra`，基于 `8ef6735` 审计和修复已有基础。报告、batch、frontend、主工作树及阶段日志均未纳入本次改动。没有启动全市场采集，没有人工验收。
+上一轮完成 `eight-step-production-pipeline-v1` 的 **1.1、1.2、1.3**。本轮从 `aace728` 继续完成 **1.4–1.7** 的实现与自动化/真实缓存验证，新增结果见下方；OpenSpec 文件由主 agent 管理，本轮未修改。工作树为 `D:/估值模型-worktrees/fact-materialization-ultra`，分支为 `codex/fact-materialization-ultra`，基于 `8ef6735` 审计和修复已有基础。报告、batch、frontend、主工作树及阶段日志均未纳入本次改动。没有启动全市场采集，没有人工验收。
 
-## 已实现行为
+## 前轮基础行为
 
 - 只消费 finalized run 中成功终态 attempt 的已提交 page/record/field；失败或无成功终态的 attempt 留缺口；校验冻结 dataset/source/field 版本、namespace、snapshot SHA256、policy 和 plan/observation 对应关系。合法复用快照通过原有 observation 合同验证。
 - 原字段、原值、原始单位与旧字段表存储的单位分别保留；记录 run、job、page、record version、snapshot、row_key、field_path、field value ID、来源和定义版本。未知、缺定义、缺单位、无效值保留原始表证据及可定位缺口。
@@ -110,10 +110,55 @@ python -m analysis.cli structured materialize structured-run-1dc8a259d7cc39dffeb
 
 ## 残留边界
 
-生产字段登记缺定义/单位、当前 BaoStock 缓存数值未准入、分部数值的生产登记、其他未定义事件类型仍有可追溯缺口；没有通过修改冻结合同掩盖它们。新数据或修订追加新的物化版本，旧事实和清单保持不变。报告/批处理/前端继续暂停，方法正文 skeleton、真实当前联网和人工黄金验收均未完成。
+旧默认合同中 BaoStock 缓存数值仍不准入；显式新解释的非零结果见下文。分部数值的生产登记、其他未定义事件类型仍有可追溯缺口；没有通过修改冻结合同掩盖它们。新数据或修订追加新的物化版本，旧事实和清单保持不变。报告/批处理/前端继续暂停，方法正文 skeleton、真实当前联网和人工黄金验收均未完成。
 
 ## 交付检查
 
 - `openspec validate eight-step-production-pipeline-v1 --strict`：`Change 'eight-step-production-pipeline-v1' is valid`。
 - `git diff --check`：通过。
-- OpenSpec 仅完成 3/12（1.1–1.3）；未归档整个变更。
+- 前轮 OpenSpec 记录为 3/12（1.1–1.3）；当前 planning 已独立新增 1.4–1.7，本轮不修改勾选、不归档整个变更。
+
+## 本轮后补解释交付：1.4–1.7
+
+已通过正常显式合同入口得到 **100,189 条选中可消费事实**（81,965 个非状态数值、18,224 个状态编码），覆盖全部实际有数值的 BaoStock 数据集。61 个字段规则具有官方定义/单位/定位证据；60 个实际非空。原字段表和原定义版本没有重写。完整逐字段说明见 [BaoStock 解释依据](acquisition/baostock-interpretation-v1.md)，机器验收记录见 [验证 JSON](acquisition/baostock-interpretation-validation.v1.json)。
+
+| dataset | 原记录数 | 事实数 |
+|---|---:|---:|
+| baostock_adjust | 31 | 93 |
+| baostock_balance | 78 | 468 |
+| baostock_basic | 1 | 2 |
+| baostock_calendar | 0 | 0 |
+| baostock_cash_flow | 78 | 468 |
+| baostock_daily | 6074 | 97110 |
+| baostock_dupont | 78 | 624 |
+| baostock_growth | 78 | 390 |
+| baostock_operation | 78 | 448 |
+| baostock_profit | 78 | 586 |
+
+新解释为 `baostock-interpretation-v1.0.0`，生效时间 `2026-09-12T06:20:00+00:00`；严格历史在此时间前拒绝 100,399 个映射候选，得到 0 事实。新解释后每条 `available_at` 至少晚于定义生效时间，并同时保留原观察/快照可得时间和 pubDate；没有把当前解释当成旧运行当年已知。
+
+- 两次真实物化 hash：`2f40f713dfdb7a085782dd0d0a84afe54a066ffe6b45dc6097328e3042f905f0`；耗时 12.861 / 12.586 秒；`repeat_hash_equal=true`。
+- 组合物化合同 hash：`6dc10e774f265b969b58df6986d007ceb70e41cf904b7c34c6ba1b9c2dbee491`；新增解释自身 hash：`9521639a413e60c670eb00a892343e7825eaf8f4fb91f93244d0a0f9289e598d`。
+- 旧默认结果仍为 0，hash 保持 `2c114e73656eaa0865cc52b1dfbc697c5d7695a4b2da949b5134151acbaf1ac5`，四项缺口计数完全相同。
+- 独立 audit 不调用 materializer 或映射换算函数：100,189 条逐一核对原快照 bytes SHA、row_ordinal、row_key、field_path、原字段版本、run/job/page/成功 attempt、原值、输出单位和独立 Decimal 倍率、报告日期、可得时间；521 个快照通过，映射非空原值与选中输出计数完全对应。
+- 原库 SHA：`72e339d2ad926351ed304401f77ea32cc8d412d9d717d1ed1793bf0d3f9b3956`；WAL/marker 和 521 引用快照不变，attempt 1,009 → 1,009（新增 0）。
+- 全量相关验证：**356 passed in 54.36s**（structured 320 + 受影响回归 36，含新增解释 47）；独立 audit 补充 attempt/单位核验后，绑定 CLI/audit 集成复测 1 passed in 1.65s；compileall、OpenSpec strict、git diff --check 通过。测试输出 `tmp/baostock-evidence/regression.txt`。
+
+本轮通过 `service.materialize(..., interpretation_contract=...)` 冻结完整后补合同并投影到合法同绑定存储；该链路的合成测试覆盖 SQLite manifest、lineage、DuckDB/Parquet 及重复调用。本次真实缓存采用只读计算导出，**没有持久化到原 ReportStorage**：source namespace 为 `f1cb1cfa-6ea5-4091-ada6-380482097f55`；projection namespace 为 null，表示普通文件而非伪造的新绑定。完整事实文件约 418.1 MiB；内存随事实/缺口输出规模增长，原记录读取仍为 256 条分块，并非恒定内存。
+
+本地完整定位：`D:/估值模型-worktrees/fact-materialization-ultra/tmp/baostock-materialization-v1/`，含 `facts.jsonl`、`manifest.json`、`coverage.json`（61 个指标包含 0 数值项）、`sources.jsonl`、`field-gaps.jsonl`、`samples.json`、`independent-audit.json`、`replay-summary.json`。这些大输出不提交；提交证据摘要和可复现入口。
+
+```powershell
+Set-Location 'D:/估值模型-worktrees/fact-materialization-ultra'
+$env:PYTHONUTF8 = '1'
+$env:PYTHONIOENCODING = 'utf-8'
+$env:PYTHONPATH = (Resolve-Path src).Path
+python -m analysis.structured.materialization_replay structured-run-59762e592da0b46251f13423 --db 'D:/估值模型/tmp/structured-baostock-full-20260909/rehearsal.db' --data-root 'D:/估值模型/tmp/structured-baostock-full-20260909/data' --interpretation-contract baostock-interpretation-v1.0.0 --output-dir tmp/baostock-materialization-v1
+python -m analysis.structured.materialization_audit --db 'D:/估值模型/tmp/structured-baostock-full-20260909/rehearsal.db' --data-root 'D:/估值模型/tmp/structured-baostock-full-20260909/data' --output-dir tmp/baostock-materialization-v1
+```
+
+删除 `--interpretation-contract` 复现旧合同结果；增加 `--as-of 2026-09-12T06:19:59+00:00 --strict-historical` 复现定义生效前过滤。只读 reader 才能用于原缓存；普通 `analysis.cli structured materialize ... --interpretation-contract ...` 用于允许 runtime bootstrap 的合法绑定存储。
+
+剩余缺口：210 个空值；1,444 个 `reported_period` 数值只确认报告期末、未确认累计/单季窗口，因此不派生单季/TTM；日历无缓存记录且未新增解释；13,618 个身份/日期/文本字段不作为数值；31 个旧技术字段继续 unknown。利润金额的单位为元，股本为股，均已纳入；未把 ratio 当金额。报告/batch/frontend、主工作树、其他任务日志均未修改。公开文档当前联网核实、历史真实缓存回放、人工验收三个状态分别保留，人工验收仍由主 agent/用户独立完成。
+
+本轮提交文件为 `interpretation.py`、解释合同配置及三份源证据/验证文档、`materialization.py`、`materialization_replay.py`、`materialization_audit.py`、`records.py`、`service.py` 的 materialize 参数、`cli.py` 的 materialize 参数、新增专项测试及本交付记录；不提交 OpenSpec planning 或本地原始/大输出文件。

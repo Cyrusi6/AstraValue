@@ -1,0 +1,3021 @@
+{
+  "schema": "structured-interpretation.v1",
+  "contract_id": "baostock-interpretation-v1.0.0",
+  "version": "1.0.0",
+  "effective_at": "2026-09-12T06:20:00+00:00",
+  "compatibility": [
+    {
+      "field_registry_id": "structured_data_fields",
+      "field_registry_version": "1.0.0",
+      "field_registry_hash": "dc7e9581868f0331fa6856c3fa4658d66d0fbc3f41e0af2955360ce80cfbb618",
+      "source_definition_id": "structured-baostock",
+      "source_definition_version": "1.0.0",
+      "source_content_hash": "1500f0f04e3ea61ca216e7c9a92bbd1ad82574663644d6c720e671ff8e66c424"
+    },
+    {
+      "field_registry_id": "structured_data_fields",
+      "field_registry_version": "1.1.0",
+      "field_registry_hash": "4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4",
+      "source_definition_id": "structured-baostock",
+      "source_definition_version": "1.2.0",
+      "source_content_hash": "a97dacd2c9952037ab29b15d9bb327f73b0d88fe1ffcb2a3c9afed8a38f5963e"
+    }
+  ],
+  "evidence_file": "docs/acquisition/baostock-interpretation-evidence.v1.json",
+  "evidence_sha256": "6c0a43ff69b9649cc60b25272a029c477e52ebd2cddb402b117ffff4a8c5a86e",
+  "knowledge_policy": "max_original_observation_snapshot_availability_and_interpretation_effective_at",
+  "rules": {
+    "baostock_daily.open": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "open",
+      "standard_field": "market_open",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.open",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_open",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_open",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 143,
+              "quote": "| open | 开盘价 |  |"
+            },
+            {
+              "line": 202,
+              "quote": "| open | 今开盘价格 | 精度：小数点后4位；单位：人民币元 |"
+            },
+            {
+              "line": 225,
+              "quote": "| open | 开盘价格 | 精度：小数点后4位；单位：人民币元 |  |"
+            },
+            {
+              "line": 242,
+              "quote": "| open | 开盘价格 | 精度：小数点后4位；单位：人民币元 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "日行情人民币元价格；复权状态逐行保留；不转换为财务累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.high": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "high",
+      "standard_field": "market_high",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.high",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_high",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_high",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 144,
+              "quote": "| high | 最高价 |  |"
+            },
+            {
+              "line": 203,
+              "quote": "| high | 最高价 | 精度：小数点后4位；单位：人民币元 |"
+            },
+            {
+              "line": 226,
+              "quote": "| high | 最高价 | 精度：小数点后4位；单位：人民币元 |  |"
+            },
+            {
+              "line": 243,
+              "quote": "| high | 最高价 | 精度：小数点后4位；单位：人民币元 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "日行情人民币元价格；复权状态逐行保留；不转换为财务累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.low": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "low",
+      "standard_field": "market_low",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.low",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_low",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_low",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 145,
+              "quote": "| low | 最低价 |  |"
+            },
+            {
+              "line": 204,
+              "quote": "| low | 最低价 | 精度：小数点后4位；单位：人民币元 |"
+            },
+            {
+              "line": 227,
+              "quote": "| low | 最低价 | 精度：小数点后4位；单位：人民币元 |  |"
+            },
+            {
+              "line": 244,
+              "quote": "| low | 最低价 | 精度：小数点后4位；单位：人民币元 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "日行情人民币元价格；复权状态逐行保留；不转换为财务累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.close": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "close",
+      "standard_field": "market_close",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.close",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_close",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_close",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 146,
+              "quote": "| close | 收盘价 |  |"
+            },
+            {
+              "line": 205,
+              "quote": "| close | 今收盘价 | 精度：小数点后4位；单位：人民币元 |"
+            },
+            {
+              "line": 228,
+              "quote": "| close | 收盘价 | 精度：小数点后4位；单位：人民币元 |  |"
+            },
+            {
+              "line": 245,
+              "quote": "| close | 收盘价 | 精度：小数点后4位；单位：人民币元 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "日行情人民币元价格；复权状态逐行保留；不转换为财务累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.preclose": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "preclose",
+      "standard_field": "market_previous_close",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.preclose",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_previous_close",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_previous_close",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 147,
+              "quote": "| preclose | 前收盘价 | 见表格下方详细说明 |"
+            },
+            {
+              "line": 206,
+              "quote": "| preclose | 昨日收盘价 | 精度：小数点后4位；单位：人民币元 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "日行情人民币元价格；复权状态逐行保留；不转换为财务累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.volume": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "volume",
+      "standard_field": "market_volume",
+      "unit": "shares",
+      "stored_unit": "shares",
+      "original_unit": "shares",
+      "multiplier": "1",
+      "value_kind": "flow",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.volume",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_volume",
+          "unit": "shares",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_volume",
+          "unit": "shares",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 148,
+              "quote": "| volume | 成交量（累计 单位：股） |  |"
+            },
+            {
+              "line": 207,
+              "quote": "| volume | 成交数量 | 单位：股 |"
+            },
+            {
+              "line": 229,
+              "quote": "| volume | 成交数量 | 单位：股 |  |"
+            },
+            {
+              "line": 246,
+              "quote": "| volume | 成交数量 | 单位：股； 时间范围内的累计成交数量 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "当日成交股数；不是年初至今累计；停牌源值0保留。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.amount": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "amount",
+      "standard_field": "market_amount",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "flow",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.amount",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "market_amount",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "market_amount",
+          "unit": "CNY",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 149,
+              "quote": "| amount | 成交额（单位：人民币元） |  |"
+            },
+            {
+              "line": 208,
+              "quote": "| amount | 成交金额 | 精度：小数点后4位；单位：人民币元 |"
+            },
+            {
+              "line": 230,
+              "quote": "| amount | 成交金额 | 精度：小数点后4位；单位：人民币元 |  |"
+            },
+            {
+              "line": 247,
+              "quote": "| amount | 成交金额 | 精度：小数点后4位；单位：人民币元； 时间范围内的累计成交金额 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "当日成交额；停牌源值0保留。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.turn": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "turn",
+      "standard_field": "turnover_rate",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "percent",
+      "multiplier": "0.01",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.turn",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "turnover_rate",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "turnover_rate",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 151,
+              "quote": "| turn | 换手率 | [指定交易日的成交量(股)/指定交易日的股票的流通股总股数(股)]\\*100% |"
+            },
+            {
+              "line": 210,
+              "quote": "| turn | 换手率 | 精度：小数点后6位；单位：% |"
+            },
+            {
+              "line": 232,
+              "quote": "| turn | 换手率 | 精度：小数点后6位；单位：% |  |"
+            }
+          ]
+        }
+      ],
+      "semantics": "源值为百分数数字；标准值=原值/100；空换手率不是0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.pctChg": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "pctChg",
+      "standard_field": "price_change_rate",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "percent",
+      "multiplier": "0.01",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.pctChg",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "price_change_rate",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "price_change_rate",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 153,
+              "quote": "| pctChg | 涨跌幅（百分比） | 日涨跌幅=[(指定交易日的收盘价-指定交易日前收盘价)/指定交易日前收盘价]\\*100% |"
+            },
+            {
+              "line": 212,
+              "quote": "| pctChg | 涨跌幅（百分比） | 精度：小数点后6位 |"
+            },
+            {
+              "line": 233,
+              "quote": "| pctChg | 涨跌幅（百分比） | 精度：小数点后6位 | 涨跌幅=[(区间最后交易日收盘价-区间首个交易日前收盘价)/区间首个交易日前收盘价]\\*100% |"
+            }
+          ]
+        }
+      ],
+      "semantics": "源值为百分数数字；标准值=原值/100；空换手率不是0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.peTTM": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "peTTM",
+      "standard_field": "pe_ttm",
+      "unit": "multiple",
+      "stored_unit": "multiple",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.peTTM",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "pe_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "pe_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 154,
+              "quote": "| peTTM | 滚动市盈率 | (指定交易日的股票收盘价/指定交易日的每股盈余TTM)=(指定交易日的股票收盘价\\*截至当日公司总股本)/归属母公司股东净利润TTM |"
+            },
+            {
+              "line": 213,
+              "quote": "| peTTM | 滚动市盈率 | 精度：小数点后6位 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "交易日估值倍数；分母期间由原字段公式约束；pcfNcfTTM分母是现金及现金等价物净增加额TTM，非经营现金流。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.pbMRQ": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "pbMRQ",
+      "standard_field": "pb_mrq",
+      "unit": "multiple",
+      "stored_unit": "multiple",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.pbMRQ",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "pb_mrq",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "pb_mrq",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 155,
+              "quote": "| pbMRQ | 市净率 | (指定交易日的股票收盘价/指定交易日的每股净资产)=总市值/(最近披露的归属母公司股东的权益-其他权益工具) |"
+            },
+            {
+              "line": 216,
+              "quote": "| pbMRQ | 市净率 | 精度：小数点后6位 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "交易日估值倍数；分母期间由原字段公式约束；pcfNcfTTM分母是现金及现金等价物净增加额TTM，非经营现金流。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.psTTM": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "psTTM",
+      "standard_field": "ps_ttm",
+      "unit": "multiple",
+      "stored_unit": "multiple",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.psTTM",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "ps_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "ps_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 156,
+              "quote": "| psTTM | 滚动市销率 | (指定交易日的股票收盘价/指定交易日的每股销售额)=(指定交易日的股票收盘价\\*截至当日公司总股本)/营业总收入TTM |"
+            },
+            {
+              "line": 214,
+              "quote": "| psTTM | 滚动市销率 | 精度：小数点后6位 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "交易日估值倍数；分母期间由原字段公式约束；pcfNcfTTM分母是现金及现金等价物净增加额TTM，非经营现金流。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.pcfNcfTTM": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "pcfNcfTTM",
+      "standard_field": "pcf_net_cashflow_ttm",
+      "unit": "multiple",
+      "stored_unit": "multiple",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.pcfNcfTTM",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "pcf_net_cashflow_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "pcf_net_cashflow_ttm",
+          "unit": "multiple",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 157,
+              "quote": "| pcfNcfTTM | 滚动市现率 | (指定交易日的股票收盘价/指定交易日的每股现金流TTM)=(指定交易日的股票收盘价\\*截至当日公司总股本)/现金以及现金等价物净增加额TTM |"
+            },
+            {
+              "line": 215,
+              "quote": "| pcfNcfTTM | 滚动市现率 | 精度：小数点后6位 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "交易日估值倍数；分母期间由原字段公式约束；pcfNcfTTM分母是现金及现金等价物净增加额TTM，非经营现金流。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.adjustflag": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "adjustflag",
+      "standard_field": "baostock_adjustment_type",
+      "unit": "code",
+      "stored_unit": "unregistered",
+      "original_unit": "code",
+      "multiplier": "1",
+      "value_kind": "label",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.adjustflag",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 150,
+              "quote": "| adjustflag | 复权状态(1：后复权， 2：前复权，3：不复权） |  |"
+            },
+            {
+              "line": 209,
+              "quote": "| adjustflag | 复权状态 | 不复权、前复权、后复权 |"
+            },
+            {
+              "line": 231,
+              "quote": "| adjustflag | 复权状态 | 不复权、前复权、后复权 |  |"
+            },
+            {
+              "line": 248,
+              "quote": "| adjustflag | 复权状态 | 不复权、前复权、后复权 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "供应商状态枚举；保留数字编码，不作为金额或比率计算。",
+      "allowed_values": [
+        "1",
+        "2",
+        "3"
+      ],
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.tradestatus": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "tradestatus",
+      "standard_field": "baostock_trading_status",
+      "unit": "code",
+      "stored_unit": "unregistered",
+      "original_unit": "code",
+      "multiplier": "1",
+      "value_kind": "label",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.tradestatus",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 152,
+              "quote": "| tradestatus | 交易状态(1：正常交易 0：停牌） |  |"
+            },
+            {
+              "line": 211,
+              "quote": "| tradestatus | 交易状态 | 1：正常交易 0：停牌 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "供应商状态枚举；保留数字编码，不作为金额或比率计算。",
+      "allowed_values": [
+        "0",
+        "1"
+      ],
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_daily.isST": {
+      "dataset_id": "baostock_daily",
+      "raw_field": "isST",
+      "standard_field": "baostock_is_st",
+      "unit": "code",
+      "stored_unit": "unregistered",
+      "original_unit": "code",
+      "multiplier": "1",
+      "value_kind": "label",
+      "period_kind": "market_quote",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_daily.isST",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "date",
+      "evidence": [
+        {
+          "document_id": "stockKData",
+          "sha256": "2a6db3b24ab21a199aa17bd949dfbe545d3279007bea1664854f9b7c20542aac",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockKData.md",
+          "locators": [
+            {
+              "line": 158,
+              "quote": "| isST | 是否ST股，1是，0否 |  |"
+            },
+            {
+              "line": 217,
+              "quote": "| isST | 是否ST | 1是，0否 |"
+            }
+          ]
+        }
+      ],
+      "semantics": "供应商状态枚举；保留数字编码，不作为金额或比率计算。",
+      "allowed_values": [
+        "0",
+        "1"
+      ],
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_profit.roeAvg": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "roeAvg",
+      "standard_field": "roe_average",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.roeAvg",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "roe_average",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "roe_average",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 56,
+              "quote": " roeAvg       | 净资产收益率(平均)(%)  | 归属母公司股东净利润/[(期初归属母公司股东的权益+期末归属母公司股东的权益)/2]*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数比例，虽然表头含%；不再除100。统计季度末仅定位报告；文档未明确累计窗口，不推导单季/TTM。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_profit.npMargin": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "npMargin",
+      "standard_field": "net_profit_margin",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.npMargin",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "net_profit_margin",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "net_profit_margin",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 57,
+              "quote": " npMargin     | 销售净利率(%)  | 净利润/营业收入*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数比例，虽然表头含%；不再除100。统计季度末仅定位报告；文档未明确累计窗口，不推导单季/TTM。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_profit.gpMargin": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "gpMargin",
+      "standard_field": "gross_profit_margin",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.gpMargin",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "gross_profit_margin",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "gross_profit_margin",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 58,
+              "quote": " gpMargin     | 销售毛利率(%)  | 毛利/营业收入*100%=(营业收入-营业成本)/营业收入*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数比例，虽然表头含%；不再除100。统计季度末仅定位报告；文档未明确累计窗口，不推导单季/TTM。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_profit.epsTTM": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "epsTTM",
+      "standard_field": "eps_ttm",
+      "unit": "CNY_per_share",
+      "stored_unit": "CNY_per_share",
+      "original_unit": "CNY_per_share",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "ttm",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.epsTTM",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "eps_ttm",
+          "unit": "CNY_per_share",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "eps_ttm",
+          "unit": "CNY_per_share",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 60,
+              "quote": " epsTTM       | 每股收益  | 归属母公司股东的净利润TTM/最新总股本   "
+            }
+          ]
+        }
+      ],
+      "semantics": "归母净利润TTM/最新总股本，元/股；不是基本EPS/加权平均股本。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_profit.netProfit": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "netProfit",
+      "standard_field": "baostock_net_profit_reported",
+      "unit": "CNY",
+      "stored_unit": "unregistered",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "flow",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.netProfit",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 59,
+              "quote": " netProfit    | 净利润(元)  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方明确人民币元；报告季度末定位；未明确累计/单季窗口，保留reported_period且禁止期间派生，不替代三表主源。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_profit.MBRevenue": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "MBRevenue",
+      "standard_field": "baostock_main_business_revenue_reported",
+      "unit": "CNY",
+      "stored_unit": "unregistered",
+      "original_unit": "CNY",
+      "multiplier": "1",
+      "value_kind": "flow",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.MBRevenue",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 61,
+              "quote": " MBRevenue    | 主营营业收入(元)  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方明确人民币元；报告季度末定位；未明确累计/单季窗口，保留reported_period且禁止期间派生，不替代三表主源。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_profit.totalShare": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "totalShare",
+      "standard_field": "baostock_total_shares",
+      "unit": "shares",
+      "stored_unit": "unregistered",
+      "original_unit": "shares",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.totalShare",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 62,
+              "quote": " totalShare   | 总股本  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "总/流通股本数量，单位股；官方每股公式和返回示例支持股数，不能作为人民币金额或累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_profit.liqaShare": {
+      "dataset_id": "baostock_profit",
+      "raw_field": "liqaShare",
+      "standard_field": "baostock_liquid_shares",
+      "unit": "shares",
+      "stored_unit": "unregistered",
+      "original_unit": "shares",
+      "multiplier": "1",
+      "value_kind": "stock",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_profit.liqaShare",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonProfit",
+          "sha256": "1d51b4abbd8db3f05934fc58b339a639978438f4cfaad5632d12240f20275afd",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonProfit.md",
+          "locators": [
+            {
+              "line": 63,
+              "quote": " liqaShare    | 流通股本  |"
+            }
+          ]
+        }
+      ],
+      "semantics": "总/流通股本数量，单位股；官方每股公式和返回示例支持股数，不能作为人民币金额或累计流量。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.NRTurnRatio": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "NRTurnRatio",
+      "standard_field": "receivables_turnover",
+      "unit": "multiple",
+      "stored_unit": "ratio",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.NRTurnRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "receivables_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "receivables_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 56,
+              "quote": " NRTurnRatio    | 应收账款周转率(次)  | 营业收入/[(期初应收票据及应收账款净额+期末应收票据及应收账款净额)/2]   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.NRTurnDays": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "NRTurnDays",
+      "standard_field": "receivables_turnover_days",
+      "unit": "days",
+      "stored_unit": "days",
+      "original_unit": "days",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.NRTurnDays",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "receivables_turnover_days",
+          "unit": "days",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "receivables_turnover_days",
+          "unit": "days",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 57,
+              "quote": " NRTurnDays     | 应收账款周转天数(天)  | 季报天数/应收账款周转率(一季报：90天，中报：180天，三季报：270天，年报：360天)   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.INVTurnRatio": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "INVTurnRatio",
+      "standard_field": "inventory_turnover",
+      "unit": "multiple",
+      "stored_unit": "ratio",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.INVTurnRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "inventory_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "inventory_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 58,
+              "quote": " INVTurnRatio   | 存货周转率(次)  | 营业成本/[(期初存货净额+期末存货净额)/2]   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.INVTurnDays": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "INVTurnDays",
+      "standard_field": "inventory_turnover_days",
+      "unit": "days",
+      "stored_unit": "days",
+      "original_unit": "days",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.INVTurnDays",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "inventory_turnover_days",
+          "unit": "days",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "inventory_turnover_days",
+          "unit": "days",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 59,
+              "quote": " INVTurnDays    | 存货周转天数(天)  | 季报天数/存货周转率(一季报：90天，中报：180天，三季报：270天，年报：360天)   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.CATurnRatio": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "CATurnRatio",
+      "standard_field": "current_asset_turnover",
+      "unit": "multiple",
+      "stored_unit": "ratio",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.CATurnRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "current_asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "current_asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 60,
+              "quote": " CATurnRatio    | 流动资产周转率(次)  | 营业总收入/[(期初流动资产+期末流动资产)/2]   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_operation.AssetTurnRatio": {
+      "dataset_id": "baostock_operation",
+      "raw_field": "AssetTurnRatio",
+      "standard_field": "asset_turnover",
+      "unit": "multiple",
+      "stored_unit": "ratio",
+      "original_unit": "multiple",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "cumulative",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_operation.AssetTurnRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonOperation",
+          "sha256": "53da9ba813c249fcb5a44f52d37d308d45188fa29da9f3e2836fb4b024c38b04",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonOperation.md",
+          "locators": [
+            {
+              "line": 61,
+              "quote": " AssetTurnRatio | 总资产周转率  | 营业总收入/[(期初资产总额+期末资产总额)/2]   "
+            }
+          ]
+        }
+      ],
+      "semantics": "90/180/270/360报告天数明确年初累计口径；周转次数或天数均不可相减/相加派生单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_growth.YOYEquity": {
+      "dataset_id": "baostock_growth",
+      "raw_field": "YOYEquity",
+      "standard_field": "equity_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_growth.YOYEquity",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "equity_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "equity_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonGrowth",
+          "sha256": "3be700e9ac875e40454add8c9d2cdb825c6dba785e3aaebb38d9e8aba0ec1ab1",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonGrowth.md",
+          "locators": [
+            {
+              "line": 53,
+              "quote": " YOYEquity   | 净资产同比增长率  | (本期净资产-上年同期净资产)/上年同期净资产的绝对值*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数同比；分母为上年同期绝对值；不截断负数。存量同比为时点，流量同比窗口不推断。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_growth.YOYAsset": {
+      "dataset_id": "baostock_growth",
+      "raw_field": "YOYAsset",
+      "standard_field": "asset_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_growth.YOYAsset",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "asset_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "asset_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonGrowth",
+          "sha256": "3be700e9ac875e40454add8c9d2cdb825c6dba785e3aaebb38d9e8aba0ec1ab1",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonGrowth.md",
+          "locators": [
+            {
+              "line": 54,
+              "quote": " YOYAsset    | 总资产同比增长率  | (本期总资产-上年同期总资产)/上年同期总资产的绝对值*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数同比；分母为上年同期绝对值；不截断负数。存量同比为时点，流量同比窗口不推断。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_growth.YOYNI": {
+      "dataset_id": "baostock_growth",
+      "raw_field": "YOYNI",
+      "standard_field": "net_profit_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_growth.YOYNI",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "net_profit_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "net_profit_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonGrowth",
+          "sha256": "3be700e9ac875e40454add8c9d2cdb825c6dba785e3aaebb38d9e8aba0ec1ab1",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonGrowth.md",
+          "locators": [
+            {
+              "line": 55,
+              "quote": " YOYNI       | 净利润同比增长率  | (本期净利润-上年同期净利润)/上年同期净利润的绝对值*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数同比；分母为上年同期绝对值；不截断负数。存量同比为时点，流量同比窗口不推断。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_growth.YOYEPSBasic": {
+      "dataset_id": "baostock_growth",
+      "raw_field": "YOYEPSBasic",
+      "standard_field": "basic_eps_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_growth.YOYEPSBasic",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "basic_eps_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "basic_eps_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonGrowth",
+          "sha256": "3be700e9ac875e40454add8c9d2cdb825c6dba785e3aaebb38d9e8aba0ec1ab1",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonGrowth.md",
+          "locators": [
+            {
+              "line": 56,
+              "quote": " YOYEPSBasic | 基本每股收益同比增长率  | (本期基本每股收益-上年同期基本每股收益)/上年同期基本每股收益的绝对值*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数同比；分母为上年同期绝对值；不截断负数。存量同比为时点，流量同比窗口不推断。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_growth.YOYPNI": {
+      "dataset_id": "baostock_growth",
+      "raw_field": "YOYPNI",
+      "standard_field": "parent_net_profit_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_growth.YOYPNI",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "parent_net_profit_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "parent_net_profit_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonGrowth",
+          "sha256": "3be700e9ac875e40454add8c9d2cdb825c6dba785e3aaebb38d9e8aba0ec1ab1",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonGrowth.md",
+          "locators": [
+            {
+              "line": 57,
+              "quote": " YOYPNI      | 归属母公司股东净利润同比增长率  | (本期归属母公司股东净利润-上年同期归属母公司股东净利润)/上年同期归属母公司股东净利润的绝对值*100%"
+            }
+          ]
+        }
+      ],
+      "semantics": "官方返回示例为小数同比；分母为上年同期绝对值；不截断负数。存量同比为时点，流量同比窗口不推断。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_balance.currentRatio": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "currentRatio",
+      "standard_field": "current_ratio",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.currentRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "current_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "current_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 52,
+              "quote": "currentRatio  | 流动比率  | 流动资产/流动负债   "
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_balance.quickRatio": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "quickRatio",
+      "standard_field": "quick_ratio",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.quickRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "quick_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "quick_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 53,
+              "quote": "quickRatio  | 速动比率  | (流动资产-存货净额)/流动负债   "
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_balance.cashRatio": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "cashRatio",
+      "standard_field": "cash_ratio",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.cashRatio",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "cash_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "cash_ratio",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 54,
+              "quote": "cashRatio  | 现金比率  | (货币资金+交易性金融资产)/流动负债   "
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_balance.YOYLiability": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "YOYLiability",
+      "standard_field": "liability_growth_yoy",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.YOYLiability",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "liability_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "liability_growth_yoy",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 55,
+              "quote": "YOYLiability  | 总负债同比增长率  | (本期总负债-上年同期总负债)/上年同期中负债的绝对值*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_balance.liabilityToAsset": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "liabilityToAsset",
+      "standard_field": "liability_to_asset",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.liabilityToAsset",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "liability_to_asset",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "liability_to_asset",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 56,
+              "quote": "liabilityToAsset  | 资产负债率  | 负债总额/资产总额   "
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_balance.assetToEquity": {
+      "dataset_id": "baostock_balance",
+      "raw_field": "assetToEquity",
+      "standard_field": "asset_to_equity",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_balance.assetToEquity",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "asset_to_equity",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "asset_to_equity",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonBalance",
+          "sha256": "8b157300060ae0c33c6c3bcb747ecc6488f2c54a7e5a59f29eaeb5d165e63d63",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonBalance.md",
+          "locators": [
+            {
+              "line": 57,
+              "quote": "assetToEquity  | 权益乘数  | 资产总额/股东权益总额=1/(1-资产负债率)"
+            }
+          ]
+        }
+      ],
+      "semantics": "期末存量之比或存量同比，小数倍数，不乘/除100；不是资产负债绝对金额。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_cash_flow.CAToAsset": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "CAToAsset",
+      "standard_field": "current_assets_to_assets",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.CAToAsset",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "current_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "current_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 52,
+              "quote": " CAToAsset           | 流动资产除以总资产  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_cash_flow.NCAToAsset": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "NCAToAsset",
+      "standard_field": "noncurrent_assets_to_assets",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.NCAToAsset",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "noncurrent_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "noncurrent_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 53,
+              "quote": " NCAToAsset          | 非流动资产除以总资产  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_cash_flow.tangibleAssetToAsset": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "tangibleAssetToAsset",
+      "standard_field": "tangible_assets_to_assets",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.tangibleAssetToAsset",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "tangible_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "tangible_assets_to_assets",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 54,
+              "quote": " tangibleAssetToAsset | 有形资产除以总资产  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_cash_flow.ebitToInterest": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "ebitToInterest",
+      "standard_field": "ebit_interest_coverage",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.ebitToInterest",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "ebit_interest_coverage",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "ebit_interest_coverage",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 55,
+              "quote": " ebitToInterest      | 已获利息倍数  | 息税前利润/利息费用   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_cash_flow.CFOToOR": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "CFOToOR",
+      "standard_field": "operating_cashflow_to_revenue",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.CFOToOR",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "operating_cashflow_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "operating_cashflow_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 56,
+              "quote": " CFOToOR             | 经营活动产生的现金流量净额除以营业收入  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_cash_flow.CFOToNP": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "CFOToNP",
+      "standard_field": "operating_cashflow_to_net_profit",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.CFOToNP",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "operating_cashflow_to_net_profit",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "operating_cashflow_to_net_profit",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 57,
+              "quote": " CFOToNP             | 经营性现金净流量除以净利润  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_cash_flow.CFOToGr": {
+      "dataset_id": "baostock_cash_flow",
+      "raw_field": "CFOToGr",
+      "standard_field": "operating_cashflow_to_gross_revenue",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_cash_flow.CFOToGr",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "operating_cashflow_to_gross_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "operating_cashflow_to_gross_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonCashFlow",
+          "sha256": "fde08f2d70215d492d1f2a52cc92a49692c2853395d144e32951910f83f96cd0",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonCashFlow.md",
+          "locators": [
+            {
+              "line": 58,
+              "quote": " CFOToGr             | 经营性现金净流量除以营业总收入  |"
+            }
+          ]
+        }
+      ],
+      "semantics": "文档明确分子/分母之比，小数原值保留；不解释为现金流金额；空值不造0。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontROE": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontROE",
+      "standard_field": "dupont_roe",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontROE",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_roe",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_roe",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 58,
+              "quote": " dupontROE            | 净资产收益率  | 归属母公司股东净利润/[(期初归属母公司股东的权益+期末归属母公司股东的权益)/2]*100%   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontAssetStoEquity": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontAssetStoEquity",
+      "standard_field": "dupont_asset_to_equity",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontAssetStoEquity",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_asset_to_equity",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_asset_to_equity",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 59,
+              "quote": " dupontAssetStoEquity | 权益乘数，反映企业财务杠杆效应强弱和财务风险  | 平均总资产/平均归属于母公司的股东权益   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontAssetTurn": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontAssetTurn",
+      "standard_field": "dupont_asset_turnover",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontAssetTurn",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_asset_turnover",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 60,
+              "quote": " dupontAssetTurn      | 总资产周转率，反映企业资产管理效率的指标  | 营业总收入/[(期初资产总额+期末资产总额)/2]   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontPnitoni": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontPnitoni",
+      "standard_field": "dupont_parent_profit_to_net_profit",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontPnitoni",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_parent_profit_to_net_profit",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_parent_profit_to_net_profit",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 61,
+              "quote": " dupontPnitoni        | 归属母公司股东的净利润/净利润，反映母公司控股子公司百分比。如果企业追加投资，扩大持股比例，则本指标会增加。  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontNitogr": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontNitogr",
+      "standard_field": "dupont_net_profit_to_revenue",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontNitogr",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_net_profit_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_net_profit_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 47,
+              "quote": "| dupontNitogr | dupontTaxBurden  | dupontIntburden  | dupontEbittogr   "
+            },
+            {
+              "line": 62,
+              "quote": " dupontNitogr         | 净利润/营业总收入，反映企业销售获利率  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontTaxBurden": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontTaxBurden",
+      "standard_field": "dupont_tax_burden",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontTaxBurden",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_tax_burden",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_tax_burden",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 63,
+              "quote": " dupontTaxBurden      | 净利润/利润总额，反映企业税负水平，该比值高则税负较低。净利润/利润总额=1-所得税/利润总额  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontIntburden": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontIntburden",
+      "standard_field": "dupont_interest_burden",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontIntburden",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_interest_burden",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_interest_burden",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 64,
+              "quote": " dupontIntburden      | 利润总额/息税前利润，反映企业利息负担，该比值高则税负较低。利润总额/息税前利润=1-利息费用/息税前利润   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_dupont.dupontEbittogr": {
+      "dataset_id": "baostock_dupont",
+      "raw_field": "dupontEbittogr",
+      "standard_field": "dupont_ebit_to_revenue",
+      "unit": "ratio",
+      "stored_unit": "ratio",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "reported_period",
+      "nature": "observed",
+      "scope": "supplier_reported",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_dupont.dupontEbittogr",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": "dupont_ebit_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        },
+        "1.1.0": {
+          "standard_field_id": "dupont_ebit_to_revenue",
+          "unit": "ratio",
+          "nature": "observed",
+          "quality": "passed"
+        }
+      },
+      "business_date_field": "statDate",
+      "evidence": [
+        {
+          "document_id": "seasonDupont",
+          "sha256": "1c4bcb18f258e17e375ce4074124843a055341f041c1dd0d6a334d01c526dc14",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/seasonDupont.md",
+          "locators": [
+            {
+              "line": 65,
+              "quote": " dupontEbittogr       | 息税前利润/营业总收入，反映企业经营利润率，是企业经营获得的可供全体投资人（股东和债权人）分配的盈利占企业全部营收收入的百分比  |   "
+            }
+          ]
+        }
+      ],
+      "semantics": "保留官方公式及小数比值；平均资产/权益与期末权益乘数不同；不作累计转单季。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": false
+    },
+    "baostock_adjust.foreAdjustFactor": {
+      "dataset_id": "baostock_adjust",
+      "raw_field": "foreAdjustFactor",
+      "standard_field": "baostock_forward_adjust_factor",
+      "unit": "ratio",
+      "stored_unit": "unregistered",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_adjust.foreAdjustFactor",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "dividOperateDate",
+      "evidence": [
+        {
+          "document_id": "factorInfo",
+          "sha256": "6820224b59a62b5e96b3347e0342263f0f9fb448a00a5c4ce1e61d2857b8984b",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/factorInfo.md",
+          "locators": [
+            {
+              "line": 60,
+              "quote": " foreAdjustFactor | 向前复权因子  | 除权除息日前一个交易日的收盘价/除权除息日最近的一个交易日的前收盘价   "
+            }
+          ]
+        }
+      ],
+      "semantics": "无量纲复权因子，原值保留；使用dividOperateDate解释业务时点，同时保留旧__retrieved_at期键和行键；不自行重算复权价格。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_adjust.backAdjustFactor": {
+      "dataset_id": "baostock_adjust",
+      "raw_field": "backAdjustFactor",
+      "standard_field": "baostock_backward_adjust_factor",
+      "unit": "ratio",
+      "stored_unit": "unregistered",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_adjust.backAdjustFactor",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "dividOperateDate",
+      "evidence": [
+        {
+          "document_id": "factorInfo",
+          "sha256": "6820224b59a62b5e96b3347e0342263f0f9fb448a00a5c4ce1e61d2857b8984b",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/factorInfo.md",
+          "locators": [
+            {
+              "line": 61,
+              "quote": " backAdjustFactor | 向后复权因子  | 除权除息日最近的一个交易日的前收盘价/除权除息日前一个交易日的收盘价   "
+            }
+          ]
+        }
+      ],
+      "semantics": "无量纲复权因子，原值保留；使用dividOperateDate解释业务时点，同时保留旧__retrieved_at期键和行键；不自行重算复权价格。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_adjust.adjustFactor": {
+      "dataset_id": "baostock_adjust",
+      "raw_field": "adjustFactor",
+      "standard_field": "baostock_adjust_factor",
+      "unit": "ratio",
+      "stored_unit": "unregistered",
+      "original_unit": "ratio",
+      "multiplier": "1",
+      "value_kind": "ratio",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_adjust.adjustFactor",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "dividOperateDate",
+      "evidence": [
+        {
+          "document_id": "factorInfo",
+          "sha256": "6820224b59a62b5e96b3347e0342263f0f9fb448a00a5c4ce1e61d2857b8984b",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/factorInfo.md",
+          "locators": [
+            {
+              "line": 62,
+              "quote": " adjustFactor     | 本次复权因子  |"
+            }
+          ]
+        }
+      ],
+      "semantics": "无量纲复权因子，原值保留；使用dividOperateDate解释业务时点，同时保留旧__retrieved_at期键和行键；不自行重算复权价格。",
+      "allowed_values": null,
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_basic.type": {
+      "dataset_id": "baostock_basic",
+      "raw_field": "type",
+      "standard_field": "baostock_security_type",
+      "unit": "code",
+      "stored_unit": "unregistered",
+      "original_unit": "code",
+      "multiplier": "1",
+      "value_kind": "label",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_basic.type",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "observation_date",
+      "evidence": [
+        {
+          "document_id": "stockBasic",
+          "sha256": "f8d5ba4ff8f3f664dc7f3fa8205a03e7827aa025044f16e4aa41aa5d3f0f70c8",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockBasic.md",
+          "locators": [
+            {
+              "line": 60,
+              "quote": " type      | 证券类型，其中1：股票，2：指数，3：其它，4：可转债，5：ETF   "
+            }
+          ]
+        }
+      ],
+      "semantics": "当前快照状态枚举，时点为原观察日，不追溯为ipoDate当年状态。",
+      "allowed_values": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    },
+    "baostock_basic.status": {
+      "dataset_id": "baostock_basic",
+      "raw_field": "status",
+      "standard_field": "baostock_listing_status",
+      "unit": "code",
+      "stored_unit": "unregistered",
+      "original_unit": "code",
+      "multiplier": "1",
+      "value_kind": "label",
+      "period_kind": "instant",
+      "nature": "observed",
+      "scope": "security",
+      "definition_id": "baostock-interpretation-v1.0.0:baostock_basic.status",
+      "input_descriptors": {
+        "1.0.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        },
+        "1.1.0": {
+          "standard_field_id": null,
+          "unit": null,
+          "nature": "observed",
+          "quality": "definition_unknown"
+        }
+      },
+      "business_date_field": "observation_date",
+      "evidence": [
+        {
+          "document_id": "stockBasic",
+          "sha256": "f8d5ba4ff8f3f664dc7f3fa8205a03e7827aa025044f16e4aa41aa5d3f0f70c8",
+          "url": "https://www.baostock.com/helpdocs/api/markdown/stockBasic.md",
+          "locators": [
+            {
+              "line": 61,
+              "quote": " status    | 上市状态，其中1：上市，0：退市"
+            }
+          ]
+        }
+      ],
+      "semantics": "当前快照状态枚举，时点为原观察日，不追溯为ipoDate当年状态。",
+      "allowed_values": [
+        "0",
+        "1"
+      ],
+      "missing_policy": "blank_nonfinite_non_numeric_is_gap_never_zero",
+      "period_window_confirmed": true
+    }
+  },
+  "rejections": {
+    "baostock_adjust.__retrieved_at": "context_field_not_numeric_fact",
+    "baostock_adjust.code": "context_field_not_numeric_fact",
+    "baostock_adjust.dividOperateDate": "context_field_not_numeric_fact",
+    "baostock_balance.code": "context_field_not_numeric_fact",
+    "baostock_balance.pubDate": "context_field_not_numeric_fact",
+    "baostock_balance.statDate": "context_field_not_numeric_fact",
+    "baostock_basic.code": "context_field_not_numeric_fact",
+    "baostock_basic.code_name": "context_field_not_numeric_fact",
+    "baostock_basic.ipoDate": "context_field_not_numeric_fact",
+    "baostock_basic.outDate": "context_field_not_numeric_fact",
+    "baostock_cash_flow.code": "context_field_not_numeric_fact",
+    "baostock_cash_flow.pubDate": "context_field_not_numeric_fact",
+    "baostock_cash_flow.statDate": "context_field_not_numeric_fact",
+    "baostock_daily.code": "context_field_not_numeric_fact",
+    "baostock_daily.date": "context_field_not_numeric_fact",
+    "baostock_dupont.code": "context_field_not_numeric_fact",
+    "baostock_dupont.pubDate": "context_field_not_numeric_fact",
+    "baostock_dupont.statDate": "context_field_not_numeric_fact",
+    "baostock_growth.code": "context_field_not_numeric_fact",
+    "baostock_growth.pubDate": "context_field_not_numeric_fact",
+    "baostock_growth.statDate": "context_field_not_numeric_fact",
+    "baostock_operation.code": "context_field_not_numeric_fact",
+    "baostock_operation.pubDate": "context_field_not_numeric_fact",
+    "baostock_operation.statDate": "context_field_not_numeric_fact",
+    "baostock_profit.code": "context_field_not_numeric_fact",
+    "baostock_profit.pubDate": "context_field_not_numeric_fact",
+    "baostock_profit.statDate": "context_field_not_numeric_fact"
+  },
+  "limitations": [
+    "reported_period只确认报告期末，未确认累计或单季窗口；不做期间派生。",
+    "basic状态为观察时点；calendar缓存无记录，不能以0行情事实证明未开市。",
+    "供应商字段和单位解释核实，不代表财务方法或人工验收。"
+  ],
+  "content_sha256": "9521639a413e60c670eb00a892343e7825eaf8f4fb91f93244d0a0f9289e598d"
+}

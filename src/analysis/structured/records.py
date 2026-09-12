@@ -36,6 +36,9 @@ class PeriodKind(str, Enum):
     TTM = "ttm"
     INSTANT = "instant"
     MARKET_QUOTE = "market_quote"
+    # Report-end identified, but the supplier did not establish a YTD/quarter
+    # window. It must never enter cumulative subtraction or TTM addition.
+    REPORTED_PERIOD = "reported_period"
 
 
 class ValueKind(str, Enum):

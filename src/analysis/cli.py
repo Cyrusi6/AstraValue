@@ -183,6 +183,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     structured_materialize.add_argument("run_id")
     structured_materialize.add_argument("--as-of")
     structured_materialize.add_argument("--strict-historical", action="store_true")
+    structured_materialize.add_argument("--interpretation-contract", help="显式选择有证据的后补字段解释版本")
     structured_materialize.add_argument("--no-persist", action="store_true")
     structured_materialize.add_argument("--summary", action="store_true", help="仅输出计数、缺口汇总和投影定位")
     _add_bound_storage_arguments(structured_materialize)
@@ -361,6 +362,7 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 args.run_id,
                 as_of=_parse_datetime(args.as_of) if args.as_of else None,
                 strict_historical=bool(args.strict_historical),
+                interpretation_contract=args.interpretation_contract,
                 persist=not bool(args.no_persist),
                 include_records=not bool(args.summary),
             )

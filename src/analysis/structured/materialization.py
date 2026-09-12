@@ -40,6 +40,7 @@ class MaterializationResult:
     as_of: str | None
     strict_historical: bool
     contract_hash: str
+    interpretation_contract: dict | None = None
 
     def to_mapping(self) -> dict[str, Any]:
         return {
@@ -54,6 +55,10 @@ class MaterializationResult:
             "selected_dimensional_fact_ids": list(self.selected_dimensional_fact_ids),
             "as_of": self.as_of, "strict_historical": self.strict_historical,
             "contract_hash": self.contract_hash, "performed_network_io": False,
+            **({"interpretation_contract": self.interpretation_contract,
+                "semantic_gap_counts": dict(sorted(Counter(
+                    reason for f in self.facts for reason in f.metadata.get("semantic_gaps", [])).items()))}
+               if self.interpretation_contract is not None else {}),
         }
 
 
@@ -68,7 +73,8 @@ class StructuredFactMaterializer:
         self.storage, self.repository = storage, repository
 
     def materialize(self, run_id: str, *, as_of: datetime | None = None,
-                    strict_historical: bool = False) -> MaterializationResult:
+                    strict_historical: bool = False,
+                    interpretation_contract: str | None = None) -> MaterializationResult:
         cutoff = _timestamp(as_of) if as_of is not None else None
         if strict_historical and cutoff is None:
             raise ValueError("strict_historical requires timezone-aware as_of")
@@ -77,6 +83,14 @@ class StructuredFactMaterializer:
                    for e in self.repository.list_run_events(run_id)):
             raise ValueError("materialization requires a finalized structured run")
         contract = _contract(context)
+        interpretation = None
+        if interpretation_contract is not None:
+            from .interpretation import load_interpretation
+            interpretation = load_interpretation(interpretation_contract, context)
+            contract = {"base_contract_hash": canonical_sha256(contract),
+                "interpretation": interpretation,
+                "rules": {**contract["rules"], **interpretation["rules"]},
+                "rejections": {**contract.get("rejections", {}), **interpretation["rejections"]}}
         contract_hash = canonical_sha256(contract)
         jobs = {str(j["job_id"]): j for j in self.storage.list_jobs(run_id, limit=None)}
         datasets = {d["dataset_id"]: d for d in context.frozen_config.get("datasets", [])}
@@ -93,6 +107,10 @@ class StructuredFactMaterializer:
         def gap(reason, record, field=None, **extra):
             nonlocal skipped
             skipped += 1
+            if interpretation is not None and field:
+                extra.update(dataset_id=field.get("dataset_id"), original_value=field.get("value"),
+                    stored_unit=field.get("unit"), original_quality=field.get("quality"),
+                    original_definition_version=field.get("definition_version"))
             field_gaps.append({"record_version_id": record.get("record_version_id"),
                 "job_id": record.get("job_id"), "snapshot_id": record.get("snapshot_id"),
                 "row_key": record.get("row_key"),
@@ -150,7 +168,17 @@ class StructuredFactMaterializer:
             for field in fields:
                 raw_name = field.get("raw_field_name")
                 rule = contract["rules"].get(f"{dataset_id}.{raw_name}")
-                reason = _field_failure(context, job, record, field, rule, row, contract.get("rejections", {}))
+                interpreted = rule is not None and "input_descriptors" in rule
+                fact_available = effective_available
+                if interpreted:
+                    from .interpretation import interpretation_field_failure, interpreted_period_end
+                    if strict_historical and _timestamp(interpretation["effective_at"]) > cutoff:
+                        gap("interpretation_not_effective_at_cutoff", record, field)
+                        continue
+                    fact_available = max(effective_available, _timestamp(interpretation["effective_at"]))
+                    reason = interpretation_field_failure(context, job, record, field, rule, row, source_definition, interpretation)
+                else:
+                    reason = _field_failure(context, job, record, field, rule, row, contract.get("rejections", {}))
                 if reason:
                     gap(reason, record, field)
                     continue
@@ -162,7 +190,15 @@ class StructuredFactMaterializer:
                 except (ValueError, DecimalException, OverflowError):
                     gap("value_missing_or_non_numeric", record, field)
                     continue
+                if interpreted:
+                    from .interpretation import numeric_semantic_failure
+                    reason = numeric_semantic_failure(rule, row, numeric)
+                    if reason:
+                        gap(reason, record, field)
+                        continue
                 period_end = _period_end(field.get("period_key"), row, dataset)
+                if interpreted:
+                    period_end = interpreted_period_end(rule, row, period_end, observed)
                 if period_end is None:
                     gap("period_missing_or_conflicting", record, field)
                     continue
@@ -176,18 +212,38 @@ class StructuredFactMaterializer:
                         continue
                 metadata = _lineage(context, job, record, field, rule, snapshot, contract_hash)
                 metadata.update(value_kind=value_kind, decimal_value=format(converted, "f"),
-                    available_at=effective_available.isoformat(),
+                    available_at=fact_available.isoformat(),
                     original_available_at=available.isoformat(),
                     point_in_time_basis="max_record_observation_snapshot_availability",
                     historical_publication_proven=False,
                     requires_materialization_selection=True)
+                if interpreted:
+                    metadata.update(
+                        interpretation_contract_id=interpretation["contract_id"],
+                        interpretation_version=interpretation["version"],
+                        interpretation_sha256=interpretation["content_sha256"],
+                        interpretation_effective_at=interpretation["effective_at"],
+                        interpretation_definition_id=rule["definition_id"],
+                        interpretation_evidence=rule["evidence"],
+                        interpretation_semantics=rule["semantics"],
+                        original_field_descriptor={k: field.get(k) for k in (
+                            "standard_field_id", "definition_version", "nature", "quality", "unit", "period_key")},
+                        original_source_available_at=effective_available.isoformat(),
+                        original_pub_date=row.get("pubDate"),
+                        original_row_ordinal=record.get("row_ordinal"),
+                        original_source_definition_hash=source_definition.get("content_hash"),
+                        trading_status=row.get("tradestatus"), is_st=row.get("isST"),
+                        period_window_confirmed=rule["period_window_confirmed"],
+                        semantic_gaps=[] if rule["period_window_confirmed"] else ["period_window_unconfirmed"],
+                        point_in_time_basis="max_original_availability_and_interpretation_effective_at")
                 identity = {"version": MATERIALIZATION_VERSION, "contract": contract_hash,
                     "namespace": context.storage_namespace_id, "run": run_id,
                     "job": job["job_id"], "record": record["record_version_id"],
                     "snapshot": snapshot.sha256, "field": field["field_path"],
                     "definition": field["definition_version"]}
                 fact_id = _id("structured-fact", identity)
-                admission = _admission(job, record, field, rule, snapshot, observed, effective_available)
+                admission = _admission(job, record, field, rule, snapshot, observed, fact_available,
+                    definition_version=interpretation["contract_id"] if interpreted else None)
                 if rule["nature"] == "announced_plan":
                     announced = _event_date(row.get("NOTICE_DATE") or row.get("PUBLISH_DATE"))
                     if announced is None or announced > effective_available:
@@ -215,7 +271,7 @@ class StructuredFactMaterializer:
                     gap("dimension_identity_missing", record, field)
                     continue
                 sources[source.source_id] = source
-                common = dict(ticker=context.ticker, metric_id=field["standard_field_id"],
+                common = dict(ticker=context.ticker, metric_id=rule["standard_field"],
                     value=float(converted), unit=rule["unit"], currency="CNY",
                     period_start=_period_start(period_end, period_kind), period_end=period_end,
                     period_type=period_kind, scope=rule["scope"], source_ids=[source.source_id],
@@ -227,7 +283,7 @@ class StructuredFactMaterializer:
                         **dim, available_at=effective_available,
                         data_snapshot_id=_id("structured-input", {"run": run_id, "contract": contract_hash})))
                 else:
-                    facts.append(FactRecord(**common, fact_id=fact_id, as_of=effective_available,
+                    facts.append(FactRecord(**common, fact_id=fact_id, as_of=fact_available,
                         original_label=raw_name, restatement_version=record["record_version_id"],
                         is_restated=bool(record.get("supersedes_record_version_id"))))
 
@@ -264,7 +320,7 @@ class StructuredFactMaterializer:
         return MaterializationResult(run_id, tuple(facts), tuple(dimensions), tuple(events),
             sources_tuple, candidates, skipped, tuple(sorted(gaps)), tuple(field_gaps),
             selected_ids, selected_dim_ids, digest.hexdigest(), header["as_of"],
-            strict_historical, contract_hash)
+            strict_historical, contract_hash, interpretation)
 
 
 def _contract(context):
@@ -349,21 +405,23 @@ def _lineage(context, job, record, field, rule, snapshot, contract_hash):
         "original_unit": rule["original_unit"], "stored_unit": field["unit"],
         "multiplier": rule["multiplier"], "source_definition_id": job["source_definition_id"],
         "source_definition_version": job["source_definition_version"],
-        "field_definition_id": rule["definition_id"], "field_definition_version": field["definition_version"],
+        "field_definition_id": (f"{job['dataset_id']}.{field['raw_field_name']}"
+            if "input_descriptors" in rule else rule["definition_id"]),
+        "field_definition_version": field["definition_version"],
         "field_registry_hash": context.field_registry_hash,
         "source_revision_at": record.get("source_updated_at"),
         "adjustment": (record.get("raw_row") or {}).get("adjustflag"),
         "nature": rule["nature"]}
 
 
-def _admission(job, record, field, rule, snapshot, observed, available):
+def _admission(job, record, field, rule, snapshot, observed, available, *, definition_version=None):
     if rule["nature"] == "announced_plan":
         return None
     return StructuredFactAdmission(
         acquisition_method=StructuredAcquisitionMethod.SUPPLIER_STRUCTURED,
         nature=StructuredFactNature(rule["nature"]), quality=StructuredQualityStatus.PASSED,
         source_policy_id=job["source_definition_id"], source_policy_version=job["source_definition_version"],
-        field_definition_id=rule["definition_id"], field_definition_version=field["definition_version"],
+        field_definition_id=rule["definition_id"], field_definition_version=definition_version or field["definition_version"],
         raw_resource_snapshot_id=record["snapshot_id"], snapshot_sha256=snapshot.sha256,
         row_key=record["row_key"], field_path=field["field_path"], original_value=field["value"],
         original_unit=rule["original_unit"], retrieved_at=observed, available_at=available)
