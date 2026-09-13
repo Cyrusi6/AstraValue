@@ -79,7 +79,7 @@ python -m pip install -e ".[sources,dev]"
 python scripts/validate_method_library.py
 python scripts/validate_golden_samples.py
 python -m pytest
-python scripts/run_demo.py
+python -m analysis.cli demo
 uvicorn analysis.api:app --reload
 ```
 
@@ -90,7 +90,7 @@ uvicorn analysis.api:app --reload
 ```powershell
 $env:HTTP_PROXY="http://127.0.0.1:7897"
 $env:HTTPS_PROXY="http://127.0.0.1:7897"
-python scripts/smoke_online_sources.py --ticker 600519 `
+python -m analysis.cli smoke-sources --ticker 600519 `
   --db var/pilots/business-model-acquisition-v1/analysis.db `
   --data-root var/pilots/business-model-acquisition-v1/data
 ```
