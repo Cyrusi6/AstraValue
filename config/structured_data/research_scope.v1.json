@@ -1,0 +1,1195 @@
+{
+  "scope_id": "eight-step-scope-v1.0.0",
+  "version": "1.0.0",
+  "authority": "docs/acquisition/eight-step-data-and-document-scope.md",
+  "requirements_sha256": "fca27c66b80ba5923718cba6bf3fa3d6b82f1a2f6695a25e30edb111237c967b",
+  "datasets": {
+    "balance_fields": {
+      "selection": "required",
+      "purpose": "适用资产负债科目、日期、范围；目录与实质报表分开",
+      "question_ids": [
+        "ES01.Q05",
+        "ES01.Q06",
+        "ES02.Q01",
+        "ES02.Q05",
+        "ES02.Q06",
+        "ES02.Q08",
+        "ES02.Q10",
+        "ES03.Q06",
+        "ES04.Q05"
+      ],
+      "consume_fields": [
+        "ACCOUNTS_PAYABLE",
+        "ACCOUNTS_RECE",
+        "CIP",
+        "CONTRACT_ASSET",
+        "CONTRACT_LIAB",
+        "FIXED_ASSET",
+        "GOODWILL",
+        "INVENTORY",
+        "MONETARYFUNDS",
+        "OPINION_TYPE",
+        "OSOPINION_TYPE",
+        "PREPAYMENT",
+        "REPORT_DATE",
+        "REPORT_TYPE",
+        "TOTAL_ASSETS",
+        "TOTAL_CURRENT_LIAB",
+        "TOTAL_LIABILITIES"
+      ],
+      "request_fields": [
+        "ACCOUNTS_PAYABLE",
+        "ACCOUNTS_RECE",
+        "CIP",
+        "CONTRACT_ASSET",
+        "CONTRACT_LIAB",
+        "FIXED_ASSET",
+        "GOODWILL",
+        "INVENTORY",
+        "MONETARYFUNDS",
+        "NOTICE_DATE",
+        "OPINION_TYPE",
+        "ORG_CODE",
+        "OSOPINION_TYPE",
+        "PREPAYMENT",
+        "REPORT_DATE",
+        "REPORT_TYPE",
+        "SECUCODE",
+        "TOTAL_ASSETS",
+        "TOTAL_CURRENT_LIAB",
+        "TOTAL_LIABILITIES"
+      ]
+    },
+    "income_fields": {
+      "selection": "required",
+      "purpose": "年度/累计收入、成本、利润、费用、税、EPS和非经常项",
+      "question_ids": [
+        "ES02.Q01",
+        "ES02.Q02",
+        "ES02.Q03",
+        "ES02.Q05",
+        "ES02.Q07",
+        "ES02.Q09"
+      ],
+      "consume_fields": [
+        "ASSET_IMPAIRMENT_LOSS",
+        "BASIC_EPS",
+        "CREDIT_IMPAIRMENT_LOSS",
+        "DEDUCT_PARENT_NETPROFIT",
+        "DILUTED_EPS",
+        "FINANCE_EXPENSE",
+        "INCOME_TAX",
+        "MANAGE_EXPENSE",
+        "NETPROFIT",
+        "OPERATE_COST",
+        "OPERATE_INCOME",
+        "PARENT_NETPROFIT",
+        "REPORT_DATE",
+        "REPORT_TYPE",
+        "RESEARCH_EXPENSE",
+        "SALE_EXPENSE",
+        "TOTAL_OPERATE_INCOME",
+        "TOTAL_PROFIT"
+      ],
+      "request_fields": [
+        "ASSET_IMPAIRMENT_LOSS",
+        "BASIC_EPS",
+        "CREDIT_IMPAIRMENT_LOSS",
+        "DEDUCT_PARENT_NETPROFIT",
+        "DILUTED_EPS",
+        "FINANCE_EXPENSE",
+        "INCOME_TAX",
+        "MANAGE_EXPENSE",
+        "NETPROFIT",
+        "NOTICE_DATE",
+        "OPERATE_COST",
+        "OPERATE_INCOME",
+        "ORG_CODE",
+        "PARENT_NETPROFIT",
+        "REPORT_DATE",
+        "REPORT_TYPE",
+        "RESEARCH_EXPENSE",
+        "SALE_EXPENSE",
+        "SECUCODE",
+        "TOTAL_OPERATE_INCOME",
+        "TOTAL_PROFIT"
+      ]
+    },
+    "cashflow_fields": {
+      "selection": "required",
+      "purpose": "年度/累计三类现金流及补充资料",
+      "question_ids": [
+        "ES01.Q06",
+        "ES02.Q01",
+        "ES02.Q07",
+        "ES02.Q08"
+      ],
+      "consume_fields": [
+        "BEGIN_CASH_EQUIVALENTS",
+        "CONSTRUCT_LONG_ASSET",
+        "END_CASH_EQUIVALENTS",
+        "NETCASH_FINANCE",
+        "NETCASH_INVEST",
+        "NETCASH_OPERATE",
+        "REPORT_DATE",
+        "REPORT_TYPE"
+      ],
+      "request_fields": [
+        "BEGIN_CASH_EQUIVALENTS",
+        "CONSTRUCT_LONG_ASSET",
+        "END_CASH_EQUIVALENTS",
+        "NETCASH_FINANCE",
+        "NETCASH_INVEST",
+        "NETCASH_OPERATE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "REPORT_DATE",
+        "REPORT_TYPE",
+        "SECUCODE"
+      ]
+    },
+    "income_quarter": {
+      "selection": "required",
+      "purpose": "单季金额，不以 QOQ 比率替代；已有同口径有效结果可复用",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "cashflow_quarter": {
+      "selection": "required",
+      "purpose": "单季现金流；核对完整期间和定义",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "em_metrics": {
+      "selection": "on_demand",
+      "purpose": "三表无法同口径取得/复算的已确认指标，不重复建同义主值",
+      "question_ids": [
+        "ES02.Q04"
+      ],
+      "consume_fields": [
+        "ROIC"
+      ],
+      "request_fields": [
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "REPORT_DATE",
+        "ROIC",
+        "SECUCODE"
+      ]
+    },
+    "company_basic": {
+      "selection": "required",
+      "purpose": "主体、代码、成立上市时间、业务范围、审计机构等；简介自述单列",
+      "question_ids": [
+        "ES01.Q01",
+        "ES03.Q01",
+        "ES03.Q06",
+        "ES07.Q01"
+      ],
+      "consume_fields": [
+        "ACCOUNT_FIRM",
+        "CSRC_INDUSTRY_NAME",
+        "FOUND_DATE",
+        "MAIN_BUSINESS",
+        "ORG_CODE",
+        "ORG_NAME",
+        "REAL_CONTROLER",
+        "REAL_CONTROLER_CODE",
+        "SWINDUSTRY_CODE2",
+        "SWINDUSTRY_NAME2"
+      ],
+      "request_fields": [
+        "ACCOUNT_FIRM",
+        "CSRC_INDUSTRY_NAME",
+        "FOUND_DATE",
+        "MAIN_BUSINESS",
+        "ORG_CODE",
+        "ORG_NAME",
+        "REAL_CONTROLER",
+        "REAL_CONTROLER_CODE",
+        "SECUCODE",
+        "SWINDUSTRY_CODE2",
+        "SWINDUSTRY_NAME2",
+        "__retrieved_at"
+      ]
+    },
+    "segments": {
+      "selection": "required",
+      "purpose": "产品/地区/行业/渠道收入成本、利润口径及父子分类",
+      "question_ids": [
+        "ES01.Q02",
+        "ES01.Q04"
+      ],
+      "consume_fields": [
+        "ITEM_CODE",
+        "ITEM_PARENT_CODE",
+        "MAINOP_TYPE",
+        "MAIN_BUSINESS_COST",
+        "MAIN_BUSINESS_INCOME",
+        "MAIN_BUSINESS_RPOFIT"
+      ],
+      "request_fields": [
+        "ITEM_CODE",
+        "ITEM_PARENT_CODE",
+        "MAINOP_TYPE",
+        "MAIN_BUSINESS_COST",
+        "MAIN_BUSINESS_INCOME",
+        "MAIN_BUSINESS_RPOFIT",
+        "NOTICE_DATE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "customers_peer": {
+      "selection": "required",
+      "purpose": "客户/供应商、销售采购金额、合计、集中度、匿名状态",
+      "question_ids": [
+        "ES01.Q03"
+      ],
+      "consume_fields": [
+        "AMOUNT",
+        "RANK",
+        "SUM_AMOUNT",
+        "TOI_RATIO",
+        "TYPE"
+      ],
+      "request_fields": [
+        "AMOUNT",
+        "ORG_CODE",
+        "RANK",
+        "REPORT_DATE",
+        "SECUCODE",
+        "SUM_AMOUNT",
+        "TOI_RATIO",
+        "TYPE",
+        "TYPE_CODE"
+      ]
+    },
+    "rd": {
+      "selection": "required",
+      "purpose": "研发费用化/资本化、人员、投入；成果另取证据",
+      "question_ids": [
+        "ES01.Q07"
+      ],
+      "consume_fields": [
+        "RESEARCH_EXPENSE",
+        "RESEARCH_EXPENSE_CAPITALIZATION",
+        "RESEARCH_EXPENSING",
+        "RESEARCH_NUM"
+      ],
+      "request_fields": [
+        "REPORT_DATE",
+        "RESEARCH_EXPENSE",
+        "RESEARCH_EXPENSE_CAPITALIZATION",
+        "RESEARCH_EXPENSING",
+        "RESEARCH_NUM",
+        "SECUCODE"
+      ]
+    },
+    "staff_pay": {
+      "selection": "required",
+      "purpose": "员工、研发/生产/销售人员、薪酬与有定义的人均指标",
+      "question_ids": [
+        "ES01.Q07"
+      ],
+      "consume_fields": [
+        "TOTAL_NUM"
+      ],
+      "request_fields": [
+        "NOTICE_DATE",
+        "PAYYEAR",
+        "REPORT_DATE",
+        "SECUCODE",
+        "TOTAL_NUM"
+      ]
+    },
+    "staff_structure": {
+      "selection": "on_demand",
+      "purpose": "技术、学历等结构能回答人员投入问题时使用",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "DISTRIBUTION_NAME",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "subsidiaries": {
+      "selection": "required",
+      "purpose": "控参股关系、投资、利润、业务与主体范围",
+      "question_ids": [
+        "ES01.Q08"
+      ],
+      "consume_fields": [
+        "HOLD_ORG_NAME",
+        "HOLD_TYPE",
+        "MAIN_PRODUCTS",
+        "ORG_HOLD_RATIO"
+      ],
+      "request_fields": [
+        "HOLD_ORG_NAME",
+        "HOLD_TYPE",
+        "MAIN_PRODUCTS",
+        "ORG_HOLD_RATIO",
+        "ORG_RANK",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "controller": {
+      "selection": "required",
+      "purpose": "实控链、持股关系、当前有效主体",
+      "question_ids": [
+        "ES03.Q01"
+      ],
+      "consume_fields": [
+        "HOLDER_NAME",
+        "HOLD_RATIO",
+        "RELATED_RELATION"
+      ],
+      "request_fields": [
+        "HOLDER_NAME",
+        "HOLD_RATIO",
+        "RELATED_RELATION",
+        "SECUCODE",
+        "__retrieved_at"
+      ]
+    },
+    "equity": {
+      "selection": "required",
+      "purpose": "股本、股份类型、变化日期与原因",
+      "question_ids": [
+        "ES02.Q09",
+        "ES05.Q01"
+      ],
+      "consume_fields": [
+        "END_DATE",
+        "TOTAL_SHARES"
+      ],
+      "request_fields": [
+        "END_DATE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "SECUCODE",
+        "TOTAL_SHARES"
+      ]
+    },
+    "holders_history": {
+      "selection": "required",
+      "purpose": "十大股东、持股与比例；不当全部股东名册",
+      "question_ids": [
+        "ES03.Q01"
+      ],
+      "consume_fields": [
+        "HOLDER_CODE",
+        "HOLD_NUM",
+        "HOLD_NUM_RATIO"
+      ],
+      "request_fields": [
+        "END_DATE",
+        "HOLDER_CODE",
+        "HOLDER_NAME",
+        "HOLD_NUM",
+        "HOLD_NUM_RATIO",
+        "SECUCODE"
+      ]
+    },
+    "float_holders_history": {
+      "selection": "required",
+      "purpose": "十大流通股东；保存比例分母，与上一表去重识别",
+      "question_ids": [
+        "ES03.Q01"
+      ],
+      "consume_fields": [
+        "FREE_HOLDNUM_RATIO"
+      ],
+      "request_fields": [
+        "END_DATE",
+        "FREE_HOLDNUM_RATIO",
+        "HOLDER_NAME",
+        "NOTICE_DATE",
+        "SECUCODE"
+      ]
+    },
+    "holder_count": {
+      "selection": "on_demand",
+      "purpose": "股东结构问题需要时保存期末户数，不作为盈利驱动",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "END_DATE",
+        "ORG_CODE",
+        "SECUCODE"
+      ]
+    },
+    "dividend": {
+      "selection": "required",
+      "purpose": "利润年度、每股/每十股、分配基数、方案/实施和日期",
+      "question_ids": [
+        "ES04.Q01"
+      ],
+      "consume_fields": [
+        "ASSIGN_PROGRESS",
+        "EQUITY_RECORD_DATE",
+        "EX_DIVIDEND_DATE",
+        "IMPL_PLAN_PROFILE",
+        "PRETAX_BONUS_RMB",
+        "REPORT_DATE"
+      ],
+      "request_fields": [
+        "ASSIGN_PROGRESS",
+        "EQUITY_RECORD_DATE",
+        "EX_DIVIDEND_DATE",
+        "IMPL_PLAN_PROFILE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "PRETAX_BONUS_RMB",
+        "PUBLISH_DATE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "repurchase": {
+      "selection": "required",
+      "purpose": "用途、计划、实际完成、注销/激励与生命周期",
+      "question_ids": [
+        "ES04.Q02"
+      ],
+      "consume_fields": [
+        "FINISHDATE",
+        "REPURAMOUNT",
+        "REPURAMOUNTLIMIT",
+        "REPURNUM",
+        "REPUROBJECTIVE",
+        "REPURPROGRESS"
+      ],
+      "request_fields": [
+        "DIM_DATE",
+        "FINISHDATE",
+        "REPURAMOUNT",
+        "REPURAMOUNTLIMIT",
+        "REPURCODE",
+        "REPURNUM",
+        "REPUROBJECTIVE",
+        "REPURPROGRESS",
+        "SECUCODE",
+        "__retrieved_at"
+      ]
+    },
+    "guarantee": {
+      "selection": "required",
+      "purpose": "对象、金额、币种、关联关系、期限与履行",
+      "question_ids": [
+        "ES03.Q05"
+      ],
+      "consume_fields": [
+        "IS_RELATED_TRADE"
+      ],
+      "request_fields": [
+        "EID_EID",
+        "IS_RELATED_TRADE",
+        "NOTICE_DATE",
+        "REPORT_DATE",
+        "SECUCODE",
+        "TRADE_DATE"
+      ]
+    },
+    "litigation": {
+      "selection": "required",
+      "purpose": "案件、金额、主体、阶段；详情按 D16",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "CASE_NAME",
+        "CASE_PROFILE",
+        "DEFENCE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "SECUCODE"
+      ]
+    },
+    "violation": {
+      "selection": "required",
+      "purpose": "处罚机构、对象、原因、金额、时间；整改按 D16",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "NOTICE_DATE",
+        "PUNISH_OBJECT",
+        "PUNISH_TYPE",
+        "SECUCODE"
+      ]
+    },
+    "seo": {
+      "selection": "required",
+      "purpose": "增发金额股数、用途和实际状态",
+      "question_ids": [
+        "ES04.Q04"
+      ],
+      "consume_fields": [
+        "ISSUE_NUM",
+        "ISSUE_PRICE",
+        "TOTAL_RAISE_FUNDS"
+      ],
+      "request_fields": [
+        "ISSUE_NUM",
+        "ISSUE_PRICE",
+        "NOTICE_DATE",
+        "SECUCODE",
+        "TOTAL_RAISE_FUNDS"
+      ]
+    },
+    "allotment": {
+      "selection": "required",
+      "purpose": "配股价格、数量、募资及实施状态",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "NOTICE_DATE",
+        "SECUCODE"
+      ]
+    },
+    "bond_issuance": {
+      "selection": "required",
+      "purpose": "初始发行、期限利率、转股条款；当前状态按 D12 补充",
+      "question_ids": [
+        "ES04.Q06"
+      ],
+      "consume_fields": [
+        "BOND_COMBINE_CODE",
+        "EXPIRE_DATE",
+        "INITIAL_TRANSFER_PRICE",
+        "ISSUE_COUPON_IR",
+        "ISSUE_SCALE"
+      ],
+      "request_fields": [
+        "BOND_COMBINE_CODE",
+        "EXPIRE_DATE",
+        "INITIAL_TRANSFER_PRICE",
+        "ISSUE_COUPON_IR",
+        "ISSUE_SCALE",
+        "NOTICE_DATE",
+        "SECUCODE"
+      ]
+    },
+    "goodwill": {
+      "selection": "required",
+      "purpose": "来源明确的减值与专属比例；余额以三表为主",
+      "question_ids": [
+        "ES02.Q05",
+        "ES04.Q05"
+      ],
+      "consume_fields": [
+        "GOODWILL_CHANGE"
+      ],
+      "request_fields": [
+        "GOODWILL_CHANGE",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "pledge": {
+      "selection": "required",
+      "purpose": "主体、股数、比例分母、质押/解押状态；不消费推测平仓标签",
+      "question_ids": [
+        "ES03.Q02"
+      ],
+      "consume_fields": [
+        "ACTUAL_UNFREEZE_DATE",
+        "HOLDER_NAME",
+        "PF_HOLD_RATIO",
+        "PF_NUM",
+        "PF_TSR",
+        "UNFREEZE_STATE"
+      ],
+      "request_fields": [
+        "ACTUAL_UNFREEZE_DATE",
+        "HOLDER_NAME",
+        "MXID",
+        "NOTICE_DATE",
+        "PF_HOLD_RATIO",
+        "PF_NUM",
+        "PF_TSR",
+        "SECUCODE",
+        "TRADE_DATE",
+        "UNFREEZE_STATE"
+      ]
+    },
+    "unlock_peer": {
+      "selection": "required",
+      "purpose": "限售股份、计划/实际解禁及相关主体",
+      "question_ids": [
+        "ES04.Q03"
+      ],
+      "consume_fields": [
+        "ABLE_FREE_SHARES",
+        "CURRENT_FREE_SHARES",
+        "FREE_DATE"
+      ],
+      "request_fields": [
+        "ABLE_FREE_SHARES",
+        "CURRENT_FREE_SHARES",
+        "FREE_DATE",
+        "SECUCODE"
+      ]
+    },
+    "management_trades": {
+      "selection": "required",
+      "purpose": "高管及相关主体股份变化；不代表全部大股东行为",
+      "question_ids": [
+        "ES04.Q03"
+      ],
+      "consume_fields": [
+        "CHANGE_AMOUNT",
+        "CHANGE_DATE",
+        "CHANGE_REASON",
+        "CHANGE_SHARES"
+      ],
+      "request_fields": [
+        "CHANGE_AMOUNT",
+        "CHANGE_DATE",
+        "CHANGE_REASON",
+        "CHANGE_SHARES",
+        "GGEID",
+        "SECURITY_CODE"
+      ]
+    },
+    "management_roster": {
+      "selection": "required",
+      "purpose": "人员身份、职务、任期和持股；完整历史缺口按 D17",
+      "question_ids": [
+        "ES03.Q03"
+      ],
+      "consume_fields": [
+        "INCUMBENT_DATE",
+        "INCUMBENT_TIME",
+        "PERSON_CODE",
+        "PERSON_NAME",
+        "POSITION"
+      ],
+      "request_fields": [
+        "INCUMBENT_DATE",
+        "INCUMBENT_TIME",
+        "PERSON_CODE",
+        "PERSON_NAME",
+        "POSITION",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "management_salary": {
+      "selection": "required",
+      "purpose": "个人薪酬、报告期、币种单位及身份",
+      "question_ids": [
+        "ES03.Q03"
+      ],
+      "consume_fields": [
+        "END_DATE",
+        "SALARY"
+      ],
+      "request_fields": [
+        "END_DATE",
+        "PERSON_CODE",
+        "SALARY",
+        "SECUCODE"
+      ]
+    },
+    "margin": {
+      "selection": "excluded",
+      "purpose": "融资融券属于证券交易数据，不是公司借款/有息债务",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "SECUCODE",
+        "TRADE_DATE"
+      ]
+    },
+    "block_trade": {
+      "selection": "on_demand",
+      "purpose": "仅跟踪具体股东交易事件，不取得整套历史成交",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "DAILY_RANK",
+        "SECUCODE",
+        "TRADE_DATE"
+      ]
+    },
+    "billboard": {
+      "selection": "excluded",
+      "purpose": "龙虎榜成交不属于八步基础数据",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "SECUCODE",
+        "TRADE_DATE",
+        "TRADE_ID"
+      ]
+    },
+    "institution_holds": {
+      "selection": "on_demand",
+      "purpose": "特定股东研究才取，通常已有主要股东数据足够",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "ORG_TYPE",
+        "REPORT_DATE",
+        "SECUCODE"
+      ]
+    },
+    "fund_holds": {
+      "selection": "excluded",
+      "purpose": "不批量取得逐基金逐期持仓",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "HOLDER_CODE",
+        "REPORT_DATE",
+        "SECUCODE",
+        "TOTAL_SHARES"
+      ]
+    },
+    "surveys": {
+      "selection": "on_demand",
+      "purpose": "选中 D18 的日期、问答、来源；不因参会名单扩大采集",
+      "question_ids": [
+        "ES01.Q09",
+        "ES06.Q01"
+      ],
+      "consume_fields": [
+        "CONTENT"
+      ],
+      "request_fields": [
+        "CONTENT",
+        "END_DATE",
+        "NOTICE_DATE",
+        "NUM",
+        "RECEIVE_OBJECT",
+        "RECEIVE_START_DATE",
+        "SECUCODE"
+      ]
+    },
+    "tags": {
+      "selection": "excluded",
+      "purpose": "不以标签证明主营或同行可比性；确有分类线索需求再单列",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "BOARD_CODE",
+        "BOARD_RANK",
+        "SECUCODE",
+        "__retrieved_at"
+      ]
+    },
+    "forecasts": {
+      "selection": "on_demand",
+      "purpose": "机构、作者、发布时间、预测年度及版本；不作实际业绩",
+      "question_ids": [
+        "ES01.Q09",
+        "ES06.Q01"
+      ],
+      "consume_fields": [
+        "RATING"
+      ],
+      "request_fields": [
+        "ORG_CODE",
+        "PUBLISH_DATE",
+        "RATING",
+        "SECUCODE"
+      ]
+    },
+    "market_cap": {
+      "selection": "on_demand",
+      "purpose": "分析时点价格/市值/股本；明确范围的 PE/PB/PS 历史；排除涨跌等附带字段",
+      "question_ids": [
+        "ES05.Q01"
+      ],
+      "consume_fields": [
+        "CLOSE_PRICE",
+        "PB_MRQ",
+        "PE_TTM",
+        "PS_TTM",
+        "TOTAL_MARKET_CAP",
+        "TOTAL_SHARES",
+        "NOTLIMITED_MARKETCAP_A"
+      ],
+      "request_fields": [
+        "CLOSE_PRICE",
+        "PB_MRQ",
+        "PE_TTM",
+        "PS_TTM",
+        "SECUCODE",
+        "TOTAL_MARKET_CAP",
+        "TOTAL_SHARES",
+        "TRADE_DATE",
+        "NOTLIMITED_MARKETCAP_A"
+      ]
+    },
+    "macro_cpi": {
+      "selection": "on_demand",
+      "purpose": "只有行业传导问题需要时取；不替代具体产品价格",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "REPORT_DATE"
+      ]
+    },
+    "macro_retail": {
+      "selection": "on_demand",
+      "purpose": "只有相关消费研究需要时取；不替代白酒销量",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "REPORT_DATE"
+      ]
+    },
+    "capital_projects": {
+      "selection": "required",
+      "purpose": "项目、计划/实际投入、建设期与状态",
+      "question_ids": [
+        "ES01.Q06",
+        "ES01.Q09",
+        "ES04.Q04"
+      ],
+      "consume_fields": [
+        "ACTUAL_INPUT_RF",
+        "BUILD_PERIOD",
+        "ITEM_NAME",
+        "PLAN_INVEST_AMT"
+      ],
+      "request_fields": [
+        "ACTUAL_INPUT_RF",
+        "BUILD_PERIOD",
+        "ITEM_NAME",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "PLAN_INVEST_AMT",
+        "SECURITY_CODE"
+      ]
+    },
+    "capital_raise": {
+      "selection": "required",
+      "purpose": "融资净额、用途、开始日及公告；使用细项按 D11",
+      "question_ids": [
+        "ES04.Q04"
+      ],
+      "consume_fields": [
+        "FINANCE_TYPE",
+        "NET_RAISE_FUNDS"
+      ],
+      "request_fields": [
+        "FINANCE_TYPE",
+        "NET_RAISE_FUNDS",
+        "NOTICE_DATE",
+        "ORG_CODE",
+        "SECUCODE"
+      ]
+    },
+    "baostock_adjust": {
+      "selection": "excluded",
+      "purpose": "不为财报分析默认建设复权价格历史",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "__retrieved_at",
+        "code",
+        "dividOperateDate"
+      ]
+    },
+    "baostock_balance": {
+      "selection": "on_demand",
+      "purpose": "定义明确的偿债指标；不把它当资产负债表明细",
+      "question_ids": [
+        "ES02.Q06"
+      ],
+      "consume_fields": [
+        "currentRatio",
+        "quickRatio"
+      ],
+      "request_fields": [
+        "code",
+        "currentRatio",
+        "quickRatio",
+        "statDate"
+      ]
+    },
+    "baostock_basic": {
+      "selection": "on_demand",
+      "purpose": "启用该源时所需证券身份与有效状态，不重复建立公司主档",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "code",
+        "ipoDate"
+      ]
+    },
+    "baostock_calendar": {
+      "selection": "on_demand",
+      "purpose": "仅估值日期等需要时取相应范围，多公司复用一次缓存",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "calendar_date"
+      ]
+    },
+    "baostock_cash_flow": {
+      "selection": "on_demand",
+      "purpose": "已确认现金流/资产结构指标；空值和期间不明留缺口",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "code",
+        "statDate"
+      ]
+    },
+    "baostock_daily": {
+      "selection": "excluded",
+      "purpose": "估值备选确有需要时另选必要字段/日期并验证新请求，不能沿用全历史 OHLCV",
+      "question_ids": [
+        "ES05.Q01",
+        "ES05.Q06",
+        "ES08.Q01",
+        "ES08.Q04"
+      ],
+      "consume_fields": [
+        "close",
+        "date",
+        "pbMRQ",
+        "pcfNcfTTM",
+        "peTTM",
+        "psTTM",
+        "tradestatus"
+      ],
+      "request_fields": [
+        "close",
+        "code",
+        "date",
+        "pbMRQ",
+        "pcfNcfTTM",
+        "peTTM",
+        "psTTM",
+        "tradestatus"
+      ]
+    },
+    "baostock_dupont": {
+      "selection": "on_demand",
+      "purpose": "杜邦供应商口径；不与不同 ROE 定义混并",
+      "question_ids": [
+        "ES02.Q04"
+      ],
+      "consume_fields": [
+        "dupontAssetStoEquity",
+        "dupontAssetTurn",
+        "dupontNitogr",
+        "dupontROE"
+      ],
+      "request_fields": [
+        "code",
+        "dupontAssetStoEquity",
+        "dupontAssetTurn",
+        "dupontNitogr",
+        "dupontROE",
+        "statDate"
+      ]
+    },
+    "baostock_growth": {
+      "selection": "on_demand",
+      "purpose": "语义明确的同比；已有同口径计算可复用",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "code",
+        "statDate"
+      ]
+    },
+    "baostock_operation": {
+      "selection": "on_demand",
+      "purpose": "语义明确的周转指标，期间定义独立",
+      "question_ids": [],
+      "consume_fields": [],
+      "request_fields": [
+        "code",
+        "statDate"
+      ]
+    },
+    "baostock_profit": {
+      "selection": "on_demand",
+      "purpose": "ROE、利润率、TTM EPS 等明确口径；供应商利润金额不替代三表主值",
+      "question_ids": [
+        "ES02.Q04"
+      ],
+      "consume_fields": [
+        "roeAvg"
+      ],
+      "request_fields": [
+        "code",
+        "roeAvg",
+        "statDate"
+      ]
+    }
+  },
+  "documents": [
+    {
+      "document_class": "D01",
+      "description": "完整中文年度报告，如“2025年年度报告.pdf”",
+      "selection": "必取所需年度正文",
+      "content": "经营模式、分部、产销存、研发、治理、资本事项、三表及完整附注；保留报告内部审计章节",
+      "purpose": "ES01–ES08；巨潮、交易所或公司正式披露"
+    },
+    {
+      "document_class": "D02",
+      "description": "完整中文半年度报告，如“2026年半年度报告.pdf”",
+      "selection": "必取所需半年度正文",
+      "content": "最新经营结构、渠道、重要事项、财务及附注变化；中报披露较少的科目明确留缺口",
+      "purpose": "ES01–ES08；同上"
+    },
+    {
+      "document_class": "D03",
+      "description": "第一、第三季度报告，如“2026年第一季度报告.pdf”",
+      "selection": "默认目录与结构化更新；正文按需",
+      "content": "结构化缺失、口径不明或重要变化时读取三表、重大变动解释、股东和事项；不得把季度正文未选中记为采集失败",
+      "purpose": "ES02/03/06/08；正式定期报告"
+    },
+    {
+      "document_class": "D04",
+      "description": "年报/中报摘要、摘要更正",
+      "selection": "默认仅目录",
+      "content": "完整报告暂不可得时，可作为明确标注的临时数据来源；不能证明完整附注已取得；正文存在时不重复解析摘要",
+      "purpose": "对应定期报告步骤；正式披露"
+    },
+    {
+      "document_class": "D05",
+      "description": "招股说明书、上市公告书、公司章程及修订稿",
+      "selection": "按需；优先复用已有版本",
+      "content": "公司沿革、产品和收入确认、业务模式、发行股本、治理条款；以当前生效版本和问题所需历史为范围",
+      "purpose": "ES01/03/04；正式发行与治理文件"
+    },
+    {
+      "document_class": "D06",
+      "description": "业绩预告、预告修正、业绩快报、快报修正",
+      "selection": "最新实际基线缺失或存在相关变化时按需",
+      "content": "预告区间、预计原因、预测期；快报实际数及未经审计状态；修正对应版本。不能替代正式财报或把预告当实际值",
+      "purpose": "ES02/06/08；公司公告"
+    },
+    {
+      "document_class": "D07",
+      "description": "月度/季度经营数据、产销公告、产能投产、重大订单、调价或经营计划公告",
+      "selection": "对已登记经营变量按需取",
+      "content": "销量、产量、库存、产能、投产时间、售价、订单金额、履约范围；区分意向、合同、计划、实施与实现收入",
+      "purpose": "ES01/06/07/08；公司经营披露"
+    },
+    {
+      "document_class": "D08",
+      "description": "利润分配预案、股东会批准、权益分派实施公告、特殊分红安排",
+      "selection": "有适用事项时取关键正文",
+      "content": "所属利润年度、每股/每十股口径、分配股数基数、现金金额、登记/除权/支付日期、实施状态",
+      "purpose": "ES04/05；公司资本回报披露"
+    },
+    {
+      "document_class": "D09",
+      "description": "回购方案、重要修订、进展、完成/终止、注销公告",
+      "selection": "取方案、所需进展和最终状态；重复无变化正文不重复解析",
+      "content": "目的、计划上下限、实际金额/股数、回购价格、注销或激励用途、执行期限；不把上限当完成量",
+      "purpose": "ES03/04/05；回购披露"
+    },
+    {
+      "document_class": "D10",
+      "description": "权益变动、收购报告书、实控变化、股东/高管增减持、质押冻结及解除、限售解禁公告",
+      "selection": "有适用事项或状态缺口时按需取",
+      "content": "主体、控制链、股数和比例分母、交易原因、计划/实际状态、日期；大股东行为不能只靠高管变动表推断",
+      "purpose": "ES03/04/06；股东及控制权披露"
+    },
+    {
+      "document_class": "D11",
+      "description": "增发/配股发行结果、募集资金存放与使用情况专项报告、募投项目及可行性/进度/变更公告",
+      "selection": "有融资、在建或未结束项目时取所需正文",
+      "content": "总额/净额、用途、实际投入、项目进度、投产、变更与资金结余；预计收益不记为实际利润",
+      "purpose": "ES01/04/06/08；融资与项目披露"
+    },
+    {
+      "document_class": "D12",
+      "description": "债券/可转债募集说明书、发行结果、付息、回售、赎回、转股价格调整、转股结果公告",
+      "selection": "对研究期和仍存续债务取必要生命周期文件",
+      "content": "发行额、实际余额、期限、票息、担保、偿付、回售赎回、当前转股条款、潜在稀释；不以初始发行表代表当前余额",
+      "purpose": "ES02/04/05/06；发行人及交易所披露"
+    },
+    {
+      "document_class": "D13",
+      "description": "重大资产购买/出售、并购重组报告书、资产评估、交易实施、业绩承诺及补偿进展",
+      "selection": "涉及公司重要资产、商誉或未完成承诺时按需取",
+      "content": "交易主体、对价、支付方式、估值依据、取得股权、商誉形成、承诺期限和实现/补偿；独立审计 PDF 仍遵守 D21",
+      "purpose": "ES01/02/04/06；交易及后续披露"
+    },
+    {
+      "document_class": "D14",
+      "description": "股权激励/员工持股计划、考核办法、授予、归属/解锁/行权、失效/回购注销公告",
+      "selection": "有适用计划时取关键版本",
+      "content": "对象、股数、授予价、考核条件、归属时间、股份支付、摊销与潜在稀释；结合年报股份支付附注",
+      "purpose": "ES03/04/08；激励及员工持股披露"
+    },
+    {
+      "document_class": "D15",
+      "description": "关联交易、日常关联交易预计与实际执行、资金占用、担保及解除公告",
+      "selection": "有适用事项或结构化缺口时按需取",
+      "content": "对手、关系、交易类型、定价条款、预计/实际金额、余额、担保对象和履行；关联担保不代表全部关联交易",
+      "purpose": "ES02/03/06；治理及重大事项披露"
+    },
+    {
+      "document_class": "D16",
+      "description": "监管问询/关注函及回复、处罚、诉讼仲裁、整改进展、重大风险公告",
+      "selection": "对当前问题、关键人员/资质或重大金额事项按需取",
+      "content": "监管问题、公司回复、已确认结论、金额、阶段、整改要求及完成证据；公司回复不自动成为监管认定",
+      "purpose": "ES02/03/06；监管、交易所及公司公开文件"
+    },
+    {
+      "document_class": "D17",
+      "description": "董监高任免、审计机构变更、治理情况、内部控制评价报告及整改说明",
+      "selection": "关键人员变化或治理问题需要时取",
+      "content": "身份、任期、薪酬/持股、变更原因、审计与内控意见、缺陷和整改；内控自我评价与独立内控审计不同",
+      "purpose": "ES03/06；治理披露及 D01/D02"
+    },
+    {
+      "document_class": "D18",
+      "description": "投资者关系活动记录表、业绩说明会问答、公司官方经营演示材料",
+      "selection": "仅对未回答问题/新信息取；默认不批量下载所有调研材料",
+      "content": "经营解释、计划、口径和约束；区分已发生事实、管理层陈述和预测；不以参会机构数量评价业务质量",
+      "purpose": "ES01/06/07/08；公司/交易所/巨潮公开记录"
+    },
+    {
+      "document_class": "D19",
+      "description": "官方行业统计公报、统计表、监管/行业经营报告、政策原文、利率曲线数据",
+      "selection": "行业或估值问题激活时按需取",
+      "content": "产销量、价格、库存、市场规模、统计范围、样本/分母、政策生效日和方法变更；多个公司共用缓存",
+      "purpose": "ES05/06/07；政府、监管、行业协会、中债等已核定来源"
+    },
+    {
+      "document_class": "D20",
+      "description": "会议通知、投票表、授权委托书、签到表、重复附件、常规流程性公告",
+      "selection": "默认仅目录",
+      "content": "如果会议决议实际确认分红、融资、控制权或其他关键事项，转入相应 D08–D17 规则；不能按“会议”字样一律排除",
+      "purpose": "目录及事件确认；正式披露"
+    },
+    {
+      "document_class": "D21",
+      "description": "独立审计 PDF（含其附带报表/附注）、英文年度报告",
+      "selection": "默认不取正文；保留已发现目录与旧文件",
+      "content": "延续现有用户选择。完整中文年报内部审计章节不删除；不能将“审计”关键词扩大为全部公告停采",
+      "purpose": "原策略见 [正文选择说明](content-selection.md)"
+    }
+  ],
+  "content_sha256": "2616aa039357acbddb30016bf961ef00e5fc363323a6c84ab0ca7d2c776adf74"
+}

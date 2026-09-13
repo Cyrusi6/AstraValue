@@ -344,6 +344,9 @@ class StructuredDatasetPlanner:
             )
             parameters = dict(_value(query, "parameter_template", default={}) or {})
             parameters.update(work.parameters)
+            if context.frozen_config.get("research_scope"):
+                from .scope import request_fields
+                parameters = request_fields(work.dataset_id, parameters)
             parameters.setdefault("ticker", work.ticker)
             parameters.setdefault("company_id", work.company_id)
             pagination = _value(query, "pagination", default={}) or {}

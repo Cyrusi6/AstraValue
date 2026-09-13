@@ -37,4 +37,4 @@ def test_cache_miss_lists_identity_prerequisite_and_known_sync_is_durably_queued
     assert result.acquisition_run_id
     assert result.structured_plan_id
     assert result.structured_dataset_coverage["persisted"] is True
-    assert result.structured_dataset_coverage["dataset_count"] == 55
+    assert result.structured_dataset_coverage["dataset_count"] == 31

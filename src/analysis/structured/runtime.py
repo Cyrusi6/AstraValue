@@ -277,15 +277,20 @@ class StructuredDataRuntime:
         company_scope: str,
         dataset_ids: Sequence[str] | None,
         activated_on_demand_ids: Sequence[str] = (),
+        report_periods: Sequence[str] = (),
         as_of: datetime,
     ) -> StructuredPlanResult:
         cutoff = _aware(as_of)
+        selected_periods = tuple(sorted(set(report_periods)))
+        if any(date.fromisoformat(p) > cutoff.date() for p in selected_periods):
+            raise ValueError("report_period_after_cutoff")
         if not identities:
             raise ValueError("structured plan requires a resolved identity")
         if mode not in {"baseline", "incremental", "due"}:
             raise ValueError("unknown structured mode")
-        # Empty is an explicit all-applicable request, not an empty plan.
-        selected_ids = None if not dataset_ids else tuple(dict.fromkeys(dataset_ids))
+        # Empty selects the versioned required research set, never all capabilities.
+        from .scope import selected_datasets, load_scope, scope_start
+        selected_ids = selected_datasets(dataset_ids)
         known_ids = {item.dataset_id for item in self.bundle.datasets.datasets}
         unknown = set(selected_ids or ()) - known_ids
         if unknown:
@@ -323,9 +328,7 @@ class StructuredDataRuntime:
                     # planning item so a registry bump cannot fall back to
                     # planner's legacy 1.0.0 default and miss the bound source.
                     "source_definition_version": self.bundle.datasets.version,
-                    "earliest_available_at": _SUPPLIER_QUERY_FLOORS[
-                        item.provider
-                    ].isoformat(),
+                    "earliest_available_at": ((cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else scope_start(cutoff.date())).isoformat(),
                     "history_boundary_kind": (
                         "conservative_query_floor_not_availability_claim"
                     ),
@@ -350,9 +353,11 @@ class StructuredDataRuntime:
                     "activated_on_demand_ids": tuple(activated_on_demand_ids),
                     "dataset_registry_hash": self.bundle.content_hashes["datasets"],
                     "field_registry_hash": self.bundle.content_hashes["fields"],
+                    "research_scope_hash": load_scope()["content_sha256"],
+                    "selected_report_periods": selected_periods,
                 },
             )
-            complete_baseline = mode == "baseline" and selected_ids is None
+            complete_baseline = mode == "baseline" and not dataset_ids
             run = AcquisitionRun(
                 run_id=run_id,
                 ticker=identity.security_code,
@@ -409,6 +414,7 @@ class StructuredDataRuntime:
                 activated_on_demand_ids=activated_on_demand_ids,
             )
             peer_set = self.bundle.peer_sets.peer_sets[0]
+            frozen["selected_report_periods"] = list(selected_periods)
             context = StructuredRunContext(
                 run_id=run_id,
                 storage_namespace_id=self.acquisition_runtime.namespace_id,
@@ -749,11 +755,12 @@ class StructuredDataRuntime:
         dataset_ids = {item.dataset_id for item in datasets}
         return {
             "schema": "structured-execution.v1",
+            "research_scope": __import__("analysis.structured.scope", fromlist=["load_scope"]).load_scope(),
             "identity": _jsonable(asdict(identity)),
             "mode": mode,
             "company_scope": company_scope,
             "activated_on_demand_ids": list(activated_on_demand_ids),
-            "datasets": [item.model_dump(mode="json") for item in datasets],
+            "datasets": [item.model_dump(mode="json") | {"research_scope_id": "eight-step-scope-v1.0.0"} for item in datasets],
             "known_fields": {
                 dataset_id: [
                     item.raw_name
@@ -1249,6 +1256,13 @@ class StructuredDataRuntime:
                 reverse=True,
             )
         )
+        if context.frozen_config.get("research_scope"):
+            from .scope import scope_start
+            cutoff = self.repository.get_run(context.run_id).as_of.date()
+            dates = tuple(d for d in dates if scope_start(cutoff) <= d <= cutoff)
+            chosen = context.frozen_config.get("selected_report_periods")
+            if chosen:
+                dates = tuple(d for d in dates if d.isoformat() in chosen)
         if not dates:
             raise StructuredRuntimeError(
                 "successful EM-F report catalog contains no report dates"
@@ -1484,9 +1498,11 @@ class StructuredDataRuntime:
         lease_guard: Callable[..., None],
     ) -> ExecutionPage:
         request_contract = dataset["request"]
+        from .scope import assert_network_scope, request_fields
+        assert_network_scope(self.storage.get_run_context(run_id), dataset["dataset_id"])
         protocol = _PROTOCOLS[request_contract["protocol"]]
         endpoint = _execution_endpoint(dataset, purpose=purpose)
-        request_params = dict(params)
+        request_params = request_fields(dataset["dataset_id"], params)
         if protocol is ProtocolFamily.EM_F and endpoint.endswith("DateAjaxNew"):
             request_params.pop("dates", None)
             request_params.pop("reportType", None)
@@ -1589,6 +1605,8 @@ class StructuredDataRuntime:
     ) -> ExecutionPage:
         if self.sdk is None:
             raise StructuredRuntimeError("BaoStock SDK is not bound")
+        from .scope import assert_network_scope
+        assert_network_scope(self.storage.get_run_context(run_id), dataset["dataset_id"])
         query = BaoStockQuery(dataset["request"]["endpoint"], params)
         deadline = self.acquisition_runtime.monotonic_clock() + float(
             source.retry_policy.attempt_deadline_seconds
@@ -2071,6 +2089,13 @@ def _bind_parameters(
                 f"unresolved frozen parameter for {dataset['dataset_id']}: {name}"
             )
         params[name] = rendered
+    if dataset.get("research_scope_id"):
+        from .scope import request_fields
+        params = request_fields(dataset["dataset_id"], params)
+        if "filter" in params:
+            date_field = next((f for f in dataset.get("date_fields", []) if f in {"REPORT_DATE", "TRADE_DATE", "END_DATE"}), None)
+            if date_field:
+                params["filter"] += f"({date_field}>='{base['start_date']}')({date_field}<='{base['end_date']}')"
     return params
 
 

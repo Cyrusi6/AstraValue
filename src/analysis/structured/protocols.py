@@ -195,8 +195,10 @@ class EastmoneyRequest:
         if missing:
             raise ValueError(f"missing {self.protocol.value} parameters: {', '.join(missing)}")
         if self.protocol in {ProtocolFamily.EM_S, ProtocolFamily.EM_W}:
-            if params.get("columns") != "ALL":
-                raise ValueError("EM-S/EM-W production requests must preserve columns=ALL")
+            if not params.get("columns") or any(
+                not part.replace("_", "").isalnum() for part in params["columns"].split(",")
+            ):
+                raise ValueError("EM-S/EM-W require explicit valid columns")
             _positive_int(params["pageNumber"], name="pageNumber")
             _positive_int(params["pageSize"], name="pageSize")
         elif self.protocol is ProtocolFamily.EM_M:

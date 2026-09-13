@@ -215,8 +215,9 @@ def test_request_parameter_and_endpoint_allowlists_fail_closed() -> None:
         EastmoneyRequest(base.protocol, base.endpoint, {**base.params, "callback": "unsafe"})
     with pytest.raises(ValueError, match="allowlist"):
         EastmoneyRequest(base.protocol, "https://example.com/", base.params)
-    with pytest.raises(ValueError, match="columns=ALL"):
-        EastmoneyRequest(base.protocol, base.endpoint, {**base.params, "columns": "A,B"})
+    assert EastmoneyRequest(base.protocol, base.endpoint, {**base.params, "columns": "A,B"}).params["columns"] == "A,B"
+    with pytest.raises(ValueError, match="valid columns"):
+        EastmoneyRequest(base.protocol, base.endpoint, {**base.params, "columns": "A;DROP"})
 
 
 def test_em_f_prerequisites_prevent_report_work() -> None:

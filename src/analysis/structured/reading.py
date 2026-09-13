@@ -9,6 +9,59 @@ from typing import Any, Iterable, Mapping
 RULE_VERSION = "reading-rules-v1"
 
 
+def select_research_document(entry, *, as_of, question_ids=(), trigger_reason=None):
+    """目录元数据决策；不为判型预下载正文。缺主体/日期时保持待核实。"""
+    import re
+    from analysis.filing_parser import detect_filing_period
+    from analysis.acquisition.content_selection import content_exclusion_reason, NO_AUDIT_ENGLISH_ANNUAL_V1
+    from .scope import SCOPE_ID
+    title = entry.get("title", "")
+    url = entry.get("resource_url", entry.get("url", ""))
+    mime = entry.get("expected_mime_types", ("application/pdf",))
+    period = detect_filing_period(re.sub(r"英文(?:版)?|english", "", title, flags=re.I))
+    excluded = content_exclusion_reason(title, url, mime, NO_AUDIT_ENGLISH_ANNUAL_V1)
+    decision = {"scope_id": SCOPE_ID, "document_class": "D20", "selected": False,
+                "question_ids": list(question_ids), "reason": "catalog_only", "period": None,
+                "language": "en" if re.search(r"英文|english", title, re.I) else "zh"}
+    if excluded:
+        return decision | {"document_class": "D21", "reason": excluded}
+    if "摘要" in title:
+        return decision | {"document_class": "D04", "reason": "summary_cannot_close_full_report_gap"}
+    if period:
+        end = period.period_end
+        decision["period"] = end.isoformat()
+        category = "D01" if end.month == 12 else "D02" if end.month == 6 else "D03"
+        baseline = (category == "D01" and as_of.year-5 <= end.year < as_of.year) or (
+            category == "D02" and end.year in (as_of.year, as_of.year-1) and end <= as_of)
+        published = str(entry.get("published_at") or "")[:10]
+        known_subject = bool((entry.get("metadata") or {}).get("ticker") or entry.get("ticker"))
+        if not known_subject or not published:
+            return decision | {"document_class": category, "reason": "subject_or_publication_missing"}
+        if published > as_of.isoformat():
+            return decision | {"document_class": category, "reason": "published_after_cutoff"}
+        correction = bool(re.search(r"更正|修订|补充", title))
+        selected = (baseline and not correction and decision["language"] == "zh") or bool(question_ids and trigger_reason)
+        return decision | {"document_class": category, "selected": selected,
+            "reason": "required_full_report" if selected and baseline else trigger_reason or "outside_required_periods"}
+    categories = {
+        "D05": r"招股|上市公告书|章程", "D06": r"业绩预告|业绩快报",
+        "D07": r"经营数据|产销|产能|订单|调价", "D08": r"利润分配|权益分派|分红",
+        "D09": r"回购", "D10": r"权益变动|收购报告书|增持|减持|质押|冻结|解禁",
+        "D11": r"募集资金|募投|增发|配股", "D12": r"债券|可转债|付息|赎回|转股",
+        "D13": r"并购|重组|资产购买|资产出售|业绩承诺", "D14": r"激励|员工持股|行权|归属",
+        "D15": r"关联交易|资金占用|担保", "D16": r"问询|关注函|处罚|诉讼|仲裁|整改|风险",
+        "D17": r"任免|聘任|审计机构|内部控制|治理", "D18": r"投资者关系|说明会|活动记录",
+        "D19": r"统计公报|统计表|行业报告|利率曲线|政策",
+    }
+    for category, pattern in categories.items():
+        if re.search(pattern, title):
+            decision["document_class"] = category
+            break
+    if question_ids and trigger_reason and decision["document_class"] != "D20":
+        decision.update(selected=True, reason=trigger_reason)
+    return decision
+
+
 @dataclass(frozen=True)
 class CatalogDecision:
     material_id: str
@@ -23,13 +76,10 @@ def classify_catalog_entry(material_id: str, title: str) -> CatalogDecision:
     lowered = normalized.lower()
     if "摘要" in normalized:
         return CatalogDecision(material_id, title, "cataloged", "not_selected", "report_summary")
-    if "英文" in normalized or "english" in lowered:
+    from analysis.acquisition.content_selection import is_english_annual_report, is_standalone_audit_pdf
+    if is_english_annual_report(title, "https://example.invalid/report.pdf", ("application/pdf",)):
         return CatalogDecision(material_id, title, "cataloged", "not_selected", "english_report")
-    if (
-        "审计报告" in normalized
-        and "年度报告" not in normalized
-        and "半年度报告" not in normalized
-    ):
+    if is_standalone_audit_pdf(title, "https://example.invalid/report.pdf", ("application/pdf",)):
         return CatalogDecision(
             material_id,
             title,

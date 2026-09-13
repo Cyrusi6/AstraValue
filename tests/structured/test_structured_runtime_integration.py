@@ -120,8 +120,9 @@ def test_plan_is_durable_idempotent_and_empty_dataset_list_means_all(tmp_path):
         )
         assert result.acquisition_status == "planned"
         assert result.default_consume_eligible is False
-        assert result.structured_dataset_coverage["dataset_count"] == 55
-        assert len(result.structured_dataset_coverage["dataset_ids"]) == 55
+        from analysis.structured.scope import selected_datasets
+        assert result.structured_dataset_coverage["dataset_count"] == len(selected_datasets())
+        assert set(result.structured_dataset_coverage["dataset_ids"]) == set(selected_datasets())
     finally:
         all_runtime.close()
         all_client.close()
