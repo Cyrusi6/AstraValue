@@ -93,4 +93,3 @@ python scripts/validate_eight_step_lite.py `
 - 七包构建和复跑均为零网络；当前联网只完成茅台期后目录，其余六家公司目录仍待按用途刷新。
 - 54 题质量状态仍为 `pending`，因为全量 requirement 的语义、方法和外部研究缺口没有被轻量路由删除。
 - 报告、前端和全市场批处理仍暂停；人工业务验收为 `pending`。
-
