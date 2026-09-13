@@ -110,6 +110,14 @@ def periods(mode, as_of, latest):
     return [as_of.isoformat()]
 
 
+def required_latest_period(as_of):
+    """覆盖需求的法定披露窗口；不是上游已披露或字段期间的推断。"""
+    if as_of>=date(as_of.year,10,31):return date(as_of.year,9,30)
+    if as_of>=date(as_of.year,8,31):return date(as_of.year,6,30)
+    if as_of>=date(as_of.year,4,30):return date(as_of.year,3,31)
+    return date(as_of.year-1,9,30)
+
+
 def build_coverage(connection, run_id, ticker, output, as_of, projection_dirs=None):
     registry = json.loads((ROOT/"config/structured_data/research_requirements.v1.json").read_text(encoding="utf-8"))
     projection_dirs=projection_dirs or [output]
@@ -150,7 +158,7 @@ def build_coverage(connection, run_id, ticker, output, as_of, projection_dirs=No
     selected={f.fact_id for f in selected_numeric}|{f.dimensional_fact_id for f in selected_dimensions}
     facts=list(by_id.values())
     index = defaultdict(list)
-    latest = date(as_of.year-1,12,31)
+    latest = required_latest_period(as_of)
     for fact in facts:
         fid = fact.get("fact_id", fact.get("dimensional_fact_id"))
         if fid not in selected: continue

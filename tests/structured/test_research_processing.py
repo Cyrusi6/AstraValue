@@ -154,3 +154,10 @@ def test_original_download_recovers_corrupt_partial_blob_without_losing_bytes(tm
     assert any(p.read_bytes()==b'partial-download' for p in (tmp_path/'raw'/'quarantine').rglob('*') if p.is_file())
     _,cached=fetch.fetch('https://static.cninfo.com.cn/test.pdf')
     assert cached['cache_reused'] and len(calls)==2
+
+
+def test_missing_financials_do_not_shorten_the_required_coverage_window():
+    from analysis.structured.research import required_latest_period
+    assert required_latest_period(date(2026,9,13))==date(2026,6,30)
+    assert required_latest_period(date(2026,10,30))==date(2026,6,30)
+    assert required_latest_period(date(2026,10,31))==date(2026,9,30)
