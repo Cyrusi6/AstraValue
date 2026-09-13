@@ -34,12 +34,21 @@ def scope_start(as_of: date) -> date:
     return date(as_of.year - 6, 1, 1)
 
 
-def request_fields(dataset_id, params):
+def profile_fields(profile_id, dataset_id):
+    registry=json.loads((ROOT/'config/structured_data/industry_profiles.v1.json').read_text(encoding='utf8'))
+    profile=next((p for p in registry['profiles'] if p['profile_id']==profile_id),None)
+    if profile is None: raise ValueError('unknown_industry_profile')
+    return sorted({i['path']['raw_name'] for i in profile['inputs'] if i['path'].get('dataset_id')==dataset_id and i['path'].get('raw_name')})
+
+
+def request_fields(dataset_id, params, profile_id=None):
     rule = load_scope()["datasets"][dataset_id]
     if rule["selection"] == "excluded":
         raise ValueError(f"research_scope_excluded:{dataset_id}")
     result = dict(params)
-    fields = rule["request_fields"]
+    fields = sorted(set(rule["request_fields"]) | set(profile_fields(profile_id,dataset_id) if profile_id else ()))
+    if profile_id and dataset_id == 'em_metrics':
+        fields = sorted((set(rule['request_fields'])-set(rule['consume_fields'])) | set(profile_fields(profile_id,dataset_id)))
     for key in ("columns", "fields", "sty"):
         if key in result:
             if not fields:

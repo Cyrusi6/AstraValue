@@ -1,0 +1,3320 @@
+{
+  "schema": "structured-interpretation.v1",
+  "contract_id": "eastmoney-financial-interpretation-v1.0.0",
+  "version": "1.0.0",
+  "upstream_identity": "eastmoney",
+  "effective_at": "2026-09-13T04:52:42.657703+00:00",
+  "compatibility": [
+    {
+      "field_registry_id": "structured_data_fields",
+      "field_registry_version": "1.1.0",
+      "field_registry_hash": "4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4",
+      "source_definition_id": "structured-eastmoney",
+      "source_definition_version": "1.2.0",
+      "source_content_hash": "5032f1dfd00c5d21cf3fbb5d9015b50a2fa133df59df9a87aa98228f9169d4fe"
+    }
+  ],
+  "evidence_file": "docs/acquisition/eastmoney-financial-interpretation-evidence.v1.json",
+  "evidence_sha256": "d9f99079e4f9d543fc5128af05ff1681f1f4871c70f472e4699e30f0944671a2",
+  "rules": {
+    "balance_fields.MONETARYFUNDS": {
+      "dataset_id": "balance_fields",
+      "raw_field": "MONETARYFUNDS",
+      "standard_field": "cash",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:MONETARYFUNDS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "cash"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 95,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>货币资金</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.MONETARYFUNDS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "cash"
+      }
+    },
+    "balance_fields.ACCOUNTS_RECE": {
+      "dataset_id": "balance_fields",
+      "raw_field": "ACCOUNTS_RECE",
+      "standard_field": "accounts_receivable",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:ACCOUNTS_RECE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "accounts_receivable"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 106,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span class=\"pl25\">应收账款</span> <span style=\"display: none;\">其中:应收账款</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.ACCOUNTS_RECE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "accounts_receivable"
+      }
+    },
+    "balance_fields.INVENTORY": {
+      "dataset_id": "balance_fields",
+      "raw_field": "INVENTORY",
+      "standard_field": "inventory",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:INVENTORY",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "inventory"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 122,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>存货</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.INVENTORY)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "inventory"
+      }
+    },
+    "balance_fields.CONTRACT_ASSET": {
+      "dataset_id": "balance_fields",
+      "raw_field": "CONTRACT_ASSET",
+      "standard_field": "contract_assets",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:CONTRACT_ASSET",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "contract_assets"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 123,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>合同资产</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CONTRACT_ASSET)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "contract_assets"
+      }
+    },
+    "balance_fields.CONTRACT_LIAB": {
+      "dataset_id": "balance_fields",
+      "raw_field": "CONTRACT_LIAB",
+      "standard_field": "contract_liabilities",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:CONTRACT_LIAB",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "contract_liabilities"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 176,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>合同负债</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CONTRACT_LIAB)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "contract_liabilities"
+      }
+    },
+    "balance_fields.GOODWILL": {
+      "dataset_id": "balance_fields",
+      "raw_field": "GOODWILL",
+      "standard_field": "goodwill",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:GOODWILL",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "goodwill"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 152,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>商誉</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.GOODWILL)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "goodwill"
+      }
+    },
+    "balance_fields.TOTAL_ASSETS": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_ASSETS",
+      "standard_field": "total_assets",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_ASSETS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_assets"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 161,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>资产总计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_ASSETS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_assets"
+      }
+    },
+    "balance_fields.TOTAL_LIABILITIES": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_LIABILITIES",
+      "standard_field": "total_liabilities",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_LIABILITIES",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_liabilities"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 218,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>负债合计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_LIABILITIES)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_liabilities"
+      }
+    },
+    "balance_fields.TOTAL_EQUITY": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_EQUITY",
+      "standard_field": "total_equity",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_EQUITY",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_equity"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 241,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>股东权益合计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_EQUITY)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_equity"
+      }
+    },
+    "balance_fields.TOTAL_PARENT_EQUITY": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_PARENT_EQUITY",
+      "standard_field": "total_parent_equity",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_PARENT_EQUITY",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_parent_equity"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 237,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>归属于母公司股东权益总计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_PARENT_EQUITY)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_parent_equity"
+      }
+    },
+    "balance_fields.TOTAL_CURRENT_ASSETS": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_CURRENT_ASSETS",
+      "standard_field": "current_assets",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_CURRENT_ASSETS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "current_assets"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 129,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>流动资产合计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_CURRENT_ASSETS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "current_assets"
+      }
+    },
+    "balance_fields.TOTAL_CURRENT_LIAB": {
+      "dataset_id": "balance_fields",
+      "raw_field": "TOTAL_CURRENT_LIAB",
+      "standard_field": "current_liabilities",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:TOTAL_CURRENT_LIAB",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "current_liabilities"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 198,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>流动负债合计</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_CURRENT_LIAB)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "current_liabilities"
+      }
+    },
+    "balance_fields.SHORT_LOAN": {
+      "dataset_id": "balance_fields",
+      "raw_field": "SHORT_LOAN",
+      "standard_field": "short_term_loans",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:SHORT_LOAN",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "short_term_loans"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 163,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>短期借款</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.SHORT_LOAN)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "short_term_loans"
+      }
+    },
+    "balance_fields.LONG_LOAN": {
+      "dataset_id": "balance_fields",
+      "raw_field": "LONG_LOAN",
+      "standard_field": "long_term_loans",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:LONG_LOAN",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "long_term_loans"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 200,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>长期借款</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.LONG_LOAN)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "long_term_loans"
+      }
+    },
+    "balance_fields.BOND_PAYABLE": {
+      "dataset_id": "balance_fields",
+      "raw_field": "BOND_PAYABLE",
+      "standard_field": "bonds_payable",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:BOND_PAYABLE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "bonds_payable"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 202,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>应付债券</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.BOND_PAYABLE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "bonds_payable"
+      }
+    },
+    "balance_fields.LEASE_LIAB": {
+      "dataset_id": "balance_fields",
+      "raw_field": "LEASE_LIAB",
+      "standard_field": "lease_liabilities",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:LEASE_LIAB",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "lease_liabilities"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 205,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>租赁负债</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.LEASE_LIAB)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "lease_liabilities"
+      }
+    },
+    "balance_fields.CIP": {
+      "dataset_id": "balance_fields",
+      "raw_field": "CIP",
+      "standard_field": "construction_in_progress",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:CIP",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "construction_in_progress"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 144,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>在建工程</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CIP)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "construction_in_progress"
+      }
+    },
+    "balance_fields.PREPAYMENT": {
+      "dataset_id": "balance_fields",
+      "raw_field": "PREPAYMENT",
+      "standard_field": "prepayments",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:PREPAYMENT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "prepayments"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 108,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>预付款项</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.PREPAYMENT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "prepayments"
+      }
+    },
+    "balance_fields.ACCOUNTS_PAYABLE": {
+      "dataset_id": "balance_fields",
+      "raw_field": "ACCOUNTS_PAYABLE",
+      "standard_field": "accounts_payable",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:ACCOUNTS_PAYABLE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "accounts_payable"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 174,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span class=\"pl25\">应付账款</span> <span style=\"display: none;\">其中:应付账款</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.ACCOUNTS_PAYABLE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "accounts_payable"
+      }
+    },
+    "balance_fields.SHARE_CAPITAL": {
+      "dataset_id": "balance_fields",
+      "raw_field": "SHARE_CAPITAL",
+      "standard_field": "paid_in_capital",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:balance_fields:SHARE_CAPITAL",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "shares",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "shares",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "share_capital"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 220,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>实收资本（或股本）</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.SHARE_CAPITAL)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "paid_in_capital"
+      }
+    },
+    "income_fields.TOTAL_OPERATE_INCOME": {
+      "dataset_id": "income_fields",
+      "raw_field": "TOTAL_OPERATE_INCOME",
+      "standard_field": "total_operating_income",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:TOTAL_OPERATE_INCOME",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_operating_income"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 404,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>营业总收入</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_OPERATE_INCOME)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_operating_income"
+      }
+    },
+    "income_fields.OPERATE_INCOME": {
+      "dataset_id": "income_fields",
+      "raw_field": "OPERATE_INCOME",
+      "standard_field": "operating_income",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:OPERATE_INCOME",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_income"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 405,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>营业收入</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_INCOME)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_income"
+      }
+    },
+    "income_fields.OPERATE_COST": {
+      "dataset_id": "income_fields",
+      "raw_field": "OPERATE_COST",
+      "standard_field": "operating_cost",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:OPERATE_COST",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_cost"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 412,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>营业成本</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_COST)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_cost"
+      }
+    },
+    "income_fields.OPERATE_PROFIT": {
+      "dataset_id": "income_fields",
+      "raw_field": "OPERATE_PROFIT",
+      "standard_field": "operating_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:OPERATE_PROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 443,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>营业利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_PROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_profit"
+      }
+    },
+    "income_fields.NETPROFIT": {
+      "dataset_id": "income_fields",
+      "raw_field": "NETPROFIT",
+      "standard_field": "net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 454,
+              "quote": "<tr v-show=\"showObj.NETPROFIT>0 || showObj.PRECOMBINE_PROFIT>0\"> <td class=\"tips-fieldname-Left font-bold\"> <span>净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "net_profit"
+      }
+    },
+    "income_fields.PARENT_NETPROFIT": {
+      "dataset_id": "income_fields",
+      "raw_field": "PARENT_NETPROFIT",
+      "standard_field": "parent_net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:PARENT_NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "parent_net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 460,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>归属于母公司股东的净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.PARENT_NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "parent_net_profit"
+      }
+    },
+    "income_fields.DEDUCT_PARENT_NETPROFIT": {
+      "dataset_id": "income_fields",
+      "raw_field": "DEDUCT_PARENT_NETPROFIT",
+      "standard_field": "deducted_parent_net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:DEDUCT_PARENT_NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "deducted_parent_net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 462,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>扣除非经常性损益后的净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.DEDUCT_PARENT_NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "deducted_parent_net_profit"
+      }
+    },
+    "income_fields.SALE_EXPENSE": {
+      "dataset_id": "income_fields",
+      "raw_field": "SALE_EXPENSE",
+      "standard_field": "selling_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:SALE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "selling_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 422,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>销售费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.SALE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "selling_expense"
+      }
+    },
+    "income_fields.MANAGE_EXPENSE": {
+      "dataset_id": "income_fields",
+      "raw_field": "MANAGE_EXPENSE",
+      "standard_field": "administrative_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:MANAGE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "administrative_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 423,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>管理费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.MANAGE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "administrative_expense"
+      }
+    },
+    "income_fields.RESEARCH_EXPENSE": {
+      "dataset_id": "income_fields",
+      "raw_field": "RESEARCH_EXPENSE",
+      "standard_field": "research_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:RESEARCH_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "research_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 424,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>研发费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.RESEARCH_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "research_expense"
+      }
+    },
+    "income_fields.FINANCE_EXPENSE": {
+      "dataset_id": "income_fields",
+      "raw_field": "FINANCE_EXPENSE",
+      "standard_field": "finance_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:FINANCE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "finance_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 425,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>财务费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.FINANCE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "finance_expense"
+      }
+    },
+    "income_fields.INCOME_TAX": {
+      "dataset_id": "income_fields",
+      "raw_field": "INCOME_TAX",
+      "standard_field": "income_tax",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:INCOME_TAX",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "income_tax"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 451,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>减:所得税</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.INCOME_TAX)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "income_tax"
+      }
+    },
+    "income_fields.TOTAL_PROFIT": {
+      "dataset_id": "income_fields",
+      "raw_field": "TOTAL_PROFIT",
+      "standard_field": "total_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:TOTAL_PROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 450,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>利润总额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_PROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_profit"
+      }
+    },
+    "income_fields.ASSET_IMPAIRMENT_LOSS": {
+      "dataset_id": "income_fields",
+      "raw_field": "ASSET_IMPAIRMENT_LOSS",
+      "standard_field": "asset_impairment_loss",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:ASSET_IMPAIRMENT_LOSS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "asset_impairment_loss"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 428,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>资产减值损失</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.ASSET_IMPAIRMENT_LOSS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "asset_impairment_loss"
+      }
+    },
+    "income_fields.CREDIT_IMPAIRMENT_LOSS": {
+      "dataset_id": "income_fields",
+      "raw_field": "CREDIT_IMPAIRMENT_LOSS",
+      "standard_field": "credit_impairment_loss",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_fields:CREDIT_IMPAIRMENT_LOSS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "credit_impairment_loss"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 429,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>信用减值损失</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CREDIT_IMPAIRMENT_LOSS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "credit_impairment_loss"
+      }
+    },
+    "cashflow_fields.NETCASH_OPERATE": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "NETCASH_OPERATE",
+      "standard_field": "operating_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:NETCASH_OPERATE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 655,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>经营活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_OPERATE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_cash_flow"
+      }
+    },
+    "cashflow_fields.NETCASH_INVEST": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "NETCASH_INVEST",
+      "standard_field": "investing_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:NETCASH_INVEST",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "investing_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 677,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>投资活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_INVEST)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "investing_cash_flow"
+      }
+    },
+    "cashflow_fields.NETCASH_FINANCE": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "NETCASH_FINANCE",
+      "standard_field": "financing_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:NETCASH_FINANCE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "financing_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 698,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>筹资活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_FINANCE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "financing_cash_flow"
+      }
+    },
+    "cashflow_fields.END_CASH_EQUIVALENTS": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "END_CASH_EQUIVALENTS",
+      "standard_field": "ending_cash_equivalents",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:cashflow_fields:END_CASH_EQUIVALENTS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "ending_cash_equivalents"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 741,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>加:现金等价物的期末余额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.END_CASH_EQUIVALENTS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "ending_cash_equivalents"
+      }
+    },
+    "cashflow_fields.BEGIN_CASH_EQUIVALENTS": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "BEGIN_CASH_EQUIVALENTS",
+      "standard_field": "beginning_cash_equivalents",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:cashflow_fields:BEGIN_CASH_EQUIVALENTS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "beginning_cash_equivalents"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 742,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>减:现金等价物的期初余额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.BEGIN_CASH_EQUIVALENTS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "beginning_cash_equivalents"
+      }
+    },
+    "cashflow_fields.CONSTRUCT_LONG_ASSET": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "CONSTRUCT_LONG_ASSET",
+      "standard_field": "long_asset_cash_purchase",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:CONSTRUCT_LONG_ASSET",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "long_asset_cash_purchase"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 666,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>购建固定资产、无形资产和其他长期资产支付的现金</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CONSTRUCT_LONG_ASSET)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "long_asset_cash_purchase"
+      }
+    },
+    "cashflow_fields.FA_IR_DEPR": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "FA_IR_DEPR",
+      "standard_field": "fixed_and_investment_property_depreciation",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:FA_IR_DEPR",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "fixed_and_investment_property_depreciation"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 711,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>固定资产和投资性房地产折旧</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.FA_IR_DEPR)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "fixed_and_investment_property_depreciation"
+      }
+    },
+    "cashflow_fields.IA_AMORTIZE": {
+      "dataset_id": "cashflow_fields",
+      "raw_field": "IA_AMORTIZE",
+      "standard_field": "intangible_amortization",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_fields:IA_AMORTIZE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "intangible_amortization"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 714,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>无形资产摊销</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.IA_AMORTIZE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "intangible_amortization"
+      }
+    },
+    "income_quarter.TOTAL_OPERATE_INCOME": {
+      "dataset_id": "income_quarter",
+      "raw_field": "TOTAL_OPERATE_INCOME",
+      "standard_field": "total_operating_income",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:TOTAL_OPERATE_INCOME",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_operating_income"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 404,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>营业总收入</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_OPERATE_INCOME)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_operating_income"
+      }
+    },
+    "income_quarter.OPERATE_INCOME": {
+      "dataset_id": "income_quarter",
+      "raw_field": "OPERATE_INCOME",
+      "standard_field": "operating_income",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:OPERATE_INCOME",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_income"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 405,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>营业收入</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_INCOME)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_income"
+      }
+    },
+    "income_quarter.OPERATE_COST": {
+      "dataset_id": "income_quarter",
+      "raw_field": "OPERATE_COST",
+      "standard_field": "operating_cost",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:OPERATE_COST",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_cost"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 412,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>营业成本</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_COST)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_cost"
+      }
+    },
+    "income_quarter.OPERATE_PROFIT": {
+      "dataset_id": "income_quarter",
+      "raw_field": "OPERATE_PROFIT",
+      "standard_field": "operating_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:OPERATE_PROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 443,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>营业利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.OPERATE_PROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_profit"
+      }
+    },
+    "income_quarter.NETPROFIT": {
+      "dataset_id": "income_quarter",
+      "raw_field": "NETPROFIT",
+      "standard_field": "net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 454,
+              "quote": "<tr v-show=\"showObj.NETPROFIT>0 || showObj.PRECOMBINE_PROFIT>0\"> <td class=\"tips-fieldname-Left font-bold\"> <span>净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "net_profit"
+      }
+    },
+    "income_quarter.PARENT_NETPROFIT": {
+      "dataset_id": "income_quarter",
+      "raw_field": "PARENT_NETPROFIT",
+      "standard_field": "parent_net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:PARENT_NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "parent_net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 460,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>归属于母公司股东的净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.PARENT_NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "parent_net_profit"
+      }
+    },
+    "income_quarter.DEDUCT_PARENT_NETPROFIT": {
+      "dataset_id": "income_quarter",
+      "raw_field": "DEDUCT_PARENT_NETPROFIT",
+      "standard_field": "deducted_parent_net_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:DEDUCT_PARENT_NETPROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "deducted_parent_net_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 462,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>扣除非经常性损益后的净利润</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.DEDUCT_PARENT_NETPROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "deducted_parent_net_profit"
+      }
+    },
+    "income_quarter.SALE_EXPENSE": {
+      "dataset_id": "income_quarter",
+      "raw_field": "SALE_EXPENSE",
+      "standard_field": "selling_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:SALE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "selling_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 422,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>销售费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.SALE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "selling_expense"
+      }
+    },
+    "income_quarter.MANAGE_EXPENSE": {
+      "dataset_id": "income_quarter",
+      "raw_field": "MANAGE_EXPENSE",
+      "standard_field": "administrative_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:MANAGE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "administrative_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 423,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>管理费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.MANAGE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "administrative_expense"
+      }
+    },
+    "income_quarter.RESEARCH_EXPENSE": {
+      "dataset_id": "income_quarter",
+      "raw_field": "RESEARCH_EXPENSE",
+      "standard_field": "research_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:RESEARCH_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "research_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 424,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>研发费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.RESEARCH_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "research_expense"
+      }
+    },
+    "income_quarter.FINANCE_EXPENSE": {
+      "dataset_id": "income_quarter",
+      "raw_field": "FINANCE_EXPENSE",
+      "standard_field": "finance_expense",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:FINANCE_EXPENSE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "finance_expense"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 425,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>财务费用</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.FINANCE_EXPENSE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "finance_expense"
+      }
+    },
+    "income_quarter.INCOME_TAX": {
+      "dataset_id": "income_quarter",
+      "raw_field": "INCOME_TAX",
+      "standard_field": "income_tax",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:INCOME_TAX",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "income_tax"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 451,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>减:所得税</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.INCOME_TAX)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "income_tax"
+      }
+    },
+    "income_quarter.TOTAL_PROFIT": {
+      "dataset_id": "income_quarter",
+      "raw_field": "TOTAL_PROFIT",
+      "standard_field": "total_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:TOTAL_PROFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 450,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>利润总额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.TOTAL_PROFIT)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "total_profit"
+      }
+    },
+    "income_quarter.ASSET_IMPAIRMENT_LOSS": {
+      "dataset_id": "income_quarter",
+      "raw_field": "ASSET_IMPAIRMENT_LOSS",
+      "standard_field": "asset_impairment_loss",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:ASSET_IMPAIRMENT_LOSS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "asset_impairment_loss"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 428,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>资产减值损失</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.ASSET_IMPAIRMENT_LOSS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "asset_impairment_loss"
+      }
+    },
+    "income_quarter.CREDIT_IMPAIRMENT_LOSS": {
+      "dataset_id": "income_quarter",
+      "raw_field": "CREDIT_IMPAIRMENT_LOSS",
+      "standard_field": "credit_impairment_loss",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:income_quarter:CREDIT_IMPAIRMENT_LOSS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "credit_impairment_loss"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 429,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>信用减值损失</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CREDIT_IMPAIRMENT_LOSS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "credit_impairment_loss"
+      }
+    },
+    "cashflow_quarter.NETCASH_OPERATE": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "NETCASH_OPERATE",
+      "standard_field": "operating_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:NETCASH_OPERATE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "operating_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 655,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>经营活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_OPERATE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "operating_cash_flow"
+      }
+    },
+    "cashflow_quarter.NETCASH_INVEST": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "NETCASH_INVEST",
+      "standard_field": "investing_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:NETCASH_INVEST",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "investing_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 677,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>投资活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_INVEST)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "investing_cash_flow"
+      }
+    },
+    "cashflow_quarter.NETCASH_FINANCE": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "NETCASH_FINANCE",
+      "standard_field": "financing_cash_flow",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:NETCASH_FINANCE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "financing_cash_flow"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 698,
+              "quote": "<tr> <td class=\"tips-fieldname-Left font-bold\"> <span>筹资活动产生的现金流量净额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.NETCASH_FINANCE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "financing_cash_flow"
+      }
+    },
+    "cashflow_quarter.END_CASH_EQUIVALENTS": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "END_CASH_EQUIVALENTS",
+      "standard_field": "ending_cash_equivalents",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:cashflow_quarter:END_CASH_EQUIVALENTS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "ending_cash_equivalents"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 741,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>加:现金等价物的期末余额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.END_CASH_EQUIVALENTS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "ending_cash_equivalents"
+      }
+    },
+    "cashflow_quarter.BEGIN_CASH_EQUIVALENTS": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "BEGIN_CASH_EQUIVALENTS",
+      "standard_field": "beginning_cash_equivalents",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "instant",
+      "value_kind": "stock",
+      "definition_id": "structured-fields-v1:cashflow_quarter:BEGIN_CASH_EQUIVALENTS",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "beginning_cash_equivalents"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 742,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>减:现金等价物的期初余额</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.BEGIN_CASH_EQUIVALENTS)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "beginning_cash_equivalents"
+      }
+    },
+    "cashflow_quarter.CONSTRUCT_LONG_ASSET": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "CONSTRUCT_LONG_ASSET",
+      "standard_field": "long_asset_cash_purchase",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:CONSTRUCT_LONG_ASSET",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "long_asset_cash_purchase"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 666,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>购建固定资产、无形资产和其他长期资产支付的现金</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.CONSTRUCT_LONG_ASSET)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "long_asset_cash_purchase"
+      }
+    },
+    "cashflow_quarter.FA_IR_DEPR": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "FA_IR_DEPR",
+      "standard_field": "fixed_and_investment_property_depreciation",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:FA_IR_DEPR",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "fixed_and_investment_property_depreciation"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 711,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>固定资产和投资性房地产折旧</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.FA_IR_DEPR)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "fixed_and_investment_property_depreciation"
+      }
+    },
+    "cashflow_quarter.IA_AMORTIZE": {
+      "dataset_id": "cashflow_quarter",
+      "raw_field": "IA_AMORTIZE",
+      "standard_field": "intangible_amortization",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "single_quarter",
+      "value_kind": "flow",
+      "definition_id": "structured-fields-v1:cashflow_quarter:IA_AMORTIZE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "intangible_amortization"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "finance",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/Index?type=web&code=SH600519",
+          "sha256": "3a464ecccf9ba41785439362ecd0e39275a2ddc2b68b2f560194c91160c2060b",
+          "locators": [
+            {
+              "line": 714,
+              "quote": "<tr> <td class=\"tips-fieldname-Left pl20\"> <span>无形资产摊销</span> </td> {{each data as value i}} <td class=\"tips-data-Right\"> <span>{{formatMoney(value.IA_AMORTIZE)}}</span> </td> {{/each}} </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "intangible_amortization"
+      }
+    },
+    "segments.MAIN_BUSINESS_INCOME": {
+      "dataset_id": "segments",
+      "raw_field": "MAIN_BUSINESS_INCOME",
+      "standard_field": "segment_revenue",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "em-research-v1:segments:MAIN_BUSINESS_INCOME",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "segment_revenue"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "business",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/BusinessAnalysis/Index?type=web&code=SH600519",
+          "sha256": "0b96f78eaefbd2f866c396f044b268ae4e6e47507800cb175abf1ef4b8c4ef3b",
+          "locators": [
+            {
+              "line": 2,
+              "quote": "<tr> <td class=\"tips-fieldnameL\" rowspan=\"{{zygcfx[date][type.value].length}}\" style=\"width:10%; display: {{index==0?'table-cell':'none'}}\">{{type.name}}</td> <td class=\"tips-fieldnameL\" style=\"width: 20%;\">{{formatStr(value.ITEM_NAME)}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_INCOME)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBI_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_COST)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBC_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_RPOFIT)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBR_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatPercent(value.GROSS_RPOFIT_RATIO*100,'%')}}</td> </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "segment_revenue"
+      }
+    },
+    "segments.MAIN_BUSINESS_COST": {
+      "dataset_id": "segments",
+      "raw_field": "MAIN_BUSINESS_COST",
+      "standard_field": "segment_cost",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "em-research-v1:segments:MAIN_BUSINESS_COST",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "segment_cost"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "business",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/BusinessAnalysis/Index?type=web&code=SH600519",
+          "sha256": "0b96f78eaefbd2f866c396f044b268ae4e6e47507800cb175abf1ef4b8c4ef3b",
+          "locators": [
+            {
+              "line": 2,
+              "quote": "<tr> <td class=\"tips-fieldnameL\" rowspan=\"{{zygcfx[date][type.value].length}}\" style=\"width:10%; display: {{index==0?'table-cell':'none'}}\">{{type.name}}</td> <td class=\"tips-fieldnameL\" style=\"width: 20%;\">{{formatStr(value.ITEM_NAME)}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_INCOME)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBI_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_COST)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBC_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_RPOFIT)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBR_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatPercent(value.GROSS_RPOFIT_RATIO*100,'%')}}</td> </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "segment_cost"
+      }
+    },
+    "segments.MAIN_BUSINESS_RPOFIT": {
+      "dataset_id": "segments",
+      "raw_field": "MAIN_BUSINESS_RPOFIT",
+      "standard_field": "segment_profit",
+      "nature": "observed",
+      "unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "em-research-v1:segments:MAIN_BUSINESS_RPOFIT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "segment_profit"
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "evidence": [
+        {
+          "document_id": "business",
+          "url": "https://emweb.securities.eastmoney.com/PC_HSF10/BusinessAnalysis/Index?type=web&code=SH600519",
+          "sha256": "0b96f78eaefbd2f866c396f044b268ae4e6e47507800cb175abf1ef4b8c4ef3b",
+          "locators": [
+            {
+              "line": 2,
+              "quote": "<tr> <td class=\"tips-fieldnameL\" rowspan=\"{{zygcfx[date][type.value].length}}\" style=\"width:10%; display: {{index==0?'table-cell':'none'}}\">{{type.name}}</td> <td class=\"tips-fieldnameL\" style=\"width: 20%;\">{{formatStr(value.ITEM_NAME)}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_INCOME)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBI_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_COST)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBC_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatMoney(value.MAIN_BUSINESS_RPOFIT)}}</td> <td class=\"tips-dataL\">{{formatPercent(value.MBR_RATIO*100,'%')}}</td> <td class=\"tips-dataL\">{{formatPercent(value.GROSS_RPOFIT_RATIO*100,'%')}}</td> </tr>"
+            }
+          ]
+        }
+      ],
+      "semantics": {
+        "provider": "eastmoney",
+        "period_basis": "EM-F reportType or published business period",
+        "unit_basis": "provider monetary rendering",
+        "label": "segment_profit"
+      }
+    },
+    "customers_peer.AMOUNT": {
+      "dataset_id": "customers_peer",
+      "raw_field": "AMOUNT",
+      "standard_field": "counterparty_disclosed_amount",
+      "nature": "observed",
+      "unit": "CNY",
+      "stored_unit": "unknown",
+      "original_unit": "CNY",
+      "period_kind": "cumulative",
+      "value_kind": "flow",
+      "definition_id": "em-research-v1:customers_peer:AMOUNT",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": null,
+          "quality": "definition_unknown",
+          "nature": "observed",
+          "standard_field_id": null
+        }
+      },
+      "business_date_field": "REPORT_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "source": "reported_top_five",
+        "excludes": "remainder and inferred denominator"
+      },
+      "evidence": [
+        {
+          "document_id": "counterparty",
+          "url": "https://static.cninfo.com.cn/finalpage/2026-04-30/1225273091.PDF",
+          "sha256": "592d929dd07234217ca9c1823711fcf2a3172343256d7937577cd4ecdc3489de",
+          "locators": [
+            {
+              "line": 2,
+              "quote": "第一名供应商：1,058,732,007.49 元；结构化 AMOUNT=1058732007.49。"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.CLOSE_PRICE": {
+      "dataset_id": "market_cap",
+      "raw_field": "CLOSE_PRICE",
+      "standard_field": "market_price",
+      "nature": "observed",
+      "unit": "CNY_per_share",
+      "stored_unit": "CNY",
+      "original_unit": "CNY_per_share",
+      "period_kind": "market_quote",
+      "value_kind": "stock",
+      "definition_id": "em-research-v1:market_cap:CLOSE_PRICE",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "market_close"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "market_price",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 6,
+              "quote": "<th data-field=\"CLOSE_PRICE\" data-sortname=\"CLOSE_PRICE\" style=\"width: 60px\"> 当日收盘价<br />(元) </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.TOTAL_SHARES": {
+      "dataset_id": "market_cap",
+      "raw_field": "TOTAL_SHARES",
+      "standard_field": "total_shares",
+      "nature": "observed",
+      "unit": "shares",
+      "stored_unit": "shares",
+      "original_unit": "shares",
+      "period_kind": "market_quote",
+      "value_kind": "stock",
+      "definition_id": "em-research-v1:market_cap:TOTAL_SHARES",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "shares",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_shares"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "total_shares",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 5,
+              "quote": "<th style=\"padding: 0px; width: 60px;\"> <div class=\"th-inner sortable\" data-sortname=\"TOTAL_SHARES\">总股本(股)</div> </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.TOTAL_MARKET_CAP": {
+      "dataset_id": "market_cap",
+      "raw_field": "TOTAL_MARKET_CAP",
+      "standard_field": "market_cap",
+      "nature": "observed",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "period_kind": "market_quote",
+      "value_kind": "stock",
+      "definition_id": "em-research-v1:market_cap:TOTAL_MARKET_CAP",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "total_market_cap"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "market_cap",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 3,
+              "quote": "<th style=\"padding: 0px; width: 60px;\"> <div class=\"th-inner sortable\" data-sortname=\"TOTAL_MARKET_CAP\">总市值(元)</div> </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.NOTLIMITED_MARKETCAP_A": {
+      "dataset_id": "market_cap",
+      "raw_field": "NOTLIMITED_MARKETCAP_A",
+      "standard_field": "free_float_market_cap",
+      "nature": "observed",
+      "unit": "CNY",
+      "stored_unit": "CNY",
+      "original_unit": "CNY",
+      "period_kind": "market_quote",
+      "value_kind": "stock",
+      "definition_id": "em-research-v1:market_cap:NOTLIMITED_MARKETCAP_A",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "CNY",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "float_market_cap"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "free_float_market_cap",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 4,
+              "quote": "<th style=\"padding: 0px; width: 60px;\"> <div class=\"th-inner sortable\" data-sortname=\"NOTLIMITED_MARKETCAP_A\">流通市值(元)</div> </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.PE_TTM": {
+      "dataset_id": "market_cap",
+      "raw_field": "PE_TTM",
+      "standard_field": "eastmoney_pe_ttm",
+      "nature": "observed",
+      "unit": "ratio",
+      "stored_unit": "multiple",
+      "original_unit": "ratio",
+      "period_kind": "market_quote",
+      "value_kind": "ratio",
+      "definition_id": "em-research-v1:market_cap:PE_TTM",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "multiple",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "pe_ttm"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "eastmoney_pe_ttm",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 1,
+              "quote": "<th style=\"padding: 0px; width: 60px;\"> <div class=\"th-inner sortable\" data-sortname=\"PE_TTM\"> PE(TTM) <i class='icon icon_faq valign-middle' title='PE(TTM)：当前股价与前四季度每股收益总和的比值&#10;PE(静)：当前股价与最新年报每股收益的比值&#10;市销率(TTM)：总市值与前四季度营业收入总和的比值&#10;市现率(TTM)：当前股价与前四季度每股现金流量总和的比值&#10;PEG值：PE(TTM)与每股收益近3年复合增长率的比值'></i> </div> </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.PB_MRQ": {
+      "dataset_id": "market_cap",
+      "raw_field": "PB_MRQ",
+      "standard_field": "eastmoney_pb_mrq",
+      "nature": "observed",
+      "unit": "ratio",
+      "stored_unit": "multiple",
+      "original_unit": "ratio",
+      "period_kind": "market_quote",
+      "value_kind": "ratio",
+      "definition_id": "em-research-v1:market_cap:PB_MRQ",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "multiple",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "pb_mrq"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "eastmoney_pb_mrq",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 2,
+              "quote": "<th style=\"padding: 0px; width: 50px;\"> <div class=\"th-inner sortable\" data-sortname=\"PB_MRQ\">市净率</div> </th>"
+            }
+          ]
+        }
+      ]
+    },
+    "market_cap.PS_TTM": {
+      "dataset_id": "market_cap",
+      "raw_field": "PS_TTM",
+      "standard_field": "eastmoney_ps_ttm",
+      "nature": "observed",
+      "unit": "ratio",
+      "stored_unit": "multiple",
+      "original_unit": "ratio",
+      "period_kind": "market_quote",
+      "value_kind": "ratio",
+      "definition_id": "em-research-v1:market_cap:PS_TTM",
+      "multiplier": "1",
+      "scope": "consolidated",
+      "input_descriptors": {
+        "1.1.0": {
+          "unit": "multiple",
+          "quality": "passed",
+          "nature": "observed",
+          "standard_field_id": "ps_ttm"
+        }
+      },
+      "business_date_field": "TRADE_DATE",
+      "period_window_confirmed": true,
+      "semantics": {
+        "definition": "eastmoney_ps_ttm",
+        "provider_specific": true
+      },
+      "evidence": [
+        {
+          "document_id": "valuation",
+          "url": "https://data.eastmoney.com/gzfx/detail/600519.html",
+          "sha256": "fa670a7e24b9f326c1cd08d4a3ccd845791fa4fcc53eb30ea9bf3a79b1e168be",
+          "locators": [
+            {
+              "line": 12,
+              "quote": "<th data-field=\"PS_TTM\" data-sortname=\"PS_TTM\"> 市销率 </th>"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "rejections": {
+    "customers_peer.SUM_AMOUNT": "provider_inferred_denominator_not_disclosed"
+  },
+  "content_sha256": "622a3a30137617e0969217449ee37ec615a086279c0b2cd3f4e0ff1e5a012499"
+}

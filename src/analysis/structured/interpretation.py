@@ -9,6 +9,7 @@ from .registry import PROJECT_ROOT
 from .storage import canonical_sha256
 
 CONTRACT_FILES = {
+    "eastmoney-financial-interpretation-v1.0.0": ("eastmoney-financial-interpretation-v1.0.0.json", "622a3a30137617e0969217449ee37ec615a086279c0b2cd3f4e0ff1e5a012499"),
     "baostock-interpretation-v1.0.0": (
         "baostock-interpretation-v1.0.0.json",
         "9521639a413e60c670eb00a892343e7825eaf8f4fb91f93244d0a0f9289e598d"),
@@ -81,7 +82,7 @@ def interpretation_field_failure(context, job, record, field, rule, row, source,
             or field.get("dataset_id") != job["dataset_id"]
             or field.get("record_version_id") != record["record_version_id"]):
         return "field_mapping_or_identity_mismatch"
-    if source.get("upstream_identity") != "baostock" or not any(
+    if source.get("upstream_identity") != interpretation.get("upstream_identity", "baostock") or not any(
             c["field_registry_hash"] == context.field_registry_hash
             and c["source_definition_id"] == job["source_definition_id"]
             and c["source_definition_version"] == job["source_definition_version"]
@@ -125,6 +126,8 @@ def numeric_semantic_failure(rule, row, numeric):
     from decimal import DecimalException
 
     raw = rule["raw_field"]
+    if rule["dataset_id"] == "customers_peer" and str(row.get("RANK")) not in {"1", "2", "3", "4", "5"}:
+        return "counterparty_remainder_is_not_disclosed_amount"
     if rule["dataset_id"] == "baostock_adjust" and numeric <= 0:
         return "adjustment_factor_not_positive"
     if raw in {"totalShare", "liqaShare"} and (numeric < 0 or numeric != numeric.to_integral_value()):

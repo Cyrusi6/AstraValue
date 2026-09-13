@@ -212,11 +212,11 @@ def test_normal_bound_service_freezes_contract_and_readonly_cli_exports(tmp_path
             as_of=datetime(2026,9,1,tzinfo=timezone.utc))["run_ids"][0]
         assert service.run(run)["status"]["succeeded"] == 1
         context_before = service.storage.get_run_context(run)
-        result = service.materialize(run, interpretation_contract=ID)
+        result = service.materialize(run, research_scope=False, interpretation_contract=ID)
         assert result["fact_count"] == 2 and result["persisted"]
         stored = runtime.report_storage.get_materialization(result["materialization_hash"])
         assert stored["interpretation_contract"]["contract_id"] == ID
-        assert result == service.materialize(run, interpretation_contract=ID)
+        assert result == service.materialize(run, research_scope=False, interpretation_contract=ID)
         assert context_before == service.storage.get_run_context(run)
         for f in result["facts"]:
             lineage = runtime.report_storage.fact_lineage(f["fact_id"])
@@ -224,7 +224,7 @@ def test_normal_bound_service_freezes_contract_and_readonly_cli_exports(tmp_path
             assert f["structured_admission"]["field_definition_version"] == ID
         monkeypatch.setattr(cli, "_create_structured_service", lambda *_: service)
         assert cli.main(["structured", "materialize", run, "--db", str(db), "--data-root", str(data),
-            "--interpretation-contract", ID, "--no-persist", "--summary", "--json"]) == 0
+            "--interpretation-contract", ID, "--legacy-contract-replay", "--no-persist", "--summary", "--json"]) == 0
         assert json.loads(capsys.readouterr().out)["fact_count"] == 2
         assert sdk.calls == 1
     client.close()

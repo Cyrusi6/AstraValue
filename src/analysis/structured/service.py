@@ -210,6 +210,9 @@ class StructuredDataService:
         company_scope: str = "company-only",
         datasets: Sequence[str] | None = None,
         as_of: date | datetime | None = None,
+        valuation_start: date | None = None,
+        report_periods: Sequence[str] = (),
+        industry_profile_id: str | None = None,
     ) -> dict[str, Any]:
         cutoff = _as_datetime(as_of, fallback=self.acquisition_runtime.clock())
         resolution = self.resolver.resolve(ticker, as_of=cutoff.date())
@@ -233,6 +236,9 @@ class StructuredDataService:
             mode=mode,
             company_scope=company_scope,
             dataset_ids=None if not datasets else tuple(datasets),
+            valuation_start=valuation_start,
+            report_periods=report_periods,
+            industry_profile_id=industry_profile_id,
             as_of=cutoff,
         )
         return {
@@ -299,6 +305,7 @@ class StructuredDataService:
         persist: bool = True,
         include_records: bool = True,
         interpretation_contract: str | None = None,
+        research_scope: bool = True,
     ) -> dict[str, Any]:
         """Turn committed structured rows into the report fact projection.
 
@@ -314,6 +321,7 @@ class StructuredDataService:
             as_of=as_of,
             strict_historical=strict_historical,
             interpretation_contract=interpretation_contract,
+            research_scope=research_scope,
         )
         projection = None
         if persist:

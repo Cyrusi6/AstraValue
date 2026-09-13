@@ -983,7 +983,17 @@ class StructuredStorage:
             result.extend(json.loads(row["payload"]) for row in rows)
         return result
 
-    def iter_committed_record_bundles(self, run_id: str, *, batch_size: int = 256):
+    def latest_market_date(self, run_id: str, cutoff: str):
+        with self._connect(readonly=True) as connection:
+            row=connection.execute("SELECT max(substr(json_extract(r.payload,'$.raw_row.TRADE_DATE'),1,10)) FROM structured_jobs j JOIN structured_records r ON r.job_id=j.job_id JOIN structured_pages p ON p.page_id=r.page_id AND p.job_id=j.job_id AND p.snapshot_id=r.snapshot_id WHERE j.run_id=? AND j.storage_namespace_id=? AND j.dataset_id='market_cap' AND substr(json_extract(r.payload,'$.raw_row.TRADE_DATE'),1,10)<=? AND EXISTS (SELECT 1 FROM acquisition_attempt_events e WHERE e.attempt_id=p.attempt_id AND e.event_type='outcome_terminal' AND e.outcome='success')",(run_id,self.storage_namespace_id,cutoff)).fetchone()
+            return row[0] if row else None
+
+    def committed_report_periods(self, company_id: str, dataset_id: str, exclude_run_id: str):
+        with self._connect(readonly=True) as connection:
+            rows=connection.execute("SELECT DISTINCT substr(json_extract(r.payload,'$.raw_row.REPORT_DATE'),1,10) FROM structured_jobs j JOIN structured_records r ON r.job_id=j.job_id JOIN structured_pages p ON p.page_id=r.page_id AND p.snapshot_id=r.snapshot_id WHERE j.company_id=? AND j.dataset_id=? AND j.run_id!=? AND j.storage_namespace_id=? AND j.purpose='report_period' AND EXISTS (SELECT 1 FROM acquisition_attempt_events e WHERE e.attempt_id=p.attempt_id AND e.event_type='outcome_terminal' AND e.outcome='success')",(company_id,dataset_id,exclude_run_id,self.storage_namespace_id))
+            return {r[0] for r in rows if r[0]}
+
+    def iter_committed_record_bundles(self, run_id: str, *, batch_size: int = 256, dataset_ids=None):
         """Read one stable SQLite view; retain at most a batch of raw rows/fields.
 
         The joins prove page/record/job/snapshot membership. No giant IN list,
@@ -993,6 +1003,13 @@ class StructuredStorage:
             raise ValueError("batch_size must be between 1 and 1000")
         with self._connect(readonly=True) as connection:
             connection.execute("BEGIN")
+            parameters = [run_id, self.storage_namespace_id]
+            dataset_filter = ""
+            if dataset_ids is not None:
+                if not dataset_ids:
+                    return
+                dataset_filter = "AND j.dataset_id IN (" + ",".join("?" for _ in dataset_ids) + ") "
+                parameters.extend(dataset_ids)
             cursor = connection.execute(
                 "SELECT r.payload,p.attempt_id,(SELECT e.outcome FROM acquisition_attempt_events e "
                 "WHERE e.attempt_id=p.attempt_id AND e.event_type='outcome_terminal' "
@@ -1002,8 +1019,8 @@ class StructuredStorage:
                 "JOIN structured_pages p ON p.page_id=r.page_id AND p.job_id=j.job_id "
                 "AND p.snapshot_id=r.snapshot_id "
                 "WHERE j.run_id=? AND j.storage_namespace_id=? "
-                "ORDER BY j.job_id,r.row_key,r.available_at,r.record_version_id",
-                (run_id, self.storage_namespace_id))
+                + dataset_filter + "ORDER BY j.job_id,r.row_key,r.available_at,r.record_version_id",
+                parameters)
             while rows := cursor.fetchmany(batch_size):
                 records = [json.loads(row["payload"]) | {
                     "_committed_attempt_id": row["attempt_id"],

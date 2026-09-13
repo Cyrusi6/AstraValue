@@ -278,10 +278,17 @@ class StructuredDataRuntime:
         dataset_ids: Sequence[str] | None,
         activated_on_demand_ids: Sequence[str] = (),
         report_periods: Sequence[str] = (),
+        valuation_start: date | None = None,
+        industry_profile_id: str | None = None,
         as_of: datetime,
     ) -> StructuredPlanResult:
         cutoff = _aware(as_of)
         selected_periods = tuple(sorted(set(report_periods)))
+        if industry_profile_id:
+            from .scope import profile_fields
+            profile_fields(industry_profile_id, "")
+        if valuation_start and valuation_start > cutoff.date():
+            raise ValueError("valuation_start_after_cutoff")
         if any(date.fromisoformat(p) > cutoff.date() for p in selected_periods):
             raise ValueError("report_period_after_cutoff")
         if not identities:
@@ -328,7 +335,7 @@ class StructuredDataRuntime:
                     # planning item so a registry bump cannot fall back to
                     # planner's legacy 1.0.0 default and miss the bound source.
                     "source_definition_version": self.bundle.datasets.version,
-                    "earliest_available_at": ((cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else scope_start(cutoff.date())).isoformat(),
+                    "earliest_available_at": ((valuation_start or cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else min(date.fromisoformat(p) for p in selected_periods) if selected_periods and 'REPORT_DATE' in item.date_fields else scope_start(cutoff.date())).isoformat(),
                     "history_boundary_kind": (
                         "conservative_query_floor_not_availability_claim"
                     ),
@@ -355,6 +362,8 @@ class StructuredDataRuntime:
                     "field_registry_hash": self.bundle.content_hashes["fields"],
                     "research_scope_hash": load_scope()["content_sha256"],
                     "selected_report_periods": selected_periods,
+                    **({"valuation_start": valuation_start.isoformat()} if valuation_start else {}),
+                    **({"industry_profile_id": industry_profile_id} if industry_profile_id else {}),
                 },
             )
             complete_baseline = mode == "baseline" and not dataset_ids
@@ -415,6 +424,12 @@ class StructuredDataRuntime:
             )
             peer_set = self.bundle.peer_sets.peer_sets[0]
             frozen["selected_report_periods"] = list(selected_periods)
+            if valuation_start:
+                frozen["valuation_start"] = valuation_start.isoformat()
+            if industry_profile_id:
+                frozen['industry_profile_id']=industry_profile_id
+                for dataset in frozen['datasets']:
+                    dataset['research_profile_id']=industry_profile_id
             context = StructuredRunContext(
                 run_id=run_id,
                 storage_namespace_id=self.acquisition_runtime.namespace_id,
@@ -943,6 +958,7 @@ class StructuredDataRuntime:
                     job,
                     page_number=page_number,
                     plan_parameters=plan_item.normalized_parameters,
+                    selected_report_periods=frozen.get('selected_report_periods',()),
                     resolved_company_type=(
                         None
                         if job["purpose"] == "company_type"
@@ -1259,10 +1275,15 @@ class StructuredDataRuntime:
         if context.frozen_config.get("research_scope"):
             from .scope import scope_start
             cutoff = self.repository.get_run(context.run_id).as_of.date()
-            dates = tuple(d for d in dates if scope_start(cutoff) <= d <= cutoff)
             chosen = context.frozen_config.get("selected_report_periods")
+            floor = min([scope_start(cutoff)]+[date.fromisoformat(p) for p in chosen or []])
+            dates = tuple(d for d in dates if floor <= d <= cutoff)
             if chosen:
                 dates = tuple(d for d in dates if d.isoformat() in chosen)
+            elif context.frozen_config.get('mode') in {'incremental','due'}:
+                known=self.storage.committed_report_periods(context.company_id,job['dataset_id'],context.run_id)
+                recent=set(sorted(dates,reverse=True)[:2])
+                dates=tuple(d for d in dates if d in recent or d.isoformat() not in known)
         if not dates:
             raise StructuredRuntimeError(
                 "successful EM-F report catalog contains no report dates"
@@ -1502,7 +1523,7 @@ class StructuredDataRuntime:
         assert_network_scope(self.storage.get_run_context(run_id), dataset["dataset_id"])
         protocol = _PROTOCOLS[request_contract["protocol"]]
         endpoint = _execution_endpoint(dataset, purpose=purpose)
-        request_params = request_fields(dataset["dataset_id"], params)
+        request_params = request_fields(dataset["dataset_id"], params, dataset.get('research_profile_id'))
         if protocol is ProtocolFamily.EM_F and endpoint.endswith("DateAjaxNew"):
             request_params.pop("dates", None)
             request_params.pop("reportType", None)
@@ -2027,6 +2048,7 @@ def _bind_parameters(
     page_number: int,
     plan_parameters: Mapping[str, Any] | None = None,
     resolved_company_type: str | None = None,
+    selected_report_periods: Sequence[str] = (),
 ) -> dict[str, Any]:
     market = str(identity["market"])
     exchange = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}[market]
@@ -2091,11 +2113,14 @@ def _bind_parameters(
         params[name] = rendered
     if dataset.get("research_scope_id"):
         from .scope import request_fields
-        params = request_fields(dataset["dataset_id"], params)
+        params = request_fields(dataset["dataset_id"], params, dataset.get('research_profile_id'))
         if "filter" in params:
             date_field = next((f for f in dataset.get("date_fields", []) if f in {"REPORT_DATE", "TRADE_DATE", "END_DATE"}), None)
             if date_field:
                 params["filter"] += f"({date_field}>='{base['start_date']}')({date_field}<='{base['end_date']}')"
+                if date_field=='REPORT_DATE' and selected_report_periods:
+                    dates=','.join("'"+date.fromisoformat(p).isoformat()+"'" for p in selected_report_periods)
+                    params['filter']+=f'(REPORT_DATE in ({dates}))'
     return params
 
 

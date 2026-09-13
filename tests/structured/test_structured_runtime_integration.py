@@ -604,3 +604,29 @@ def test_failed_http_has_one_attempt_per_round_and_stops_after_two(tmp_path):
     finally:
         acquisition_runtime.close()
         client.close()
+
+
+def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_path):
+    from datetime import timedelta
+    calls=[]
+    dates=['2025-12-31','2025-09-30','2025-06-30','2025-03-31']
+    def handler(request):
+        if request.url.path.endswith('/Index'):
+            return httpx.Response(200,headers={'content-type':'text/html'},content=b'<input id="hidctype" value="4">')
+        if request.url.path.endswith('zcfzbDateAjaxNew'):
+            return httpx.Response(200,json={'code':0,'data':[{'SECURITY_CODE':'600519','REPORT_DATE':d} for d in dates]})
+        selected=request.url.params['dates'].split(',');calls.append(selected)
+        return httpx.Response(200,json={'code':0,'data':[{'SECUCODE':'600519.SH','REPORT_DATE':d,'ORG_CODE':'1000','TOTAL_ASSETS':1} for d in selected]})
+    runtime,client=_acquisition_runtime(tmp_path,handler=handler)
+    try:
+        service=StructuredDataService.from_runtime(runtime)
+        first=service.plan('600519',mode='baseline',company_scope='company-only',datasets=('balance_fields',),as_of=NOW)['run_ids'][0]
+        _run_all_rounds(service,first)
+        second=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=NOW+timedelta(minutes=1))['run_ids'][0]
+        _run_all_rounds(service,second)
+        assert calls==[dates,dates[:2]]
+        _run_all_rounds(service,second)
+        assert len(calls)==2
+        assert service.storage.committed_report_periods(service.storage.get_run_context(second).company_id,'balance_fields',second)==set(dates)
+    finally:
+        runtime.close();client.close()

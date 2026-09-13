@@ -74,7 +74,8 @@ class StructuredFactMaterializer:
 
     def materialize(self, run_id: str, *, as_of: datetime | None = None,
                     strict_historical: bool = False,
-                    interpretation_contract: str | None = None) -> MaterializationResult:
+                    interpretation_contract: str | None = None,
+                    research_scope: bool | None = None) -> MaterializationResult:
         cutoff = _timestamp(as_of) if as_of is not None else None
         if strict_historical and cutoff is None:
             raise ValueError("strict_historical requires timezone-aware as_of")
@@ -92,6 +93,14 @@ class StructuredFactMaterializer:
                 "rules": {**contract["rules"], **interpretation["rules"]},
                 "rejections": {**contract.get("rejections", {}), **interpretation["rejections"]}}
         contract_hash = canonical_sha256(contract)
+        if research_scope is None:
+            research_scope = bool(context.frozen_config.get("research_scope"))
+        if research_scope:
+            from .scope import load_scope, field_selected
+            contract_hash = canonical_sha256({"contract": contract_hash, "scope": load_scope()["content_sha256"]})
+        market_start = context.frozen_config.get("valuation_start")
+        market_cutoff = (cutoff or self.repository.get_run(run_id).as_of).date().isoformat() if research_scope else None
+        market_latest = self.storage.latest_market_date(run_id, market_cutoff) if research_scope else None
         jobs = {str(j["job_id"]): j for j in self.storage.list_jobs(run_id, limit=None)}
         datasets = {d["dataset_id"]: d for d in context.frozen_config.get("datasets", [])}
         frozen_sources = {(s["source_definition_id"], str(s.get("version", s.get("source_definition_version")))): s
@@ -118,7 +127,11 @@ class StructuredFactMaterializer:
                 "field_path": (field or {}).get("field_path"), "reason": reason, **extra})
             gaps.add(reason)
 
-        for record, fields in self.storage.iter_committed_record_bundles(run_id):
+        read_options = {}
+        if research_scope:
+            mapped_datasets = {rule["dataset_id"] for rule in contract["rules"].values()}
+            read_options["dataset_ids"] = [name for name, value in load_scope()["datasets"].items() if value["selection"] != "excluded" and name in mapped_datasets]
+        for record, fields in self.storage.iter_committed_record_bundles(run_id, **read_options):
             job = jobs.get(str(record.get("job_id")))
             candidates += len(fields)
             if job is None or job["dataset_id"] not in datasets:
@@ -128,6 +141,11 @@ class StructuredFactMaterializer:
                 gap("page_attempt_not_successful", record)
                 continue
             dataset_id = job["dataset_id"]
+            if research_scope and dataset_id == "market_cap":
+                market_date = str(record.get("raw_row", {}).get("TRADE_DATE", ""))[:10]
+                if market_date>market_cutoff or (market_start and market_date < market_start) or (not market_start and market_date != market_latest):
+                    gap("outside_valuation_window", record)
+                    continue
             dataset = datasets[dataset_id]
             source_definition = frozen_sources.get((job["source_definition_id"], str(job["source_definition_version"])))
             if source_definition is None:
@@ -167,6 +185,9 @@ class StructuredFactMaterializer:
             source = _source_for_snapshot(snapshot, job, source_definition)
             for field in fields:
                 raw_name = field.get("raw_field_name")
+                if research_scope and not field_selected(dataset_id, raw_name):
+                    gap("outside_research_scope", record, field)
+                    continue
                 rule = contract["rules"].get(f"{dataset_id}.{raw_name}")
                 interpreted = rule is not None and "input_descriptors" in rule
                 fact_available = effective_available
@@ -203,6 +224,9 @@ class StructuredFactMaterializer:
                     gap("period_missing_or_conflicting", record, field)
                     continue
                 period_kind, value_kind = rule["period_kind"], rule["value_kind"]
+                if row.get("CURRENCY") not in (None, "", "CNY"):
+                    gap("currency_not_supported_by_rule", record, field)
+                    continue
                 if rule["nature"] != "announced_plan" and period_end > effective_available.date():
                     gap("period_after_observation", record, field)
                     continue
@@ -219,6 +243,7 @@ class StructuredFactMaterializer:
                     requires_materialization_selection=True)
                 if interpreted:
                     metadata.update(
+                        statement_org_type=row.get("ORG_TYPE"),
                         interpretation_contract_id=interpretation["contract_id"],
                         interpretation_version=interpretation["version"],
                         interpretation_sha256=interpretation["content_sha256"],
@@ -267,7 +292,7 @@ class StructuredFactMaterializer:
                     sources[source.source_id] = source
                     continue
                 dim = _dimension(dataset_id, row)
-                if dataset_id in {"segments", "float_holders_history"} and dim is None:
+                if dataset_id in {"segments", "float_holders_history", "customers_peer"} and dim is None:
                     gap("dimension_identity_missing", record, field)
                     continue
                 sources[source.source_id] = source
@@ -442,6 +467,12 @@ def _source_for_snapshot(snapshot, job, definition):
 
 
 def _dimension(dataset, row):
+    if dataset == "customers_peer":
+        if str(row.get("TYPE_CODE")) not in {"1", "2"} or row.get("RANK") is None or not row.get("ITEM_NAME"):
+            return None
+        return {"dimension_type": "customer" if str(row['TYPE_CODE']) == '1' else "supplier",
+                "dimension_name": str(row['ITEM_NAME']), "dimension_code": "rank:"+str(row['RANK']),
+                "accounting_basis": "reported_top_five_amount_no_inferred_denominator"}
     if dataset == "segments":
         if any(row.get(k) in (None, "") for k in ("MAINOP_TYPE", "ITEM_CODE")):
             return None
@@ -582,6 +613,8 @@ def _derive_gross_margin(selected):
     groups = defaultdict(dict)
     for fact in selected:
         m = fact.metadata
+        if m.get("interpretation_contract_id") == "eastmoney-financial-interpretation-v1.0.0" and m.get("statement_org_type") != "通用":
+            continue
         if (fact.metric_id not in {"operating_income", "operating_cost"}
                 or m.get("structured_dataset_id") not in {"income_fields", "income_quarter"}):
             continue

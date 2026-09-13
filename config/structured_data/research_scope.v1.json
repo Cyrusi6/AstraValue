@@ -1191,5 +1191,74 @@
       "purpose": "原策略见 [正文选择说明](content-selection.md)"
     }
   ],
-  "content_sha256": "2616aa039357acbddb30016bf961ef00e5fc363323a6c84ab0ca7d2c776adf74"
+  "requirement_overrides": {
+    "REQ.ES05.Q01.001": {
+      "dataset_id": "market_cap",
+      "raw_name": "TRADE_DATE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.002": {
+      "dataset_id": "market_cap",
+      "raw_name": "CLOSE_PRICE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.003": {
+      "scope_disposition": "not_required_by_default",
+      "basis": "trading status and supplier-specific NCF multiple are not default valuation requirements; do not substitute CFO multiple"
+    },
+    "REQ.ES05.Q01.004": {
+      "dataset_id": "market_cap",
+      "raw_name": "PE_TTM",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.005": {
+      "dataset_id": "market_cap",
+      "raw_name": "PB_MRQ",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.006": {
+      "dataset_id": "market_cap",
+      "raw_name": "PS_TTM",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.007": {
+      "scope_disposition": "not_required_by_default",
+      "basis": "trading status and supplier-specific NCF multiple are not default valuation requirements; do not substitute CFO multiple"
+    },
+    "REQ.ES05.Q02.001": {
+      "dataset_id": "market_cap",
+      "raw_name": null,
+      "basis": "same scoped valuation record set; explicit historical window still required"
+    },
+    "REQ.ES05.Q03.002": {
+      "dataset_id": "market_cap",
+      "raw_name": null,
+      "basis": "same scoped valuation record set; explicit historical window still required"
+    },
+    "REQ.ES05.Q06.004": {
+      "dataset_id": "market_cap",
+      "raw_name": "CLOSE_PRICE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES08.Q01.004": {
+      "dataset_id": "market_cap",
+      "raw_name": "TRADE_DATE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES08.Q01.005": {
+      "dataset_id": "market_cap",
+      "raw_name": "CLOSE_PRICE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES08.Q04.002": {
+      "dataset_id": "market_cap",
+      "raw_name": "CLOSE_PRICE",
+      "basis": "D01-D21 scope: necessary valuation quote or explicit historical valuation range"
+    },
+    "REQ.ES05.Q01.012": {
+      "scope_disposition": "not_required_by_default",
+      "basis": "ordinary adjusted price history excluded by research scope"
+    }
+  },
+  "content_sha256": "515850dd0e6285d2b8b5d3069e5b0b95dfe6b53425e91347103fcb42c1b33786"
 }

@@ -111,6 +111,9 @@ class StructuredPlanRequest(BaseModel):
     )
     datasets: list[str] = Field(default_factory=list)
     as_of: datetime | None = None
+    valuation_start: date | None = None
+    report_periods: list[str] = Field(default_factory=list)
+    industry_profile_id: str | None = None
 
 
 class StructuredResolveRequest(BaseModel):
@@ -742,6 +745,9 @@ def create_app(
                 company_scope=payload.company_scope,
                 datasets=tuple(payload.datasets),
                 as_of=payload.as_of,
+                valuation_start=payload.valuation_start,
+                report_periods=payload.report_periods,
+                industry_profile_id=payload.industry_profile_id,
             )
         )
 

@@ -166,6 +166,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     structured_plan.add_argument("--dataset", action="append", dest="datasets")
     structured_plan.add_argument("--as-of")
+    structured_plan.add_argument("--valuation-start", help="历史估值明确起始日 YYYY-MM-DD；默认仅当前必要报价窗口")
+    structured_plan.add_argument("--report-period", action="append", default=[], dest="report_periods")
+    structured_plan.add_argument("--industry-profile")
     _add_bound_storage_arguments(structured_plan)
 
     for name, help_text in (
@@ -184,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     structured_materialize.add_argument("--as-of")
     structured_materialize.add_argument("--strict-historical", action="store_true")
     structured_materialize.add_argument("--interpretation-contract", help="显式选择有证据的后补字段解释版本")
+    structured_materialize.add_argument("--legacy-contract-replay", action="store_true", help="显式重放旧范围；不启动采集")
     structured_materialize.add_argument("--no-persist", action="store_true")
     structured_materialize.add_argument("--summary", action="store_true", help="仅输出计数、缺口汇总和投影定位")
     _add_bound_storage_arguments(structured_materialize)
@@ -350,6 +354,9 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 company_scope=args.company_scope,
                 datasets=tuple(args.datasets or ()),
                 as_of=_parse_datetime(args.as_of) if args.as_of else None,
+                valuation_start=datetime.fromisoformat(args.valuation_start).date() if args.valuation_start else None,
+                report_periods=args.report_periods,
+                industry_profile_id=args.industry_profile,
             )
         elif command == "run":
             value = service.run(args.run_id)
@@ -363,6 +370,7 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 as_of=_parse_datetime(args.as_of) if args.as_of else None,
                 strict_historical=bool(args.strict_historical),
                 interpretation_contract=args.interpretation_contract,
+                research_scope=not args.legacy_contract_replay,
                 persist=not bool(args.no_persist),
                 include_records=not bool(args.summary),
             )

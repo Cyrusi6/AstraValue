@@ -68,7 +68,7 @@ def replay(db: Path, data_root: Path, run_id: str, *, profile_memory: bool = Fal
     for _ in range(2):
         started = time.perf_counter()
         result = materializer.materialize(run_id, interpretation_contract=interpretation_contract,
-            as_of=as_of, strict_historical=strict_historical)
+            as_of=as_of, strict_historical=strict_historical, research_scope=False)
         durations.append(round(time.perf_counter() - started, 3))
         summaries.append(result.to_mapping())
         if len(summaries) == 2 and output_dir is not None:
@@ -106,6 +106,18 @@ def replay(db: Path, data_root: Path, run_id: str, *, profile_memory: bool = Fal
 def _export_result(result, output_dir, namespace):
     """Stable standalone evidence files; these are not a rebound projection DB."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    previous = output_dir / "manifest.json"
+    if previous.exists():
+        old = json.loads(previous.read_text(encoding="utf-8"))
+        old_hash = old.get("materialization_hash")
+        if old_hash and old_hash != result.materialization_hash:
+            import shutil
+            history = output_dir / "history" / old_hash
+            history.mkdir(parents=True, exist_ok=True)
+            for name in ("facts.jsonl", "field-gaps.jsonl", "sources.jsonl", "dimensional-facts.jsonl", "events.jsonl", "manifest.json", "coverage.json", "samples.json"):
+                source = output_dir / name
+                if source.exists() and not (history/name).exists():
+                    shutil.copy2(source, history/name)
     selected = frozenset(result.selected_fact_ids)
     counts, selected_counts, samples = Counter(), Counter(), {}
     for rule in (result.interpretation_contract or {}).get("rules", {}).values():
