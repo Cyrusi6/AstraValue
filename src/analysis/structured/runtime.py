@@ -280,13 +280,17 @@ class StructuredDataRuntime:
         report_periods: Sequence[str] = (),
         valuation_start: date | None = None,
         industry_profile_id: str | None = None,
+        research_profile_id: str | None = None,
         as_of: datetime,
     ) -> StructuredPlanResult:
         cutoff = _aware(as_of)
         selected_periods = tuple(sorted(set(report_periods)))
+        if industry_profile_id or research_profile_id:
+            from .scope import profile_fields, load_research_profile
         if industry_profile_id:
-            from .scope import profile_fields
             profile_fields(industry_profile_id, "")
+        if research_profile_id:
+            load_research_profile(research_profile_id)
         if valuation_start and valuation_start > cutoff.date():
             raise ValueError("valuation_start_after_cutoff")
         if any(date.fromisoformat(p) > cutoff.date() for p in selected_periods):
@@ -297,7 +301,7 @@ class StructuredDataRuntime:
             raise ValueError("unknown structured mode")
         # Empty selects the versioned required research set, never all capabilities.
         from .scope import selected_datasets, load_scope, scope_start
-        selected_ids = selected_datasets(dataset_ids)
+        selected_ids = selected_datasets(dataset_ids, research_profile_id)
         known_ids = {item.dataset_id for item in self.bundle.datasets.datasets}
         unknown = set(selected_ids or ()) - known_ids
         if unknown:
@@ -335,7 +339,7 @@ class StructuredDataRuntime:
                     # planning item so a registry bump cannot fall back to
                     # planner's legacy 1.0.0 default and miss the bound source.
                     "source_definition_version": self.bundle.datasets.version,
-                    "earliest_available_at": ((valuation_start or cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else min(date.fromisoformat(p) for p in selected_periods) if selected_periods and 'REPORT_DATE' in item.date_fields else scope_start(cutoff.date())).isoformat(),
+                    "earliest_available_at": ((valuation_start or cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else min(date.fromisoformat(p) for p in selected_periods) if selected_periods and 'REPORT_DATE' in item.date_fields else scope_start(cutoff.date(), research_profile_id)).isoformat(),
                     "history_boundary_kind": (
                         "conservative_query_floor_not_availability_claim"
                     ),
@@ -361,12 +365,13 @@ class StructuredDataRuntime:
                     "dataset_registry_hash": self.bundle.content_hashes["datasets"],
                     "field_registry_hash": self.bundle.content_hashes["fields"],
                     "research_scope_hash": load_scope()["content_sha256"],
+                    **({"research_profile_id": research_profile_id} if research_profile_id else {}),
                     "selected_report_periods": selected_periods,
                     **({"valuation_start": valuation_start.isoformat()} if valuation_start else {}),
                     **({"industry_profile_id": industry_profile_id} if industry_profile_id else {}),
                 },
             )
-            complete_baseline = mode == "baseline" and not dataset_ids
+            complete_baseline = mode == "baseline" and not dataset_ids and not research_profile_id
             run = AcquisitionRun(
                 run_id=run_id,
                 ticker=identity.security_code,
@@ -421,6 +426,7 @@ class StructuredDataRuntime:
                 mode=mode,
                 company_scope=company_scope,
                 activated_on_demand_ids=activated_on_demand_ids,
+                research_profile_id=research_profile_id,
             )
             peer_set = self.bundle.peer_sets.peer_sets[0]
             frozen["selected_report_periods"] = list(selected_periods)
@@ -766,9 +772,10 @@ class StructuredDataRuntime:
         mode: str,
         company_scope: str,
         activated_on_demand_ids: Sequence[str],
+        research_profile_id: str | None = None,
     ) -> dict[str, Any]:
         dataset_ids = {item.dataset_id for item in datasets}
-        return {
+        frozen = {
             "schema": "structured-execution.v1",
             "research_scope": __import__("analysis.structured.scope", fromlist=["load_scope"]).load_scope(),
             "identity": _jsonable(asdict(identity)),
@@ -795,6 +802,13 @@ class StructuredDataRuntime:
                 "conservative_query_floor_not_availability_claim"
             ),
         }
+        if research_profile_id:
+            from .scope import load_research_profile
+            frozen["research_profile_id"] = research_profile_id
+            frozen["research_profile"] = load_research_profile(research_profile_id)
+            for dataset in frozen["datasets"]:
+                dataset["research_scope_profile_id"] = research_profile_id
+        return frozen
 
     def _execute_job(
         self,
@@ -1276,7 +1290,7 @@ class StructuredDataRuntime:
             from .scope import scope_start
             cutoff = self.repository.get_run(context.run_id).as_of.date()
             chosen = context.frozen_config.get("selected_report_periods")
-            floor = min([scope_start(cutoff)]+[date.fromisoformat(p) for p in chosen or []])
+            floor = min([scope_start(cutoff, context.frozen_config.get("research_profile_id"))]+[date.fromisoformat(p) for p in chosen or []])
             dates = tuple(d for d in dates if floor <= d <= cutoff)
             if chosen:
                 dates = tuple(d for d in dates if d.isoformat() in chosen)
@@ -1520,10 +1534,16 @@ class StructuredDataRuntime:
     ) -> ExecutionPage:
         request_contract = dataset["request"]
         from .scope import assert_network_scope, request_fields
-        assert_network_scope(self.storage.get_run_context(run_id), dataset["dataset_id"])
+        context = self.storage.get_run_context(run_id)
+        assert_network_scope(context, dataset["dataset_id"])
         protocol = _PROTOCOLS[request_contract["protocol"]]
         endpoint = _execution_endpoint(dataset, purpose=purpose)
-        request_params = request_fields(dataset["dataset_id"], params, dataset.get('research_profile_id'))
+        request_params = request_fields(
+            dataset["dataset_id"],
+            params,
+            dataset.get('research_profile_id'),
+            research_profile_id=context.frozen_config.get("research_profile_id"),
+        )
         if protocol is ProtocolFamily.EM_F and endpoint.endswith("DateAjaxNew"):
             request_params.pop("dates", None)
             request_params.pop("reportType", None)
@@ -2113,7 +2133,12 @@ def _bind_parameters(
         params[name] = rendered
     if dataset.get("research_scope_id"):
         from .scope import request_fields
-        params = request_fields(dataset["dataset_id"], params, dataset.get('research_profile_id'))
+        params = request_fields(
+            dataset["dataset_id"],
+            params,
+            dataset.get('research_profile_id'),
+            research_profile_id=dataset.get("research_scope_profile_id"),
+        )
         if "filter" in params:
             date_field = next((f for f in dataset.get("date_fields", []) if f in {"REPORT_DATE", "TRADE_DATE", "END_DATE"}), None)
             if date_field:

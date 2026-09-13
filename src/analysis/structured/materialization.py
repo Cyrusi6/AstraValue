@@ -75,7 +75,8 @@ class StructuredFactMaterializer:
     def materialize(self, run_id: str, *, as_of: datetime | None = None,
                     strict_historical: bool = False,
                     interpretation_contract: str | None = None,
-                    research_scope: bool | None = None) -> MaterializationResult:
+                    research_scope: bool | None = None,
+                    research_profile_id: str | None = None) -> MaterializationResult:
         cutoff = _timestamp(as_of) if as_of is not None else None
         if strict_historical and cutoff is None:
             raise ValueError("strict_historical requires timezone-aware as_of")
@@ -95,9 +96,19 @@ class StructuredFactMaterializer:
         contract_hash = canonical_sha256(contract)
         if research_scope is None:
             research_scope = bool(context.frozen_config.get("research_scope"))
+        research_profile_id = research_profile_id or context.frozen_config.get(
+            "research_profile_id"
+        )
+        if research_profile_id and not research_scope:
+            raise ValueError("research_profile_requires_research_scope")
         if research_scope:
-            from .scope import load_scope, field_selected
-            contract_hash = canonical_sha256({"contract": contract_hash, "scope": load_scope()["content_sha256"]})
+            from .scope import load_scope, load_research_profile, field_selected
+            scope_contract = {"scope": load_scope()["content_sha256"]}
+            if research_profile_id:
+                scope_contract["profile"] = load_research_profile(research_profile_id)[
+                    "content_sha256"
+                ]
+            contract_hash = canonical_sha256({"contract": contract_hash, **scope_contract})
         market_start = context.frozen_config.get("valuation_start")
         market_cutoff = (cutoff or self.repository.get_run(run_id).as_of).date().isoformat() if research_scope else None
         market_latest = self.storage.latest_market_date(run_id, market_cutoff) if research_scope else None
@@ -130,7 +141,17 @@ class StructuredFactMaterializer:
         read_options = {}
         if research_scope:
             mapped_datasets = {rule["dataset_id"] for rule in contract["rules"].values()}
-            read_options["dataset_ids"] = [name for name, value in load_scope()["datasets"].items() if value["selection"] != "excluded" and name in mapped_datasets]
+            if research_profile_id:
+                profile_datasets = load_research_profile(research_profile_id)["datasets"]
+                read_options["dataset_ids"] = [
+                    name for name in profile_datasets if name in mapped_datasets
+                ]
+            else:
+                read_options["dataset_ids"] = [
+                    name
+                    for name, value in load_scope()["datasets"].items()
+                    if value["selection"] != "excluded" and name in mapped_datasets
+                ]
         for record, fields in self.storage.iter_committed_record_bundles(run_id, **read_options):
             job = jobs.get(str(record.get("job_id")))
             candidates += len(fields)
@@ -185,7 +206,9 @@ class StructuredFactMaterializer:
             source = _source_for_snapshot(snapshot, job, source_definition)
             for field in fields:
                 raw_name = field.get("raw_field_name")
-                if research_scope and not field_selected(dataset_id, raw_name):
+                if research_scope and not field_selected(
+                    dataset_id, raw_name, research_profile_id
+                ):
                     gap("outside_research_scope", record, field)
                     continue
                 rule = contract["rules"].get(f"{dataset_id}.{raw_name}")

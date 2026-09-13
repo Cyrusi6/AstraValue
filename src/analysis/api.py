@@ -114,6 +114,7 @@ class StructuredPlanRequest(BaseModel):
     valuation_start: date | None = None
     report_periods: list[str] = Field(default_factory=list)
     industry_profile_id: str | None = None
+    research_profile_id: str | None = None
 
 
 class StructuredResolveRequest(BaseModel):
@@ -748,6 +749,7 @@ def create_app(
                 valuation_start=payload.valuation_start,
                 report_periods=payload.report_periods,
                 industry_profile_id=payload.industry_profile_id,
+                research_profile_id=payload.research_profile_id,
             )
         )
 

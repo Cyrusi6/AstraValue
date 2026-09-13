@@ -3,7 +3,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from analysis.structured.scope import load_scope, selected_datasets, request_fields, assert_network_scope
+from analysis.structured.scope import (
+    LITE_PROFILE_ID,
+    assert_network_scope,
+    load_research_profile,
+    load_scope,
+    request_fields,
+    selected_datasets,
+)
 from analysis.structured.reading import select_research_document
 
 
@@ -34,6 +41,22 @@ def test_optional_columns_are_narrowed_including_em_m():
     assert 'ALL' not in params['columns']
 
 
+def test_lite_profile_narrows_plan_request_and_network_binding():
+    profile=load_research_profile(LITE_PROFILE_ID)
+    assert sum(map(len,profile['question_routing'].values()))==54
+    assert len(selected_datasets(research_profile_id=LITE_PROFILE_ID)) < len(selected_datasets())
+    assert 'market_cap' in selected_datasets(research_profile_id=LITE_PROFILE_ID)
+    with pytest.raises(ValueError,match='research_profile_excluded'):
+        selected_datasets(['block_trade'],LITE_PROFILE_ID)
+    fields=request_fields('market_cap',{'sty':'ALL'},research_profile_id=LITE_PROFILE_ID)['sty'].split(',')
+    assert {'CLOSE_PRICE','TOTAL_MARKET_CAP','PE_TTM','PB_MRQ','PS_TTM'} <= set(fields)
+    assert {'CHANGE_RATE','OPEN_PRICE','VOLUME'} & set(fields) == set()
+    frozen={'research_scope':load_scope(),'research_profile_id':LITE_PROFILE_ID,'research_profile':profile}
+    assert_network_scope(SimpleNamespace(frozen_config=frozen),'market_cap')
+    with pytest.raises(ValueError,match='research_profile_network_binding_invalid'):
+        assert_network_scope(SimpleNamespace(frozen_config=frozen|{'research_profile':{}}),'market_cap')
+
+
 @pytest.mark.parametrize('title,category,selected',[
     ('2025年年度报告','D01',True),
     ('2025年年度报告摘要','D04',False),
@@ -59,3 +82,16 @@ def test_triggered_quarter_and_no_guessed_identity_or_future_publication():
 def test_english_interim_is_not_permanently_excluded():
     result=select_research_document(entry('2026年半年度报告（英文版）',published='2026-08-30'),as_of=date(2026,9,13),question_ids=['ES01.Q01'],trigger_reason='explicit_language_evidence')
     assert result['document_class']=='D02' and result['selected']
+
+
+def test_lite_document_baseline_is_latest_annual_and_interim_only():
+    chosen=[]
+    for title,published in (
+        ('2024年年度报告','2025-04-20'),
+        ('2025年年度报告','2026-04-20'),
+        ('2025年半年度报告','2025-08-30'),
+        ('2026年半年度报告','2026-08-30'),
+    ):
+        result=select_research_document(entry(title,published=published),as_of=date(2026,9,13),research_profile_id=LITE_PROFILE_ID)
+        if result['selected']:chosen.append((title,result['document_class']))
+    assert chosen==[('2025年年度报告','D01'),('2026年半年度报告','D02')]

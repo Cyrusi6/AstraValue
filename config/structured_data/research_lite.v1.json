@@ -1,0 +1,184 @@
+{
+  "profile_id": "eight-step-lite-v1.0.0",
+  "version": "1.0.0",
+  "base_scope_id": "eight-step-scope-v1.0.0",
+  "authority": "docs/acquisition/eight-step-lite-sol-plan.md",
+  "industry_profile": {
+    "validated": "baijiu",
+    "supported_tickers": {
+      "600519": "贵州茅台",
+      "000858": "五粮液",
+      "000568": "泸州老窖",
+      "000596": "古井贡酒",
+      "002304": "洋河股份",
+      "600809": "山西汾酒",
+      "603369": "今世缘"
+    },
+    "unsupported_industries": [
+      "bank",
+      "insurance",
+      "brokerage",
+      "unknown"
+    ],
+    "unsupported_message": "轻量画像未验证"
+  },
+  "windows": {
+    "complete_annual_years": 3,
+    "required_quarters": 8,
+    "dependency_policy": "only_formula_required_predecessors",
+    "annual_period_type": "cumulative",
+    "flow_quarter_period_type": "single_quarter",
+    "stock_quarter_period_type": "instant"
+  },
+  "documents": {
+    "default_full_reports": [
+      "latest_complete_chinese_annual",
+      "latest_disclosed_chinese_interim"
+    ],
+    "conditional_classes": [
+      "D03",
+      "D05",
+      "D06",
+      "D07",
+      "D08",
+      "D09",
+      "D10",
+      "D11",
+      "D12",
+      "D13",
+      "D14",
+      "D15",
+      "D16",
+      "D17",
+      "D18",
+      "D19"
+    ],
+    "catalog_only_classes": [
+      "D20",
+      "D21"
+    ],
+    "trigger_required": true,
+    "post_annual_catalog_status_required": true
+  },
+  "budget": {
+    "target_min_tokens": 8000,
+    "default_max_tokens": 15000,
+    "evidence_page_tokens": 2000,
+    "fallback_method": "ceil_utf8_bytes_div_2_conservative_estimate",
+    "required_content": [
+      "numeric_value_unit_period",
+      "core_gaps",
+      "known_risks",
+      "conflicts",
+      "citations"
+    ]
+  },
+  "datasets": {
+    "balance_fields": {
+      "selection": "required",
+      "fields": ["REPORT_DATE", "REPORT_TYPE", "NOTICE_DATE", "MONETARYFUNDS", "TOTAL_ASSETS", "TOTAL_LIABILITIES", "TOTAL_CURRENT_LIAB", "ACCOUNTS_RECE", "INVENTORY", "CONTRACT_ASSET", "CONTRACT_LIAB", "GOODWILL", "ACCOUNTS_PAYABLE", "PREPAYMENT", "CIP", "FIXED_ASSET", "OPINION_TYPE", "OSOPINION_TYPE"]
+    },
+    "income_fields": {
+      "selection": "required",
+      "fields": ["REPORT_DATE", "REPORT_TYPE", "NOTICE_DATE", "OPERATE_INCOME", "TOTAL_OPERATE_INCOME", "OPERATE_COST", "NETPROFIT", "PARENT_NETPROFIT", "DEDUCT_PARENT_NETPROFIT", "SALE_EXPENSE", "MANAGE_EXPENSE", "RESEARCH_EXPENSE", "FINANCE_EXPENSE", "ASSET_IMPAIRMENT_LOSS", "CREDIT_IMPAIRMENT_LOSS", "INCOME_TAX", "TOTAL_PROFIT", "BASIC_EPS", "DILUTED_EPS"]
+    },
+    "cashflow_fields": {
+      "selection": "required",
+      "fields": ["REPORT_DATE", "REPORT_TYPE", "NOTICE_DATE", "NETCASH_OPERATE", "NETCASH_INVEST", "NETCASH_FINANCE", "CONSTRUCT_LONG_ASSET", "BEGIN_CASH_EQUIVALENTS", "END_CASH_EQUIVALENTS"]
+    },
+    "income_quarter": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE"]},
+    "cashflow_quarter": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE"]},
+    "company_basic": {"selection": "required", "fields": ["ORG_NAME", "MAIN_BUSINESS", "REAL_CONTROLER", "CSRC_INDUSTRY_NAME", "SWINDUSTRY_NAME2", "FOUND_DATE", "ACCOUNT_FIRM", "__retrieved_at"]},
+    "segments": {"selection": "required", "fields": ["REPORT_DATE", "MAINOP_TYPE", "ITEM_CODE", "ITEM_PARENT_CODE", "MAIN_BUSINESS_INCOME", "MAIN_BUSINESS_COST", "MAIN_BUSINESS_RPOFIT"]},
+    "customers_peer": {"selection": "required", "fields": ["REPORT_DATE", "TYPE", "TYPE_CODE", "RANK", "AMOUNT", "SUM_AMOUNT", "TOI_RATIO"]},
+    "controller": {"selection": "required", "fields": ["HOLDER_NAME", "HOLD_RATIO", "RELATED_RELATION", "__retrieved_at"]},
+    "equity": {"selection": "required", "fields": ["END_DATE", "NOTICE_DATE", "TOTAL_SHARES"]},
+    "dividend": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE", "ASSIGN_PROGRESS", "IMPL_PLAN_PROFILE", "PRETAX_BONUS_RMB", "EQUITY_RECORD_DATE", "EX_DIVIDEND_DATE"]},
+    "repurchase": {"selection": "required", "fields": ["DIM_DATE", "REPURPROGRESS", "REPURNUM", "REPURAMOUNT", "REPURAMOUNTLIMIT", "REPUROBJECTIVE", "FINISHDATE", "__retrieved_at"]},
+    "guarantee": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE", "TRADE_DATE", "IS_RELATED_TRADE", "EID_EID"]},
+    "litigation": {"selection": "required", "fields": ["NOTICE_DATE", "CASE_NAME", "CASE_PROFILE", "DEFENCE"]},
+    "violation": {"selection": "required", "fields": ["NOTICE_DATE", "PUNISH_OBJECT", "PUNISH_TYPE"]},
+    "capital_projects": {"selection": "required", "fields": ["NOTICE_DATE", "ITEM_NAME", "PLAN_INVEST_AMT", "ACTUAL_INPUT_RF", "BUILD_PERIOD"]},
+    "capital_raise": {"selection": "required", "fields": ["NOTICE_DATE", "FINANCE_TYPE", "NET_RAISE_FUNDS"]},
+    "goodwill": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE", "GOODWILL_CHANGE"]},
+    "market_cap": {"selection": "required", "fields": ["TRADE_DATE", "CLOSE_PRICE", "TOTAL_MARKET_CAP", "TOTAL_SHARES", "PE_TTM", "PB_MRQ", "PS_TTM"]},
+    "management_roster": {"selection": "conditional", "fields": ["REPORT_DATE", "PERSON_NAME", "POSITION", "INCUMBENT_DATE", "INCUMBENT_TIME"]},
+    "management_trades": {"selection": "conditional", "fields": ["CHANGE_DATE", "CHANGE_AMOUNT", "CHANGE_SHARES", "CHANGE_REASON"]},
+    "pledge": {"selection": "conditional", "fields": ["NOTICE_DATE", "TRADE_DATE", "HOLDER_NAME", "PF_NUM", "PF_HOLD_RATIO", "UNFREEZE_STATE", "ACTUAL_UNFREEZE_DATE"]},
+    "bond_issuance": {"selection": "conditional", "fields": ["NOTICE_DATE", "BOND_COMBINE_CODE", "ISSUE_SCALE", "ISSUE_COUPON_IR", "EXPIRE_DATE", "INITIAL_TRANSFER_PRICE"]},
+    "surveys": {"selection": "conditional", "fields": ["NOTICE_DATE", "RECEIVE_START_DATE", "RECEIVE_OBJECT", "CONTENT"]},
+    "macro_cpi": {"selection": "conditional", "fields": ["REPORT_DATE"]},
+    "macro_retail": {"selection": "conditional", "fields": ["REPORT_DATE"]}
+  },
+  "core_metrics": [
+    {"metric_id": "operating_income", "label": "营业收入", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "operating_cost", "label": "营业成本", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "net_profit", "label": "净利润", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "parent_net_profit", "label": "归母净利润", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "deducted_parent_net_profit", "label": "扣非归母净利润", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "selling_expense", "label": "销售费用", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "administrative_expense", "label": "管理费用", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "research_expense", "label": "研发费用", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "finance_expense", "label": "财务费用", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "operating_cash_flow", "label": "经营活动现金流净额", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "investing_cash_flow", "label": "投资活动现金流净额", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "financing_cash_flow", "label": "筹资活动现金流净额", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "long_asset_cash_purchase", "label": "购建长期资产现金支出", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "gross_margin", "label": "毛利率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "parent_net_margin", "label": "归母净利率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "selling_expense_ratio", "label": "销售费用率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "administrative_expense_ratio", "label": "管理费用率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "rd_ratio", "label": "研发费用率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "finance_expense_ratio", "label": "财务费用率", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "cash_profit_ratio", "label": "经营现金流/净利润", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "operating_cash_flow_less_asset_purchase_proxy", "label": "经营现金流减购建长期资产现金支出代理值", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "cash", "label": "货币资金", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "total_assets", "label": "总资产", "group": "B", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "total_liabilities", "label": "总负债", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "accounts_receivable", "label": "应收账款", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "inventory", "label": "存货", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "contract_assets", "label": "合同资产", "group": "C", "period_scope": "annual_and_quarter", "required": false},
+    {"metric_id": "contract_liabilities", "label": "合同负债", "group": "C", "period_scope": "annual_and_quarter", "required": true},
+    {"metric_id": "goodwill", "label": "商誉", "group": "C", "period_scope": "annual_and_quarter", "required": false},
+    {"metric_id": "total_shares", "label": "总股本", "group": "F", "period_scope": "current", "required": true},
+    {"metric_id": "market_price", "label": "指定时点价格", "group": "F", "period_scope": "current", "required": true},
+    {"metric_id": "market_cap", "label": "总市值", "group": "F", "period_scope": "current", "required": true},
+    {"metric_id": "eastmoney_pe_ttm", "label": "PE TTM", "group": "F", "period_scope": "current", "required": false},
+    {"metric_id": "eastmoney_pb_mrq", "label": "PB MRQ", "group": "F", "period_scope": "current", "required": false},
+    {"metric_id": "eastmoney_ps_ttm", "label": "PS TTM", "group": "F", "period_scope": "current", "required": false}
+  ],
+  "evidence_slots": [
+    {"slot_id": "A.business_model", "group": "A", "routes": ["RD01"], "required": true, "max_items": 2},
+    {"slot_id": "A.segments_and_channels", "group": "A", "routes": ["RD02", "RD03"], "required": true, "max_items": 2},
+    {"slot_id": "C.audit_and_control", "group": "C", "routes": ["RD12"], "required": true, "max_items": 2},
+    {"slot_id": "C.cash_debt_and_risk", "group": "C", "routes": ["RD06", "RD10"], "required": true, "max_items": 2},
+    {"slot_id": "D.governance", "group": "D", "routes": ["RD07"], "required": true, "max_items": 2},
+    {"slot_id": "D.capital_actions", "group": "D", "routes": ["RD08", "RD11"], "required": true, "max_items": 2},
+    {"slot_id": "E.industry_drivers", "group": "E", "routes": ["RD03", "RD09"], "required": true, "max_items": 2}
+  ],
+  "question_routing": {
+    "core": ["ES01.Q01", "ES01.Q02", "ES01.Q03", "ES01.Q04", "ES01.Q08", "ES01.Q10", "ES02.Q01", "ES02.Q02", "ES02.Q03", "ES02.Q05", "ES02.Q06", "ES02.Q07", "ES02.Q08", "ES02.Q09", "ES02.Q10", "ES03.Q01", "ES03.Q02", "ES03.Q03", "ES03.Q05", "ES03.Q06", "ES04.Q01", "ES04.Q02", "ES04.Q03", "ES04.Q04", "ES04.Q05", "ES04.Q06", "ES05.Q01", "ES05.Q03", "ES05.Q06", "ES06.Q01", "ES06.Q03", "ES06.Q04", "ES07.Q01", "ES07.Q03", "ES07.Q05", "ES07.Q06", "ES08.Q01", "ES08.Q04"],
+    "conditional": ["ES01.Q05", "ES01.Q06", "ES01.Q07", "ES01.Q09", "ES02.Q04", "ES03.Q04", "ES05.Q02", "ES06.Q02", "ES06.Q05", "ES07.Q02", "ES07.Q04"],
+    "deferred": ["ES05.Q04", "ES05.Q05", "ES08.Q02", "ES08.Q03", "ES08.Q05"]
+  },
+  "step_groups": {
+    "ES01": ["A"],
+    "ES02": ["B", "C"],
+    "ES03": ["C", "D"],
+    "ES04": ["D"],
+    "ES05": ["F"],
+    "ES06": ["A", "C", "E"],
+    "ES07": ["E"],
+    "ES08": ["A", "B", "C", "D", "E", "F"]
+  },
+  "peer_sets": {
+    "600519": ["000858", "000568", "600809"],
+    "000858": ["600519", "000568", "002304"],
+    "000568": ["600519", "000858", "000596"],
+    "000596": ["000568", "002304", "603369"],
+    "002304": ["000858", "000596", "603369"],
+    "600809": ["600519", "000568", "603369"],
+    "603369": ["000596", "002304", "600809"]
+  },
+  "content_sha256": "4ba7bc7bf2388ae4adf9b6b56f11e439bb3f325e748a38ced94253e3b1898050"
+}

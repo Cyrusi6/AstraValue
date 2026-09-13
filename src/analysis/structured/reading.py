@@ -9,18 +9,27 @@ from typing import Any, Iterable, Mapping
 RULE_VERSION = "reading-rules-v1"
 
 
-def select_research_document(entry, *, as_of, question_ids=(), trigger_reason=None):
+def select_research_document(
+    entry,
+    *,
+    as_of,
+    question_ids=(),
+    trigger_reason=None,
+    research_profile_id=None,
+):
     """目录元数据决策；不为判型预下载正文。缺主体/日期时保持待核实。"""
     import re
     from analysis.filing_parser import detect_filing_period
     from analysis.acquisition.content_selection import content_exclusion_reason, NO_AUDIT_ENGLISH_ANNUAL_V1
-    from .scope import SCOPE_ID
+    from .scope import SCOPE_ID, load_research_profile
+    if research_profile_id:
+        load_research_profile(research_profile_id)
     title = entry.get("title", "")
     url = entry.get("resource_url", entry.get("url", ""))
     mime = entry.get("expected_mime_types", ("application/pdf",))
     period = detect_filing_period(re.sub(r"英文(?:版)?|english", "", title, flags=re.I))
     excluded = content_exclusion_reason(title, url, mime, NO_AUDIT_ENGLISH_ANNUAL_V1)
-    decision = {"scope_id": SCOPE_ID, "document_class": "D20", "selected": False,
+    decision = {"scope_id": research_profile_id or SCOPE_ID, "document_class": "D20", "selected": False,
                 "question_ids": list(question_ids), "reason": "catalog_only", "period": None,
                 "language": "en" if re.search(r"英文|english", title, re.I) else "zh"}
     if excluded:
@@ -40,8 +49,15 @@ def select_research_document(entry, *, as_of, question_ids=(), trigger_reason=No
         category = "D01" if end.month == 12 else "D02" if end.month == 6 else "D03"
         if category in {"D01", "D02"} and re.search(r"关于|会议通知|披露提示|取消|授权", title):
             return decision | {"reason": "procedural_notice_not_full_report"}
-        baseline = (category == "D01" and as_of.year-5 <= end.year < as_of.year) or (
-            category == "D02" and end.year in (as_of.year, as_of.year-1) and end <= as_of)
+        if research_profile_id:
+            annual_year = as_of.year - (1 if as_of >= date(as_of.year, 4, 30) else 2)
+            interim_year = as_of.year if as_of >= date(as_of.year, 8, 31) else as_of.year - 1
+            baseline = (category == "D01" and end.year == annual_year) or (
+                category == "D02" and end.year == interim_year and end <= as_of
+            )
+        else:
+            baseline = (category == "D01" and as_of.year-5 <= end.year < as_of.year) or (
+                category == "D02" and end.year in (as_of.year, as_of.year-1) and end <= as_of)
         published = str(entry.get("published_at") or "")[:10]
         known_subject = bool((entry.get("metadata") or {}).get("ticker") or entry.get("ticker"))
         if not known_subject or not published:

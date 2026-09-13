@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import sqlite3
+import sys
 from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
@@ -14,7 +15,7 @@ from analysis.documents import parse_research_original
 from .materialization import StructuredFactMaterializer
 from .materialization_replay import _export_result, _hash_file
 from .reading import select_research_document
-from .scope import ROOT, load_scope
+from .scope import LITE_PROFILE_ID, ROOT, load_research_profile, load_scope
 from .storage import StructuredStorage, canonical_json, canonical_sha256
 
 
@@ -316,7 +317,15 @@ def build_coverage(connection, run_id, ticker, output, as_of, projection_dirs=No
     return summary
 
 
-def materialize_cache(db, data_root, output, as_of, tickers=None, recompute=False):
+def materialize_cache(
+    db,
+    data_root,
+    output,
+    as_of,
+    tickers=None,
+    recompute=False,
+    research_profile_id=None,
+):
     with readonly(db) as connection:
         namespace=connection.execute("SELECT namespace_id FROM storage_namespaces").fetchone()[0]
         runs=connection.execute("SELECT run_id,ticker FROM structured_run_contexts ORDER BY ticker,run_id").fetchall()
@@ -336,10 +345,17 @@ def materialize_cache(db, data_root, output, as_of, tickers=None, recompute=Fals
             stamp=folder/'cache-binding.json'
             identity={'source_db_sha256':before,'run_id':run['run_id'],'scope_hash':load_scope()['content_sha256'],
                 'interpretation_hash':json.loads((ROOT/'config/structured_data/interpretations/eastmoney-financial-interpretation-v1.0.0.json').read_text(encoding='utf8'))['content_sha256']}
+            if research_profile_id:
+                identity['research_profile_hash']=load_research_profile(research_profile_id)['content_sha256']
             reuse=stamp.exists() and json.loads(stamp.read_text(encoding='utf8'))==identity and (folder/'manifest.json').exists() and not recompute
             old=json.loads((folder/'manifest.json').read_text(encoding='utf8')) if (folder/'manifest.json').exists() else None
             if not reuse:
-                materialized=StructuredFactMaterializer(storage,repository).materialize(run['run_id'],interpretation_contract='eastmoney-financial-interpretation-v1.0.0',research_scope=True)
+                materialized=StructuredFactMaterializer(storage,repository).materialize(
+                    run['run_id'],
+                    interpretation_contract='eastmoney-financial-interpretation-v1.0.0',
+                    research_scope=True,
+                    research_profile_id=research_profile_id,
+                )
                 if recompute and old and old['contract_hash']==materialized.contract_hash and old['materialization_hash']!=materialized.materialization_hash:
                     raise ValueError('repeat_materialization_hash_mismatch')
                 _export_result(materialized,folder,namespace)
@@ -371,13 +387,13 @@ def materialize_cache(db, data_root, output, as_of, tickers=None, recompute=Fals
             print(canonical_json({'company':ticker,'coverage':summary['states'],'cache_reused':reuse}),flush=True)
         after=_hash_file(db)
         if before!=after: raise ValueError('source_database_changed_during_readonly_run')
-    summary={'scope':load_scope()['scope_id'],'source_database_unchanged':True,'source_db_sha256':before,'companies':result_rows,
+    summary={'scope':research_profile_id or load_scope()['scope_id'],'source_database_unchanged':True,'source_db_sha256':before,'companies':result_rows,
         'cache_replay':True,'current_network':False,'manual_acceptance':'pending'}
     write_json(output/'cache-summary.json',summary)
     return summary
 
 
-def process_cached_documents(db, data_root, output, as_of):
+def process_cached_documents(db, data_root, output, as_of, research_profile_id=None):
     with readonly(db) as connection:
         snapshots={}
         for row in connection.execute("SELECT payload FROM raw_resource_snapshots WHERE payload LIKE '%application/pdf%'"):
@@ -389,7 +405,9 @@ def process_cached_documents(db, data_root, output, as_of):
         for row in connection.execute('SELECT payload FROM discovered_resources'):
             entry=json.loads(row[0]); ticker=(entry.get('metadata') or {}).get('ticker') or attempt_tickers.get(entry.get('discovery_attempt_id'))
             entry['ticker']=ticker
-            choice=select_research_document(entry,as_of=as_of)
+            choice=select_research_document(
+                entry, as_of=as_of, research_profile_id=research_profile_id
+            )
             if choice['selected']: entries[entry['canonical_resource_id']]=(entry,choice)
         results=[]
         for identity,(entry,choice) in sorted(entries.items()):
@@ -415,6 +433,50 @@ def process_cached_documents(db, data_root, output, as_of):
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'lite':
+        lite_parser=argparse.ArgumentParser(description='构建八步轻量核心研究输入包（默认离线）')
+        lite_parser.add_argument('action',choices=['lite'])
+        lite_parser.add_argument('--input',type=Path,required=True,help='主事实投影根目录')
+        lite_parser.add_argument('--supplement',type=Path,action='append',default=[],help='显式补充投影根目录；不重绑namespace')
+        lite_parser.add_argument('--ticker',action='append',required=True)
+        lite_parser.add_argument('--as-of',type=date.fromisoformat,required=True)
+        lite_parser.add_argument('--output',type=Path,required=True)
+        lite_parser.add_argument('--profile',default=LITE_PROFILE_ID)
+        lite_parser.add_argument('--max-tokens',type=int)
+        lite_parser.add_argument('--execute',action='store_true',help='显式联网刷新期后公告目录；不下载未触发正文')
+        lite_parser.add_argument('--network-output',type=Path,help='联网目录证据输出；默认位于轻量输出根目录下')
+        args=lite_parser.parse_args(argv)
+        from .research_lite import build_lite_pack, refresh_lite_catalog
+        results=[]
+        supplements=list(args.supplement)
+        network_output=args.network_output or args.output/'network-audit'/args.as_of.isoformat()
+        network_results=[]
+        if args.execute:
+            for ticker in args.ticker:
+                network_results.append(refresh_lite_catalog(output_root=network_output,ticker=ticker,
+                    as_of=args.as_of,profile_id=args.profile))
+            supplements.append(network_output)
+        for ticker in args.ticker:
+            result=build_lite_pack(input_root=args.input,ticker=ticker,as_of=args.as_of,
+                output_root=args.output,supplements=tuple(supplements),profile_id=args.profile,
+                max_tokens=args.max_tokens)
+            if network_results:
+                result['network_update']=next(item for item in network_results if item['ticker']==ticker)
+            results.append(result);print(canonical_json(result),flush=True)
+        return 2 if any(result['status']=='budget_exceeded' for result in results) else 0
+    if argv and argv[0] == 'evidence':
+        evidence_parser=argparse.ArgumentParser(description='按核心包证据ID分页读取有界原文')
+        evidence_parser.add_argument('action',choices=['evidence'])
+        evidence_parser.add_argument('--pack',type=Path,required=True)
+        evidence_parser.add_argument('--evidence-id',required=True)
+        evidence_parser.add_argument('--page',type=int,default=1)
+        evidence_parser.add_argument('--max-tokens',type=int)
+        args=evidence_parser.parse_args(argv)
+        from .research_lite import read_evidence
+        print(canonical_json(read_evidence(pack_dir=args.pack,evidence_id=args.evidence_id,
+            page=args.page,max_tokens=args.max_tokens)),flush=True)
+        return 0
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action',choices=['cache','documents','fetch-documents','fetch-selected','index-documents'])
     parser.add_argument('--db',type=Path,required=True)
@@ -424,24 +486,31 @@ def main(argv=None):
     parser.add_argument('--ticker',action='append')
     parser.add_argument('--recompute',action='store_true')
     parser.add_argument('--entries',type=Path,help='已登记问题触发的目录条目 JSON 列表')
+    parser.add_argument('--research-profile',help='显式版本化研究范围')
     args=parser.parse_args(argv)
     if args.output.resolve().is_relative_to(args.data_root.resolve()): parser.error('output must be outside source data-root')
-    if args.action=='cache': materialize_cache(args.db,args.data_root,args.output,args.as_of,args.ticker,args.recompute)
-    elif args.action=='documents': process_cached_documents(args.db,args.data_root,args.output,args.as_of)
+    if args.action=='cache': materialize_cache(args.db,args.data_root,args.output,args.as_of,args.ticker,args.recompute,args.research_profile)
+    elif args.action=='documents': process_cached_documents(args.db,args.data_root,args.output,args.as_of,args.research_profile)
     elif args.action=='index-documents': index_document_evidence(args.output)
     elif args.action=='fetch-selected':
         if not args.entries:parser.error('fetch-selected requires --entries')
-        fetch_selected_documents(json.loads(args.entries.read_text(encoding='utf8')),args.output,args.as_of)
-    else: fetch_required_documents(args.output,args.as_of,args.ticker)
+        fetch_selected_documents(json.loads(args.entries.read_text(encoding='utf8')),args.output,args.as_of,args.research_profile)
+    else: fetch_required_documents(args.output,args.as_of,args.ticker,args.research_profile)
     return 0
 
 
-def fetch_selected_documents(entries, output, as_of):
+def fetch_selected_documents(entries, output, as_of, research_profile_id=None):
     """按已发现条目精确补正文，复用同一原件适配器与解析器。"""
     from analysis.acquisition.research_fetch import ResearchFetch
     transport=ResearchFetch(output/'acquisition'); results=[]
     for entry in entries:
-        choice=select_research_document(entry,as_of=as_of,question_ids=entry.get('question_ids',()),trigger_reason=entry.get('trigger_reason'))
+        choice=select_research_document(
+            entry,
+            as_of=as_of,
+            question_ids=entry.get('question_ids',()),
+            trigger_reason=entry.get('trigger_reason'),
+            research_profile_id=research_profile_id,
+        )
         row={'ticker':entry.get('ticker'),'title':entry['title'],'resource_id':entry['canonical_resource_id'],
             'url':entry['resource_url'],'published_at':entry.get('published_at'),'metadata':entry.get('metadata',{}),**choice}
         if not choice['selected']:
@@ -457,7 +526,9 @@ def fetch_selected_documents(entries, output, as_of):
                 'request_key':proof['request_key'],'unit_count':len(parsed['units'])})
         except Exception as exc:
             results.append(row|{'download_status':'failed','reason':f'{type(exc).__name__}:{exc}'})
-    result={'documents':results,'requests':transport.requests,'scope_sha256':load_scope()['content_sha256']}
+    result={'documents':results,'requests':transport.requests,'scope_sha256':load_scope()['content_sha256'],
+        'research_profile_id':research_profile_id,
+        'research_profile_sha256':load_research_profile(research_profile_id)['content_sha256'] if research_profile_id else None}
     target=output/'selected-documents'/('selection-'+canonical_sha256(entries)+'.json')
     write_json(target,result)
     normalize_official_tables(output)
@@ -508,7 +579,7 @@ def normalize_official_tables(output):
     return list(facts.values())
 
 
-def fetch_required_documents(output, as_of, tickers=None):
+def fetch_required_documents(output, as_of, tickers=None, research_profile_id=None):
     from datetime import datetime, timezone
     from analysis.acquisition.research_fetch import ResearchFetch
     transport=ResearchFetch(output/'acquisition')
@@ -525,8 +596,9 @@ def fetch_required_documents(output, as_of, tickers=None):
         stock=stocks[ticker]; entries={}; pages=[]; expected=None
         try:
             for page in range(1,21):
+                start_year = as_of.year - (3 if research_profile_id else 5)
                 params={'stock':ticker+','+stock['orgId'],'tabName':'fulltext','pageSize':30,'pageNum':page,'column':'szse',
-                    'category':'category_ndbg_szsh;category_bndbg_szsh;','seDate':f'{as_of.year-5}-01-01~{as_of}',
+                    'category':'category_ndbg_szsh;category_bndbg_szsh;','seDate':f'{start_year}-01-01~{as_of}',
                     'searchkey':'','sortName':'time','sortType':'desc','isHLtitle':'true'}
                 path,proof=transport.fetch('https://www.cninfo.com.cn/new/hisAnnouncement/query',data=params)
                 payload=json.loads(path.read_bytes()); rows=payload.get('announcements')
@@ -549,7 +621,7 @@ def fetch_required_documents(output, as_of, tickers=None):
         except Exception as exc:
             failures.append({'ticker':ticker,'stage':'catalog','reason':str(exc),'pages':pages});continue
         for identity,entry in entries.items():
-            choice=select_research_document(entry,as_of=as_of)
+            choice=select_research_document(entry,as_of=as_of,research_profile_id=research_profile_id)
             row={'ticker':ticker,'title':entry['title'],'resource_id':identity,'url':entry['resource_url'],'catalog_sha256':entry['catalog_sha256'],**choice}
             if not choice['selected']:
                 results.append(row|{'download_status':'not_selected','parse_status':'not_requested'});continue
@@ -568,7 +640,13 @@ def fetch_required_documents(output, as_of, tickers=None):
     # Every required baseline slot is kept, including companies with failed directories.
     slots=[]
     for ticker in tickers:
-        for period in [f'{y}-12-31' for y in range(as_of.year-5,as_of.year)]+[f'{y}-06-30' for y in (as_of.year-1,as_of.year)]:
+        if research_profile_id:
+            annual_year = as_of.year - (1 if as_of >= date(as_of.year, 4, 30) else 2)
+            interim_year = as_of.year if as_of >= date(as_of.year, 8, 31) else as_of.year - 1
+            required_periods = [f'{annual_year}-12-31', f'{interim_year}-06-30']
+        else:
+            required_periods = [f'{y}-12-31' for y in range(as_of.year-5,as_of.year)]+[f'{y}-06-30' for y in (as_of.year-1,as_of.year)]
+        for period in required_periods:
             matching=[r for r in results if r['ticker']==ticker and r.get('selected') and r.get('period')==period]
             slots.append({'ticker':ticker,'period':period,'state':'parsed' if any(r.get('parse_status')=='parsed' for r in matching) else 'missing',
                 'resource_ids':[r['resource_id'] for r in matching],'reason':None if matching else 'required_full_report_not_obtained'})
