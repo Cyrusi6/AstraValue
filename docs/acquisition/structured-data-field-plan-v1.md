@@ -1,17 +1,17 @@
 # 结构化数据字段、首批同行与精读规则 v1
 
-> 选定日期：2026-09-08。依据用户“确定实际接口字段、首批同行名单和精读触发条件”的请求，作为下一软件变更的实施基线。
+> 接口样本取证日期：2026-09-08；目标范围更新：2026-09-13。样本字段和原参数作为历史能力证据保留，新任务以 [数据与文件采集清单](eight-step-data-and-document-scope.md) 的 55 数据集取舍、54 题映射和 D01–D21 文件规则为准。
 >
 > 上位文件：[全量数据层实施计划](../../八步全量研究数据层实施计划.md)、[总方案](../../计划.md)、[来源规则](../methodology/evidence_policy.md)。本文件细化获取与阅读调度，不替代研究方法。
 >
-> 状态：接口字段小样本已核实，名单和默认触发规则已选定；源码、运行来源策略及生产库尚未切换。接口返回结构不等于全历史归档或研究方法已经验收。
+> 状态：本次只调整文档；新范围尚未接入运行程序。第 2 节和第 5 节样本数字仍指 2026-09-08，不代表今天重测；后续生产缓存盘点另见新清单第 9 节。接口返回结构不等于默认需要全部采集，也不等于字段已标准化。
 
 ## 1. 本轮确定的分工
 
-1. 东方财富供给公司基础、三表与扩展指标、主营、股东、治理和资本事件等结构化记录；BaoStock 供给日行情、日估值及六类财务指标。
+1. 东方财富主供公司基础、三表、主营、股东、治理和资本事项；优先整理已有事实并作同口径确定性计算，BaoStock 六类指标及东方财富扩展指标按缺口补充。普通股票日线不作默认输入。
 2. 每个标准字段、期间类型和业务维度只有一个主要来源。主源成功且通过程序整理即可使用；实际缺失或失败才走同义备选。
-3. 目标公司为贵州茅台，首批同行六家，见第 5 节。全部七家公司取得供应商可免费提供的全部适用历史，首次分批，之后增量更新。
-4. 取得的原始响应完整保存；接口返回的字段全部登记，客观记录和定义明确的指标进入相应命名空间。下文代表字段不是采集白名单；完整字段目录见 [返回字段清单](./structured-data-interface-fields-v1.json)。
+3. 目标公司为贵州茅台及六家首批同行。按八步用途取必要字段/期间，默认五个完整年度、十二季度及计算前置期；其他历史有周期、估值或存续事项用途才新增获取，已有缓存复用。
+4. 请求端支持选字段时收紧；固定响应完整保存并登记附带字段，只有范围内且通过语义检查的事实进入消费。下表是历史返回能力，不是新请求白名单；[返回字段清单](./structured-data-interface-fields-v1.json) 保留原取证内容。
 5. 标签、观点、预测及供应商模型估计单列。原始响应含有它们，不意味着它们成为一类事实。
 6. 完整中文年报、中报精读；季报和重大/更正公告按第 6 节触发。独立审计 PDF、英文年报继续停采正文。
 
@@ -34,7 +34,7 @@
 | EM-Q | `https://push2.eastmoney.com/api/qt/stock/get` |
 | BS | BaoStock Python API，匿名登录，原生连接 |
 
-EM-S/EM-W 使用 `reportName`、`columns=ALL`、公司过滤条件、`pageNumber/pageSize` 与稳定排序；保留 `result.count/pages` 并翻到终页。默认单公司过滤：`(SECUCODE="600519.SH")`；实际需要 `SECURITY_CODE` 或 `DIM_SCODE` 的例外在表中注明。批量同行过滤已经对七家公司验证，不抓全市场再丢弃。
+历史样本 EM-S/EM-W 使用 `reportName`、`columns=ALL`、公司过滤条件、`pageNumber/pageSize`；保留 `result.count/pages` 和终页证明。样本单公司过滤：`(SECUCODE="600519.SH")`；需要 `SECURITY_CODE` 或 `DIM_SCODE` 的例外见表。批量同行过滤已对七家公司验证。`columns=ALL` 是当时取证参数，不是新范围默认；新请求需限制字段、公司和期间并验证稳定排序。
 
 样本参数是本轮取证记录，不是完整生产请求模板。例如仅按报告期排序仍可能有同日多条记录；正式分页须使用接口支持的稳定次级键，或按期间分区后完整取得分区，并核对记录键、总数和跨页重复，不能只因第二页有返回就宣布无遗漏。
 
@@ -48,16 +48,16 @@ EM-S/EM-W 使用 `reportName`、`columns=ALL`、公司过滤条件、`pageNumber
 | F02 | 累计/年度利润表：东方财富 | EM-F `lrbDateAjaxNew` + `lrbAjaxNew`，`reportType=1` | 全部 203 个字段；`TOTAL_OPERATE_INCOME, OPERATE_INCOME, OPERATE_COST, OPERATE_PROFIT, NETPROFIT, PARENT_NETPROFIT, DEDUCT_PARENT_NETPROFIT` 及费用、减值、税项 | 同上 |
 | F03 | 累计/年度现金流：东方财富 | EM-F `xjllbDateAjaxNew` + `xjllbAjaxNew`，`reportType=1` | 全部 254 个字段；`NETCASH_OPERATE, NETCASH_INVEST, NETCASH_FINANCE, END_CASH_EQUIVALENTS, BEGIN_CASH_EQUIVALENTS` 及流入/流出、补充资料 | 同上 |
 | F04 | 单季利润、现金流：东方财富 | 对应 `lrbAjaxNew/xjllbAjaxNew`，`reportType=2` | 分别观测 204/253 个字段；按单季保存，不能把 QOQ 字段当金额 | 随季度；按变化触发 |
-| F05 | 扩展财务指标：东方财富 | EM-M `type=RPT_F10_FINANCE_MAINFINADATA, sty=APP_F10_MAINFINADATA` | 141 个字段；只将未被三表或 BaoStock 同义主字段占用的指标映射为新的标准字段，其余保留响应 | 随报告；通常不读原文 |
-| B01 | 日行情/日估值：BaoStock | `query_history_k_data_plus`，`frequency=d, adjustflag=3` | `date, code, open, high, low, close, preclose, volume, amount, adjustflag, turn, tradestatus, pctChg, peTTM, pbMRQ, psTTM, pcfNcfTTM, isST` | 每交易日；不触发默认精读 |
-| B02 | 盈利指标：BaoStock | `query_profit_data(code, year, quarter)` | 主指标 `roeAvg, npMargin, gpMargin, epsTTM`；同响应 `netProfit, MBRevenue, totalShare, liqaShare` 作为源字段保留，三表/股本标准值仍采用指定主字段 | 随报告；变化触发 |
+| F05 | 扩展财务指标：东方财富 | EM-M `type=RPT_F10_FINANCE_MAINFINADATA, sty=APP_F10_MAINFINADATA` | 141 个历史返回字段；所需且无法从三表同口径取得/复算的指标按需映射，其余保留响应 | 具体缺口及报告更新；不重复建同义主值 |
+| B01 | 日行情/日估值：BaoStock | `query_history_k_data_plus`，`frequency=d, adjustflag=3` | `date, code, open, high, low, close, preclose, volume, amount, adjustflag, turn, tradestatus, pctChg, peTTM, pbMRQ, psTTM, pcfNcfTTM, isST` | 整套日线默认不取；估值备选仅所需字段/日期，新请求另验 |
+| B02 | 盈利指标：BaoStock | `query_profit_data(code, year, quarter)` | `roeAvg, npMargin, gpMargin, epsTTM`；同响应 `netProfit, MBRevenue, totalShare, liqaShare` 保留，三表/股本仍采用指定主字段 | B02–B07 均按需补充；激活后随报告，保留专属定义 |
 | B03 | 营运指标：BaoStock | `query_operation_data` | `NRTurnRatio, NRTurnDays, INVTurnRatio, INVTurnDays, CATurnRatio, AssetTurnRatio` | 同上 |
 | B04 | 成长指标：BaoStock | `query_growth_data` | `YOYEquity, YOYAsset, YOYNI, YOYEPSBasic, YOYPNI` | 同上 |
 | B05 | 偿债指标：BaoStock | `query_balance_data` | `currentRatio, quickRatio, cashRatio, YOYLiability, liabilityToAsset, assetToEquity` | 同上 |
 | B06 | 现金流/资产结构指标：BaoStock | `query_cash_flow_data` | `CAToAsset, NCAToAsset, tangibleAssetToAsset, ebitToInterest, CFOToOR, CFOToNP, CFOToGr` | 同上；空的利息保障倍数不补零 |
 | B07 | 杜邦指标：BaoStock | `query_dupont_data` | `dupontROE, dupontAssetStoEquity, dupontAssetTurn, dupontPnitoni, dupontNitogr, dupontTaxBurden, dupontIntburden, dupontEbittogr` | 同上；不与其他口径 ROE 无条件合并 |
-| B08 | 证券状态、日历、复权：BaoStock | `query_stock_basic, query_trade_dates, query_adjust_factor` | `code_name, ipoDate, outDate, type, status`；`calendar_date, is_trading_day`；`dividOperateDate, foreAdjustFactor, backAdjustFactor, adjustFactor` | 基线/变更；复权随除权事件 |
-| M01 | 总/流通市值与收盘估值：东方财富 | EM-M，`RPT_VALUEANALYSIS_DET`，`SECUCODE` 分页，`st=TRADE_DATE` | `TOTAL_MARKET_CAP=总市值, NOTLIMITED_MARKETCAP_A=流通A股市值, CLOSE_PRICE=收盘价, TOTAL_SHARES=总股本, FREE_SHARES_A=流通A股股本, PE_TTM/PB_MRQ/PS_TTM=估值指标, TRADE_DATE=交易日`；其余响应字段原样保留 | 每交易日 T+1 收盘口径；2018-01-02 起可取得历史序列，非实时行情 |
+| B08 | 证券状态、日历、复权：BaoStock | `query_stock_basic, query_trade_dates, query_adjust_factor` | `code_name, ipoDate, outDate, type, status`；`calendar_date, is_trading_day`；`dividOperateDate, foreAdjustFactor, backAdjustFactor, adjustFactor` | 身份与共享日历按需；复权默认不取 |
+| M01 | 总/流通市值与收盘估值：东方财富 | EM-M，`RPT_VALUEANALYSIS_DET`，`SECUCODE` 分页，`st=TRADE_DATE` | `TOTAL_MARKET_CAP=总市值, NOTLIMITED_MARKETCAP_A=流通A股市值, CLOSE_PRICE=收盘价, TOTAL_SHARES=总股本, FREE_SHARES_A=流通A股股本, PE_TTM/PB_MRQ/PS_TTM=估值指标, TRADE_DATE=交易日`；其余响应字段原样保留 | 按估值时点/明确历史区间取必要字段；历史样本为 T+1 收盘、可见起点 2018-01-02，非实时承诺 |
 
 F01–F04 的 `companyType` 从来源页面取得，本轮普通企业样本为 4，不能对其他行业硬编码；`reportDateType=0`，按目录日期分组请求。资产/利润目录均返回 103 期，现金流目录 99 期；只抽取了指定期报表，未全量下载这些期间。
 
@@ -67,7 +67,7 @@ BaoStock B02–B07 的 `quarter` 指查询报告季度，不能据此把所有�
 
 ### 2.3 业务、公司、股东与治理
 
-下列各行的主源均为东方财富，接口返回的其他适用客观字段同样登记。
+下列各行的结构化来源均为东方财富，返回字段登记与新任务选择分开；`staff_structure`、`holder_count` 等按新清单的具体用途激活，不因列在本表而默认取得整类历史。
 
 | ID | 数据组 | 实际数据集/入口 | 关键原字段 | 更新与精读 |
 |---|---|---|---|---|
@@ -109,20 +109,20 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 | A06 | 限售解禁：东方财富 | EM-W `RPT_LIFT_STAGE`，`SECURITY_CODE` | `FREE_DATE, CURRENT_FREE_SHARES, ABLE_FREE_SHARES, NON_FREE_SHARES, BATCH_HOLDER_NUM, FREE_SHARES_TYPE` | 事件；计划与实际区分 |
 | A07 | 投资项目：东方财富 | EM-S `RPT_F10_CAPITAL_ITEM`，`SECURITY_CODE` | `ITEM_NAME, NOTICE_DATE, PLAN_INVEST_AMT, ACTUAL_INPUT_RF, BUILD_PERIOD` | 事件；计划金额不等于已投入，收益率/回收期单列预测 |
 | A08 | 募资使用基础：东方财富 | EM-S `RPT_F10_CAPITAL_RAISE` | `FINANCE_TYPE, NET_RAISE_FUNDS, START_DATE, NOTICE_DATE` | 事件；不以净募资额推断项目完成 |
-| T01 | 融资融券：东方财富 | EM-S `RPT_MARGIN_STATISTICS_STOCKS` | `TRADE_DATE, FIN_BUY_AMT, FIN_REPAY_AMT, FIN_BALANCE, LOAN_SELL_VOL, LOAN_REPAY_VOL, LOAN_BALANCE, LOAN_BALANCE_VOL` | 交易日；通常不精读 |
-| T02 | 大宗交易：东方财富 | EM-S `RPT_DATA_BLOCKTRADE` | `TRADE_DATE, DEAL_PRICE, DEAL_VOLUME, DEAL_AMT, BUYER_NAME, SELLER_NAME, PREMIUM_RATIO, TRADE_UNIT` | 交易日；通常不精读 |
-| T03 | 龙虎榜成交：东方财富 | EM-S `RPT_BILLBOARD_DAILYDETAILS` | `TRADE_DATE, EXPLANATION, TOTAL_BUY, TOTAL_SELL, TOTAL_NET, TRADE_ID` | 事件；不是游资身份/涨停原因推断 |
-| T04 | 机构持仓汇总：东方财富 | EM-S `RPT_F10_MAIN_ORGHOLDDETAILS` | `REPORT_DATE, ORG_TYPE, TOTAL_ORG_NUM, TOTAL_FREE_SHARES, TOTAL_SHARES_RATIO, IS_COMPLETE` | 随披露；不与明细重复计数 |
-| T05 | 基金持仓明细：东方财富 | EM-S `RPT_MAIN_ORGHOLDDETAIL`，`ORG_TYPE=01` | `REPORT_DATE, HOLDER_CODE, HOLDER_NAME, FUND_CODE, TOTAL_SHARES, HOLD_VALUE, TOTALSHARES_RATIO, FREESHARES_RATIO, NETVALUE_RATIO` | 随披露；有分页，样本共 1697 条仅取 2 条 |
-| T06 | 机构调研：东方财富 | EM-W `RPT_ORG_SURVEY`，`SECURITY_CODE` | `NOTICE_DATE, RECEIVE_START_DATE, RECEIVE_OBJECT, INVESTIGATORS, RECEPTIONIST, URL, CONTENT` | 事件；参与事实直接用，回答内容作为来源文本 |
+| T01 | 融资融券：东方财富 | EM-S `RPT_MARGIN_STATISTICS_STOCKS` | `TRADE_DATE, FIN_BUY_AMT, FIN_REPAY_AMT, FIN_BALANCE, LOAN_SELL_VOL, LOAN_REPAY_VOL, LOAN_BALANCE, LOAN_BALANCE_VOL` | 默认不取；不是公司的借款或有息债务 |
+| T02 | 大宗交易：东方财富 | EM-S `RPT_DATA_BLOCKTRADE` | `TRADE_DATE, DEAL_PRICE, DEAL_VOLUME, DEAL_AMT, BUYER_NAME, SELLER_NAME, PREMIUM_RATIO, TRADE_UNIT` | 仅具体股东事件按需，不抓整套成交历史 |
+| T03 | 龙虎榜成交：东方财富 | EM-S `RPT_BILLBOARD_DAILYDETAILS` | `TRADE_DATE, EXPLANATION, TOTAL_BUY, TOTAL_SELL, TOTAL_NET, TRADE_ID` | 默认不取 |
+| T04 | 机构持仓汇总：东方财富 | EM-S `RPT_F10_MAIN_ORGHOLDDETAILS` | `REPORT_DATE, ORG_TYPE, TOTAL_ORG_NUM, TOTAL_FREE_SHARES, TOTAL_SHARES_RATIO, IS_COMPLETE` | 仅特定股东问题按需；不与明细重复计数 |
+| T05 | 基金持仓明细：东方财富 | EM-S `RPT_MAIN_ORGHOLDDETAIL`，`ORG_TYPE=01` | `REPORT_DATE, HOLDER_CODE, HOLDER_NAME, FUND_CODE, TOTAL_SHARES, HOLD_VALUE, TOTALSHARES_RATIO, FREESHARES_RATIO, NETVALUE_RATIO` | 默认不取；历史样本共 1697 条仅取 2 条 |
+| T06 | 机构调研：东方财富 | EM-W `RPT_ORG_SURVEY`，`SECURITY_CODE` | `NOTICE_DATE, RECEIVE_START_DATE, RECEIVE_OBJECT, INVESTIGATORS, RECEPTIONIST, URL, CONTENT` | 未回答问题/新信息按需；D18 相关问答作为来源文本 |
 | I01 | 宏观 CPI：东方财富 | EM-W `RPT_ECONOMY_CPI` | `REPORT_DATE, NATIONAL_SAME, NATIONAL_BASE, NATIONAL_SEQUENTIAL, NATIONAL_ACCUMULATE` 及城乡字段 | 研究需要时加载，随月度发布更新 |
 | I02 | 社零：东方财富 | EM-W `RPT_ECONOMY_TOTAL_RETAIL` | `RETAIL_TOTAL, RETAIL_TOTAL_SAME, RETAIL_TOTAL_SEQUENTIAL, RETAIL_TOTAL_ACCUMULATE, RETAIL_ACCUMULATE_SAME` | 同上；不当作白酒销量 |
-| L01 | 平台概念标签：东方财富 | EM-S `RPT_F10_CORETHEME_BOARDTYPE` | `BOARD_CODE, BOARD_NAME, BOARD_TYPE, BOARD_LEVEL, SELECTED_BOARD_REASON` | 独立标签层；研究触发，不能证明收入贡献 |
-| P01 | 机构盈利预测：东方财富 | EM-S `RPT_HSF10_RES_PREDICTDETAIL` | `PUBLISH_DATE, ORG_NAME_ABBR, RESEARCHER, YEAR1..4, EPS1..4, PARENT_NETPROFIT1..4, RATING` | 独立预测/观点层，目标年份依实际 YEAR 字段，不能写死年份 |
+| L01 | 平台概念标签：东方财富 | EM-S `RPT_F10_CORETHEME_BOARDTYPE` | `BOARD_CODE, BOARD_NAME, BOARD_TYPE, BOARD_LEVEL, SELECTED_BOARD_REASON` | 概念题材默认不取；明确分类线索需要时另列独立层 |
+| P01 | 机构盈利预测：东方财富 | EM-S `RPT_HSF10_RES_PREDICTDETAIL` | `PUBLISH_DATE, ORG_NAME_ABBR, RESEARCHER, YEAR1..4, EPS1..4, PARENT_NETPROFIT1..4, RATING` | 按需独立观点层；年份依 YEAR 字段，不作为历史实际值 |
 
-补充来源入口已确定但未在主源成功时重复取数：日行情备选为东方财富 `stock_zh_a_hist`（上游 `push2his.eastmoney.com/api/qt/stock/kline/get`）；三表备选为新浪 `stock_financial_report_sina`。这两类备选须在实际缺口触发时验证响应和同义映射，不将本轮源码/接口定位记作联网成功。
+历史备选定位包括东方财富 `stock_zh_a_hist`（上游 `push2his.eastmoney.com/api/qt/stock/kline/get`）和新浪三表 `stock_financial_report_sina`，当时未重复取数。普通日线备选不再属于默认任务；必要估值备选另限字段/日期，三表缺口触发时验证新浪响应及同义映射。源码/接口定位不等于联网成功。
 
-国债收益率按需指定中债 `bond_china_yield`，实际上游为 `yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyQuery`；单个查询窗口小于一年，完整历史分窗。该接口本轮仅核到封装与参数，联网与当前可得边界待首次行业/估值任务触发时检查。
+国债收益率按需指定中债 `bond_china_yield`，实际上游为 `yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyQuery`；所需区间按单次小于一年的窗口分段。历史仅核到封装与参数，联网及当前可得边界待具体估值任务触发时检查。
 
 ### 2.5 尚无完整结构化接口证明的细项
 
@@ -133,16 +133,16 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 - 债券实时余额、实际转股/赎回的全生命周期；本轮发行表里的初始转股价不能代表当前转股价。
 - 白酒产销量、产能利用率、渠道库存、终端批价等没有在本轮找到并实测的稳定免费字段。社零、公司产品收入或平台标签不能替代这些变量。
 
-处理规则已经确定：先尝试登记过的同义免费备选；没有备选时留缺口。年报/中报正常精读或具体问题触发时可以补充这些细项，不因一项接口为空自动遍历所有 PDF。已定位字段也不封顶，后续发现新的适用免费字段继续版本化纳入。
+处理规则：具体缺口先尝试已登记同义免费备选，再按 D01–D21 复用/取得必要文件；没有可用来源就留缺口。不得因一项为空遍历所有 PDF。新字段需有八步用途与定义才版本化纳入，不因免费或接口新增便默认扩采。
 
 ## 3. 字段整理与去重合同
 
 ### 3.1 一个标准字段的唯一主路由
 
 - 财务原始金额以对应东方财富三表科目为主；现金流补充资料和主要指标接口返回的同名净利润不另建第二个默认真值。
-- 通用盈利、成长、营运、偿债、现金流和杜邦指标以 B02–B07 为主。东方财富主要指标中同义项保留原始响应，只在主源缺失且定义、期间相同的情况下用于备选。
+- 通用盈利、成长、营运、偿债、现金流和杜邦指标优先用已有完整同口径事实确定性计算，保存输入与公式；B02–B07、F05 只按已确认缺口补充。需要供应商特定口径时登记独立字段，不把近似本地公式当同义替换。新路由另行版本化，旧冻结合同不改写。
 - `epsTTM` 不用累计基本 EPS 替代；`roeAvg` 不用定义不同的加权 ROE 替代；`MBRevenue` 保留供应商原标签，不自动改成“营业收入”或“主营收入”；营收标准字段明确区分 F02 的 `TOTAL_OPERATE_INCOME` 与 `OPERATE_INCOME`。
-- 日估值标准字段分别为 `pe_ttm, pb_mrq, ps_ttm, pcf_net_cashflow_ttm`。BaoStock `pcfNcfTTM` 的现金流量净额口径不等于经营现金流市现率，不能与网站另一种 PCF 混用。定义无法证明一致时保留两个字段或留缺口，不能无条件补源。
+- 估值按 M01 所需时点/区间的价格、市值、股本和 PE/PB/PS 主输入整理。历史已定义 `pe_ttm, pb_mrq, ps_ttm, pcf_net_cashflow_ttm` 等不意味着全部必取；BaoStock `pcfNcfTTM` 的现金流量净额口径不等于经营现金流市现率，不能无条件同义补源。
 - 员工总数的期间序列用 C05，个人薪酬历史用 G07，实控关系用 G01，股本变动用 G02；基本资料中的当前摘要保留取得时间，不覆盖期间事实。
 - 因同一接口同时返回多个字段而产生的原始重叠可以保留；不为主源已经成功的标准字段再单独发起一次查询。
 
@@ -154,7 +154,7 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 | 比率与百分数 | 规范为 ratio；BaoStock 利润率/ROE 与 C02 `MBI_RATIO/GROSS_RPOFIT_RATIO` 原值为小数；`turn/pctChg` 等按其百分数定义转换，不能同名一律除以 100 |
 | 分红 | `PRETAX_BONUS_RMB/BONUS_RATIO/IT_RATIO` 保留“每 10 股”的源口径并显式换算每股；缺现金字段不补零，除权日不能代替实际支付日 |
 | 单季与累计 | F02/F03 按报告期累计，Q4 对应全年；F04 为供应商单季。缺单季时才用同年同范围累计相减，保留输入和公式 |
-| TTM | 优先同义 TTM 源字段；否则按连续四季/同口径滚动公式派生，缺季不拼凑。不能平均四季利润率或对存量做 TTM |
+| TTM | 复用已有有效同义 TTM，或由完整同口径期间确定性派生；仅必要缺口补源。缺季不拼凑，不平均四季利润率或对存量做 TTM，供应商专属 EPS 分母另核 |
 | 资产负债与持仓 | 按时点保存，不相减当单季，也不相加当 TTM；十大股东不代表全部持仓 |
 | 日期 | 分开报告期、公告/发布时间、生效日、行情时点和获取时间；已取得修订版本留存，不主动追查全部正式更正 |
 | 历史可得性 | 当前历史序列可直接用于当前研究；无当时版本证明不能冒充严格 PIT 回放输入。交易后的 N 日涨跌幅不得提前进入交易当日回放 |
@@ -169,26 +169,26 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 - L01、P01 整体进入独立层；股东接口中平台推断的关联标签同样单列。
 - 源字段清单是实测结构清单。未知字段先登记、分类，不静默丢弃；其未分类状态不表示所有客观字段需要逐项人工批准。
 
-## 4. 全历史与更新调度
+## 4. 所需历史与更新安排
 
-| 数据组 | 首次基线 | v1 增量默认安排（北京时间） |
+| 数据组 | 首次基线 | 新范围目标更新安排（北京时间，待接入运行） |
 |---|---|---|
-| 财务/财务指标 | 数据源可得全部历史，按公司、年/季度分批；目录完整后遍历，BaoStock 按年季查询并耗尽结果集 | 公告目录出现新报告或供应商新报告期时刷新；供应商尚未更新则记延迟，下次调度继续 |
-| 日行情/日估值/市值快照 | 日行情/估值按可得历史分段；当前快照接口只从首次取得起积累历史 | 每交易日 19:00 一轮；报价日期落后时保持真实日期，不冒充当日 |
-| 股东/治理/资本/交易事件 | 可得历史全分页，计划与实施串联，保留已知缺口 | 每日 20:30 与目录任务衔接读取新增/更新记录；未完成事项刷新当前状态 |
+| 财务/财务指标 | 所需五年/十二季加计算前置期，先缓存整理；额外历史有明确用途才取，所选分区完整分页 | 随报告更新；供应商尚未更新则记延迟，不以旧值冒充最新 |
+| 估值辅助输入 | 指定时点价格/市值/股本、明确区间频率的估值序列；原报价日期保持 | 按报告需要，不设普通日线每日默认任务 |
+| 股东/治理/资本事件 | 当前状态、窗口内事件和更早仍存续事项；所选范围全分页，计划/实施串联 | 每日 20:30 与目录衔接新增/更新，未完成事项刷新；无关交易数据不纳入 |
 | 公司基础/管理层摘要 | 首次取得当前快照，接口给出的历史另行保存 | 报告/相关事件触发刷新；每周一次检查供应商摘要变化 |
 | 轻量公告目录 | 复用原目录与有效 checkpoint；新增同行分别建立范围 | 每日 20:30，包含非交易日；按标题类别生成重要正文任务 |
-| 宏观/行业/概念/预测 | 研究问题激活后取该数据集可得历史；没有历史接口不伪造历史 | 按需加载并按发布节奏更新，多个同行复用同一数据集缓存 |
+| 行业/宏观/预测 | 问题激活后只取所需变量/期间，预测独立；概念题材默认不取 | 随相应发布更新，同行共享缓存；没有历史接口不伪造历史 |
 
 在线访问默认每来源单并发、请求结束后至少间隔 3 秒；现有巨潮策略保留其更严格的至少 5 秒直连间隔。正式调度须服从来源实际限额；不设置无限重试。
 
-优先按供应商更新标记续读；没有更新标记的事件表使用最近 30 日重叠窗口加未完成事项刷新，并去重。首次全历史后不默认全表重抓；该策略不承诺发现供应商没有任何更新信号的久远原地改写。
+优先按供应商更新标记续读；没有更新标记的适用事件表使用最近 30 日重叠窗口加未完成事项刷新，并去重。首次所选范围后不默认全表重抓；该策略不承诺发现供应商没有更新信号的久远原地改写。
 
 分页必须覆盖获取、汇总、恢复、去重和熔断读取路径。稳定记录键不足时组合公司、期间、维度/主体、业务类型与来源记录 ID；不得仅用报告期合并多条股东或业务记录。源快照新版本保留 hash，不覆写旧报告。
 
 ## 5. 首批公司与同行集合
 
-选定目标 **贵州茅台 600519**；首批采集共 **7 家**，全部执行同一结构化字段与全历史规则。分组是本轮研究选择，不作为供应商客观事实或自动估值权重。
+选定目标 **贵州茅台 600519**；首批仍为 **7 家**，按相同八步用途与期间口径取各自适用数据。名单依据沿用 2026-09-08 研究选择，不作为供应商客观事实或自动估值权重；不再默认所有接口全历史。
 
 | 公司 | 代码 | 首批角色 | 纳入依据与使用边界 |
 |---|---|---|---|
@@ -213,7 +213,7 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 
 ### 6.1 固定阅读与触发阅读
 
-- **完整中文年报、中报**：进入精读队列，优先经营讨论、产品/地区/渠道、关键财务附注、主要治理和资本事项。使用完整正文，按主题读取章节；已有解析按哈希复用。历史重要报告按近到远分批处理，不重复解析已具备有效结果的文件。
+- **完整中文年报、中报**：所需期间进入精读队列，优先经营讨论、产品/地区/渠道、关键附注、治理和资本事项。使用完整正文并保留内部审计章节，按主题读、按哈希复用；范围见新清单，不自动解析所有历史中报。摘要不能冒充完整报告。
 - **季报**：结构化更新始终执行；符合下表任一规则或已有研究问题需要解释时，定向读相关章节。
 - **重大事件/更正**：公司控制、主要管理层、交易条款及研究结论所依赖事项触发阅读；更正仅因标题出现不默认逐份下载核对。
 - **其他材料**：轻量目录与选择理由保留。主源空值/接口失败进入补源与缺口流程，本身不是“重读所有原文”的触发器。
@@ -251,9 +251,9 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 | 规则 | 输入字段与计算约束 |
 |---|---|
 | R01 | F04 `TOTAL_OPERATE_INCOME, PARENT_NETPROFIT, DEDUCT_PARENT_NETPROFIT`；当期与去年同季形成同比，两个相邻季度的同比作差。缺单季时按 3.2 的同口径累计路径处理，并标明覆盖限制 |
-| R02 | 报告口径毛利率以 B02 `gpMargin` 为主；单季毛利率作为独立期间字段，由 F04 `OPERATE_INCOME, OPERATE_COST` 计算。费用率分别用 F04 `SALE_EXPENSE, MANAGE_EXPENSE, RESEARCH_EXPENSE` 除以 `OPERATE_INCOME`；分母须正且同口径，历史研发费用包含关系不重复相加 |
-| R03 | 现金流转负使用 F04 `NETCASH_OPERATE` 与同期间利润；报告口径现金利润比以 B06 `CFOToNP` 为主，仅在净利润分母明确且为正时应用阈值。需单季比值时由同范围 `NETCASH_OPERATE / NETPROFIT` 形成独立期间字段，缺少定义不硬替代 |
-| R04 | F01 `ACCOUNTS_RECE, INVENTORY` 与 F04 营收；周转天数以 B03 `NRTurnDays, INVTurnDays` 为主，并保持相同供应商期间定义 |
+| R02 | 同口径毛利率优先用 F02/F04 `OPERATE_INCOME, OPERATE_COST` 计算，报告累计与单季分开；B02 `gpMargin` 仅同义缺口或专属定义按需使用。费用率用 F04 `SALE_EXPENSE, MANAGE_EXPENSE, RESEARCH_EXPENSE` 除以 `OPERATE_INCOME`，分母须正且同口径，历史研发包含关系不重复相加 |
+| R03 | F04 `NETCASH_OPERATE` 与同期间利润判断转负；现金利润比优先用完整同范围 `NETCASH_OPERATE / NETPROFIT`，报告累计与单季分开，仅正利润分母应用阈值。B06 `CFOToNP` 按需补充并核实定义，不硬替代不同分母 |
+| R04 | F01 `ACCOUNTS_RECE, INVENTORY` 与 F04 营收；周转天数由已确认平均余额、收入/成本分母及期间天数计算，缺项留缺口。B03 `NRTurnDays, INVTurnDays` 按需补充并保留专属定义，不混用期间或分母 |
 | R05 | F01 `CONTRACT_LIAB`；有息负债比的分子必须是已确认完整的有息债务范围，分母为 `TOTAL_ASSETS`。不得把全部负债或未区分性质的一年内到期负债直接冒充有息债务；范围不明时该子规则记输入缺口 |
 | R06 | G12 `GOODWILL_CHANGE`；F02/F04 的 `ASSET_IMPAIRMENT_LOSS, ASSET_IMPAIRMENT_INCOME, CREDIT_IMPAIRMENT_LOSS, CREDIT_IMPAIRMENT_INCOME` 按适用会计格式选取，不能把同义损失/收益列重复相加；分母取 F01 `TOTAL_PARENT_EQUITY` |
 | R07–R09 | G01/G06/C01 的实控、任职与 `ACCOUNT_FIRM`；审计意见标准字段取 F01 `OPINION_TYPE`，其他表同字段仅保留响应；G09–G11、A03/A04/A07/A08 供给事件金额和状态。并购细项未结构化时由轻量目录与已有问题路由，不能把无字段当无事件 |
@@ -272,8 +272,8 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 
 ## 7. 实施交接与验收边界
 
-下一软件变更按本文和 [完整返回字段目录](./structured-data-interface-fields-v1.json) 建立字段注册、主源/备用路由、事实状态迁移、增量调度和精读任务，不直接加载本文件的样本参数作为生产配置。
+后续按 [新采集清单](eight-step-data-and-document-scope.md) 和 [当前 OpenSpec](../../openspec/changes/eight-step-production-pipeline-v1/tasks.md) 实施新范围、正文选择、格式适配与覆盖。本文及返回字段 JSON 供核对历史接口能力，不直接以 `columns=ALL` 样本参数生成新请求。
 
-需要验证的行为：主源成功零额外备用请求、全分页/恢复不漏记录、源空结果与失败区分、状态可消费、字段单位/期间正确、同义主路由唯一、非一类字段隔离、七家公司范围准确，以及 R01–R12 的触发和同材料任务合并。旧快照、旧对账状态、旧报告和历史验收保持不变。
+需要验证：新请求无无关日线及正文、必要估值输入仍可用、文件下载/解析/消费分开；并保留主源成功零备选、所选范围全分页/恢复、合法空结果、单位/期间、唯一主路由、非事实隔离、七家公司范围和 R01–R12 合并触发检查。旧快照、旧对账状态、旧报告和历史验收不变。
 
-本轮实际证明的是选源和字段结构，以及七家公司一个共同期间的主营查询完整性。55 个数据集并未完成七家公司的全历史归档；备选源、中债及本节列出的缺口也没有被冒充为联网通过。新生产流程仍需代码实施和独立验收。
+2026-09-08 当次证明限于字段结构与七家公司共同期间主营查询，后续原生产缓存的记录层证据另见新清单。本次 2026-09-13 只完成范围文档；未重测接口，未改变运行默认，也未完成逐字段/期间业务覆盖或新格式解析验收。
