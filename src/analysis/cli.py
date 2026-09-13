@@ -269,16 +269,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("serve启用采集时必须同时提供--acquisition-db与--acquisition-data-root")
         if args.acquisition_db:
             from .api import create_app
+            from .structured.service import StructuredDataService
 
-            runtime = AcquisitionRuntime.create(
+            with AcquisitionRuntime.create(
                 args.acquisition_db,
                 args.acquisition_data_root,
-            )
-            uvicorn.run(
-                create_app(acquisition_runtime=runtime),
-                host=args.host,
-                port=args.port,
-            )
+            ) as runtime:
+                structured=StructuredDataService.from_runtime(runtime)
+                uvicorn.run(
+                    create_app(acquisition_runtime=runtime,structured_service=structured),
+                    host=args.host,
+                    port=args.port,
+                )
         else:
             uvicorn.run("analysis.api:app", host=args.host, port=args.port, reload=args.reload)
         return 0

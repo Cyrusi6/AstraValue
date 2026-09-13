@@ -520,3 +520,17 @@ def test_legacy_validate_command_does_not_construct_acquisition_runtime(
     )
     assert main(["validate-methods"]) == EXIT_OK
     assert "METHOD_LIBRARY_OK" in capsys.readouterr().out
+
+
+def test_serve_binds_structured_api_to_the_selected_runtime(monkeypatch,tmp_path):
+    from fastapi.testclient import TestClient
+    calls=[]
+    def serve(app,**kwargs):
+        with TestClient(app) as client:
+            response=client.get('/api/structured/registry')
+            assert response.status_code==200
+            assert app.state.structured_service.storage.storage_namespace_id==app.state.acquisition_runtime.namespace_id
+            calls.append(kwargs)
+    monkeypatch.setattr('uvicorn.run',serve)
+    assert main(['serve','--acquisition-db',str(tmp_path/'api.db'),'--acquisition-data-root',str(tmp_path/'data')])==EXIT_OK
+    assert calls==[{'host':'127.0.0.1','port':8000}]
