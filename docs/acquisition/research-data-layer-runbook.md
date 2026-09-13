@@ -2,7 +2,7 @@
 
 本轮运行链路为：范围与身份校验 → 有界采集及原始响应 → 内容寻址原件 → 带定位解析 → 字段解释与标准化 → 事实及确定性指标 → 54 题逐期间覆盖与后续工作。报告、前端改造、全市场批处理继续暂停。
 
-工作树 `D:/估值模型-worktrees/fact-materialization-ultra`，分支 `codex/fact-materialization-ultra`。真实验收和具体缺口见 [交付验证](research-data-layer-verification.md)，删除清单见 [清理审计](data-layer-cleanup-audit.md)。
+工作树 `D:/估值模型-worktrees/fact-materialization-ultra`，分支 `codex/fact-materialization-ultra`。真实验收和具体缺口见 [交付验证](research-data-layer-verification.md)，删除清单见 [清理审计](data-layer-cleanup-audit.md)。新增轻量研究包的直接命令见 [轻量运行说明](eight-step-lite-runbook.md)，逐公司结果见 [轻量验收](eight-step-lite-acceptance.md)。
 
 ## 1. 环境与 API 启动
 
@@ -20,7 +20,7 @@ python -m analysis.cli serve --host 127.0.0.1 --port 8000 `
   --acquisition-data-root tmp/research-data-layer-live-v1/data
 ```
 
-`GET http://127.0.0.1:8000/api/structured/registry` 可检查结构化 API。此启动方式已实际用本地 HTTP 验证；启动本身不发起供应商采集。CLI 的 `plan` 与 API 的 `StructuredPlanRequest` 均支持 `report_periods`、`valuation_start`、`industry_profile_id`。未显式绑定的旧默认 Web 启动不能用来验证结构化运行。
+`GET http://127.0.0.1:8000/api/structured/registry` 可检查结构化 API。此启动方式已实际用本地 HTTP 验证；启动本身不发起供应商采集。CLI 的 `plan` 与 API 的 `StructuredPlanRequest` 均支持 `report_periods`、`valuation_start`、`industry_profile_id` 和显式 `research_profile_id`。未显式绑定的旧默认 Web 启动不能用来验证结构化运行。
 
 ## 2. 七家公司已有数据与原件处理
 

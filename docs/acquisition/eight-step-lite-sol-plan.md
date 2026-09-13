@@ -1,6 +1,6 @@
 # 八步轻量核心版实施计划（交给 Sol）
 
-日期：2026-09-13。状态：规划完成，尚未实施；本文件不是轻量版运行或验收证据。
+日期：2026-09-13。状态：第 5 节实现与自动/缓存验收已完成；当前联网仅完成茅台期后目录，人工业务验收仍为 pending。实际命令见 [轻量运行说明](eight-step-lite-runbook.md)，结果见 [逐公司验收表](eight-step-lite-acceptance.md)。
 
 ## 1. 执行目标与边界
 
@@ -63,7 +63,7 @@
 - 证据默认按主题、表格和期间挑选，段落去重，保留足够上下文、否定/条件语句、表头、单位和续表关系。关键词命中只用于候选发现，不能直接标为已回答。
 - 检索默认单次最多约 2,000 token，可按页/表继续分页；提供总命中、截断和下一页标识，不自动把剩余正文全部加载。不新增向量库、RAG 服务或常驻模型服务；使用已有解析索引与确定性筛选即可。
 
-## 4. 输出合同（拟实施，当前尚无这些产物）
+## 4. 输出合同（已按 `eight-step-lite-pack-v1.0.3` 实施）
 
 默认输出到 `tmp/eight-step-lite-v1/<ticker>/<as-of>/<pack-id>/`，每次固定输入形成稳定 `pack-id`；内容相同复用，来源/选择/解释变化产生新版本。
 
@@ -112,7 +112,7 @@
 
 ## 6. 建议调用合同与现有可用命令
 
-以下轻量命令为 **待实现接口示例，当前不能作为可运行命令宣称交付**；Sol可按现有CLI约定调整拼写，但最终必须提供一条直接运行的命令。
+以下轻量命令已经实现；完整的七家公司串行命令、显式联网边界和验证命令见 [轻量运行说明](eight-step-lite-runbook.md)。
 
 ```powershell
 Set-Location 'D:/估值模型-worktrees/fact-materialization-ultra'
@@ -120,14 +120,14 @@ $env:PYTHONUTF8='1'
 $env:PYTHONIOENCODING='utf-8'
 $env:PYTHONPATH=(Resolve-Path src).Path
 
-# 拟新增：默认离线构建；来源投影须显式登记，不自动混入任意目录。
+# 已实现：默认离线构建；来源投影须显式登记，不自动混入任意目录。
 python -m analysis.structured.research lite `
   --input tmp/research-data-layer-v1 `
   --supplement tmp/research-data-layer-live-v1/materialized `
   --ticker 600519 --as-of 2026-09-13 `
   --output tmp/eight-step-lite-v1
 
-# 拟新增：按核心包中的证据ID取指定页/表/字段，输出有界原文。
+# 已实现：按核心包中的证据ID取指定页/表/字段，输出有界原文。
 python -m analysis.structured.research evidence `
   --pack '<已生成的包目录>' --evidence-id '<包内真实ID>'
 ```
