@@ -232,6 +232,8 @@ def build_coverage(connection, run_id, ticker, output, as_of, projection_dirs=No
                 # Current/company context is not fabricated as a historical period.
                 if "NOW" in path["period_semantics"] and "FIN" not in path["period_semantics"] and dataset == "company_basic":
                     observations = [v for (d,k,p),values in raw_index.items() if d==dataset and k==raw for v in values]
+                period_unconfirmed=not observations and bool(raw_index.get((dataset,raw,'')))
+                if period_unconfirmed:observations=raw_index[(dataset,raw,'')]
                 status,reason = "pending", "input_not_acquired"
                 if ids: status,reason = "ready", None
                 elif observations:
@@ -244,6 +246,8 @@ def build_coverage(connection, run_id, ticker, output, as_of, projection_dirs=No
                 elif path["kind"] == "gap": reason = "registered_source_or_definition_gap"
                 elif path["kind"] == "record_set" and records_by_dataset.get(dataset):
                     reason='record_set_available_lifecycle_or_field_semantics_pending'
+                if not ids and period_unconfirmed:
+                    status,reason='pending','observed_field_period_unconfirmed'
                 if dataset and load_scope()["datasets"][dataset]["selection"] == "excluded": reason="excluded_legacy_requirement_needs_scoped_alternative"
                 if override.get('scope_disposition')=='not_required_by_default':
                     status,reason='not_applicable','versioned_scope_does_not_require_input'

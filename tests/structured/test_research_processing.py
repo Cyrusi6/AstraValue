@@ -161,3 +161,15 @@ def test_missing_financials_do_not_shorten_the_required_coverage_window():
     assert required_latest_period(date(2026,9,13))==date(2026,6,30)
     assert required_latest_period(date(2026,10,30))==date(2026,6,30)
     assert required_latest_period(date(2026,10,31))==date(2026,9,30)
+
+
+def test_observed_field_without_period_is_processing_work_not_refetch(tmp_path):
+    from analysis.structured.research import build_coverage,write_json,read_jsonl
+    write_json(tmp_path/'manifest.json',{'run_id':'r','contract_hash':'h','source_namespace_id':'n','selected_fact_ids':[],'selected_dimensional_fact_ids':[]})
+    record={'record_version_id':'observed','snapshot_id':'snapshot','row_key':'row','available_at':'2026-09-12','raw_row':{'OPERATE_INCOME':100}}
+    connection=SimpleNamespace(execute=lambda *_:[{'dataset_id':'income_fields','purpose':'data','payload':json.dumps(record)}])
+    build_coverage(connection,'r','600519',tmp_path,date(2026,9,13))
+    rows=[r for r in read_jsonl(tmp_path/'question-coverage.jsonl') if r['input'].get('dataset_id')=='income_fields' and r['input'].get('raw_name')=='OPERATE_INCOME']
+    assert rows and all(r['reason']=='observed_field_period_unconfirmed' for r in rows)
+    work=json.loads((tmp_path/'next-work.json').read_text(encoding='utf8'))['items']
+    assert all(not r['acquire_allowed'] and r['stage']=='semantic_processing' for r in work if r['raw_name']=='OPERATE_INCOME' and r['dataset_id']=='income_fields')
