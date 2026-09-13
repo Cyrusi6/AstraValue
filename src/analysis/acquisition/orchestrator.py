@@ -1448,7 +1448,7 @@ class AcquisitionOrchestrator:
                 row_locator=resource.row_locator or resource.row_hash,
                 row_hash=resource.row_hash,
                 required_fetch=True,
-                metadata={"expected_mime_types": resource.expected_mime_types},
+                metadata={**resource.metadata, "expected_mime_types": resource.expected_mime_types},
             )
             try:
                 heartbeat.renew(force=True)

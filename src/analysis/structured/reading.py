@@ -27,10 +27,19 @@ def select_research_document(entry, *, as_of, question_ids=(), trigger_reason=No
         return decision | {"document_class": "D21", "reason": excluded}
     if "摘要" in title:
         return decision | {"document_class": "D04", "reason": "summary_cannot_close_full_report_gap"}
+    published = str(entry.get('published_at') or '')[:10]
+    known_subject = bool((entry.get('metadata') or {}).get('ticker') or entry.get('ticker'))
+    if not known_subject or not published:
+        return decision | {'reason':'subject_or_publication_missing'}
+    try:date.fromisoformat(published)
+    except ValueError:return decision | {'reason':'invalid_publication_date'}
+    if published>as_of.isoformat():return decision | {'reason':'published_after_cutoff'}
     if period:
         end = period.period_end
         decision["period"] = end.isoformat()
         category = "D01" if end.month == 12 else "D02" if end.month == 6 else "D03"
+        if category in {"D01", "D02"} and re.search(r"关于|会议通知|披露提示|取消|授权", title):
+            return decision | {"reason": "procedural_notice_not_full_report"}
         baseline = (category == "D01" and as_of.year-5 <= end.year < as_of.year) or (
             category == "D02" and end.year in (as_of.year, as_of.year-1) and end <= as_of)
         published = str(entry.get("published_at") or "")[:10]
@@ -39,7 +48,7 @@ def select_research_document(entry, *, as_of, question_ids=(), trigger_reason=No
             return decision | {"document_class": category, "reason": "subject_or_publication_missing"}
         if published > as_of.isoformat():
             return decision | {"document_class": category, "reason": "published_after_cutoff"}
-        correction = bool(re.search(r"更正|修订|补充", title))
+        correction = bool(re.search(r"更正|修订|补充", title)) and not bool(re.search(r'报告[（(](修订|更正|更新).{0,5}[）)]',title))
         selected = (baseline and not correction and decision["language"] == "zh") or bool(question_ids and trigger_reason)
         return decision | {"document_class": category, "selected": selected,
             "reason": "required_full_report" if selected and baseline else trigger_reason or "outside_required_periods"}

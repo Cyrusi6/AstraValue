@@ -140,6 +140,24 @@ class OfficialAcquisitionAdapter:
 class CninfoAcquisitionAdapter(OfficialAcquisitionAdapter):
     adapter_key = "cninfo"
 
+    def fetch_resource(self, work: FetchWork) -> BoundedTransportEnvelope:
+        from analysis.structured.reading import select_research_document
+        from ..security import SecurityPolicyError
+        capability=work.query.execution_capability
+        if capability is None:
+            raise SecurityPolicyError('research_scope_context_missing', '正文请求缺少冻结执行时点')
+        metadata=work.resource.metadata
+        choice=select_research_document({
+            'title':work.resource.title,'resource_url':work.resource.url,
+            'expected_mime_types':metadata.get('expected_mime_types',('application/pdf',)),
+            'published_at':work.resource.published_at.isoformat() if work.resource.published_at else None,
+            'ticker':work.query.context.get('ticker'),'metadata':metadata},
+            as_of=capability.run_as_of.date(),question_ids=metadata.get('research_question_ids',()),
+            trigger_reason=metadata.get('research_trigger_reason'))
+        if not choice['selected']:
+            raise SecurityPolicyError('research_scope_body_not_selected', choice['reason'])
+        return super().fetch_resource(work)
+
     def _rows_and_page(self, payload: Any, work: QueryWork):
         if work.query_family == "company_bootstrap":
             if not isinstance(payload, dict) or not isinstance(

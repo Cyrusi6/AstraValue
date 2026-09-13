@@ -20,6 +20,102 @@ if TYPE_CHECKING:
 
 
 RAW_ROOT = PROJECT_ROOT / "var" / "raw"
+
+
+def parse_research_original(path: Path, *, mime_type: str, output_dir: Path) -> dict:
+    """原件哈希与解析版本共同寻址；定位结构不宣称已完成语义核验。"""
+    import csv
+    import io
+    from html.parser import HTMLParser
+    version = "research-parser-v1.0.2"
+    body = path.read_bytes()
+    actual_mime = mime_type.split(";", 1)[0].lower()
+    if body.startswith(b"%PDF-") and actual_mime not in {"application/pdf", "application/octet-stream"}:
+        raise ValueError("original_mime_content_mismatch")
+    if actual_mime == "application/pdf" and not body.startswith(b"%PDF-"):
+        raise ValueError("original_mime_content_mismatch")
+    def content_hash(value):
+        return hashlib.sha256(json.dumps({k:v for k,v in value.items() if k!='content_sha256'},ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    sha = hashlib.sha256(body).hexdigest()
+    target = output_dir / f"{sha}.{version}.json"
+    if target.exists():
+        cached = json.loads(target.read_text(encoding="utf-8"))
+        if cached.get("original_sha256") != sha or cached.get("parser_version") != version or cached.get('content_sha256') != content_hash(cached):
+            raise ValueError("parse_cache_identity_mismatch")
+        return cached | {"cache_reused": True, "parsed_path": str(target.resolve())}
+    units = []
+    status, reason = "parsed", None
+    mime = mime_type.split(";", 1)[0].lower()
+    if body.startswith(b"%PDF-"):
+        if mime not in {"application/pdf", "application/octet-stream"}:
+            raise ValueError("original_mime_content_mismatch")
+        with fitz.open(stream=body, filetype="pdf") as doc:
+            for page_number, page in enumerate(doc, 1):
+                text = page.get_text("text")
+                units.append({"locator": f"page:{page_number}", "kind": "page", "text": text})
+                # Text blocks preserve coordinates and multi-page table context.
+                for index, block in enumerate(page.get_text("blocks")):
+                    if len(block) > 4 and str(block[4]).strip():
+                        units.append({"locator": f"page:{page_number}/block:{index+1}", "kind": "block", "bbox": list(block[:4]), "text": str(block[4])})
+        if not any(u["text"].strip() for u in units):
+            status, reason = "parse_pending", "scanned_pdf_requires_existing_mineru"
+    elif mime in {"text/html", "application/xhtml+xml"}:
+        class LocatedHTML(HTMLParser):
+            def __init__(self):
+                super().__init__(); self.skip = 0; self.counter = 0; self.parts = []
+                self.table=0; self.row=0; self.column=0; self.in_cell=False; self.cell=[]
+            def handle_starttag(self, tag, attrs):
+                if tag in {"script", "style"}: self.skip += 1
+                if tag in {"p", "tr", "h1", "h2", "h3", "div"}: self.counter += 1
+                if tag=='table':self.table+=1;self.row=0
+                if tag=='tr':self.row+=1;self.column=0
+                if tag in {'td','th'}:self.column+=1;self.in_cell=True;self.cell=[]
+            def handle_endtag(self, tag):
+                if tag in {"script", "style"}: self.skip = max(0, self.skip-1)
+                if tag in {'td','th'} and self.in_cell:
+                    self.parts.append({'locator':f'table:{self.table}/row:{self.row}/column:{self.column}',
+                        'kind':'cell','text':''.join(self.cell).strip(),'table':self.table,'row':self.row,'column':self.column})
+                    self.in_cell=False;self.cell=[]
+            def handle_data(self, data):
+                if not self.skip and data.strip():
+                    if self.in_cell:self.cell.append(data)
+                    else:self.parts.append({"locator": f"element:{self.counter}/line:{self.getpos()[0]}/column:{self.getpos()[1]}", "kind": "text", "text": data.strip()})
+        parser = LocatedHTML(); parser.feed(body.decode("utf-8-sig")); units = parser.parts
+        if not units or re.search(r"验证码|访问被拒绝|access denied", " ".join(u['text'] for u in units[:8]), re.I):
+            raise ValueError("html_error_or_interception_page")
+    elif mime in {"application/json", "text/json"}:
+        value = json.loads(body)
+        def walk(value, locator):
+            if isinstance(value, dict):
+                for k, v in value.items(): walk(v, locator+"."+k)
+            elif isinstance(value, list):
+                for i, v in enumerate(value): walk(v, f"{locator}[{i}]")
+            else: units.append({"locator": locator, "kind": "json_value", "value": value, "text": str(value)})
+        walk(value, "$")
+    elif mime == "text/csv":
+        for row_no, row in enumerate(csv.reader(io.StringIO(body.decode("utf-8-sig"))), 1):
+            for col, value in enumerate(row, 1):
+                units.append({"locator": f"row:{row_no}/column:{col}", "kind": "cell", "text": value})
+    elif mime == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        from openpyxl import load_workbook
+        book = load_workbook(io.BytesIO(body), read_only=True, data_only=False)
+        try:
+            for sheet in book:
+                for row in sheet:
+                    for cell in row:
+                        if cell.value is not None: units.append({"locator": f"sheet:{sheet.title}/cell:{cell.coordinate}", "kind": "formula" if cell.data_type == "f" else "cell", "text": str(cell.value)})
+        finally: book.close()
+    else:
+        status, reason = "adapter_missing", f"unsupported_source_mime:{mime}"
+    result = {"original_sha256": sha, "original_path": str(path.resolve()), "parser_version": version,
+              "mime_type": mime, "parse_status": status, "semantic_status": "pending_semantic_normalization",
+              "consumption_status": "not_yet_consumable", "reason": reason, "units": units}
+    result['content_sha256']=content_hash(result)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    temp = target.with_suffix(".tmp")
+    temp.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True)+"\n", encoding="utf-8")
+    temp.replace(target)
+    return result | {"cache_reused": False, "parsed_path": str(target.resolve())}
 MAX_OFFICIAL_DOCUMENT_BYTES = 80 * 1024 * 1024
 
 

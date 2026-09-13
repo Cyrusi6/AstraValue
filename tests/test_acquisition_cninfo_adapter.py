@@ -215,3 +215,17 @@ def test_cninfo_bootstrap_filters_ticker_and_exposes_persistable_org_binding() -
         "wire_stock": "600519,gssh0600519",
         "company_name": "贵州茅台",
     }
+
+
+def test_current_research_scope_blocks_old_full_body_request_before_transport():
+    from analysis.acquisition.adapters.base import FetchWork,TransportExecutionCapability
+    from analysis.acquisition.adapters.official import CninfoAcquisitionAdapter
+    from analysis.acquisition.security import SecurityPolicyError
+    now=datetime(2026,9,13,tzinfo=timezone.utc)
+    cap=TransportExecutionCapability('r','a',1,now,'cninfo.disclosures','1.0.0',lambda **_:None)
+    query=_nullable_work(source_definition_version='1.0.0',context={'ticker':'600519'},execution_capability=cap)
+    resource=SimpleNamespace(title='2025年度审计报告',url='https://static.cninfo.com.cn/a.pdf',published_at=now,
+        metadata={'expected_mime_types':['application/pdf']})
+    adapter=CninfoAcquisitionAdapter(NoIoTransport(),lambda _:b'')
+    with pytest.raises(SecurityPolicyError,match='excluded_standalone_audit_pdf'):
+        adapter.fetch_resource(FetchWork(query=query,resource=resource,validators={}))
