@@ -1,0 +1,212 @@
+{
+  "revision": "93ac313e968ef423f69366f4cbdabac0a0cbd21a",
+  "as_of": "2026-09-13",
+  "source_database_sha256": "fb271522e0a8eb3867d8bba10a99fa014cb30329e836bdee1f4267904b28505d",
+  "source_database_unchanged": true,
+  "companies": [
+    {
+      "ticker": "000568",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1804,
+        "ready": 548,
+        "source_text_available": 431
+      },
+      "raw_fact_versions": 6137,
+      "dimensional_versions": 2360,
+      "events": 32,
+      "computed_indicators": 1119,
+      "in_scope_records": 21113,
+      "materialization_hash": "d5d87da733a02326a81ca5cede599cc7f8bad3374e10f47394ea56bb0423d6d6",
+      "coverage_sha256": "9d984b6a0ebac74e7e367032edc6bceb4143af781fd5354aa34372972f5a5747"
+    },
+    {
+      "ticker": "000596",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1798,
+        "ready": 562,
+        "source_text_available": 423
+      },
+      "raw_fact_versions": 6004,
+      "dimensional_versions": 2291,
+      "events": 26,
+      "computed_indicators": 1094,
+      "in_scope_records": 19441,
+      "materialization_hash": "eaf8caca4c0662bc896cf98d26ca1e7269840425c39f4319e179763b070685ae",
+      "coverage_sha256": "5ffdae704d519ceec1f5a841e5aceb5ee4de8d9c2ba635501a5f85db72a9122f"
+    },
+    {
+      "ticker": "000858",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1794,
+        "ready": 562,
+        "source_text_available": 427
+      },
+      "raw_fact_versions": 6086,
+      "dimensional_versions": 2369,
+      "events": 26,
+      "computed_indicators": 1103,
+      "in_scope_records": 22326,
+      "materialization_hash": "9ba45c7e1fc0f009e8c94090865a1b6c337de3c414b4cec3f068501b74573fbc",
+      "coverage_sha256": "6e674f647ac598f1523fecc0eee576913f6fe156ac285f4d8b13d87567fa8b88"
+    },
+    {
+      "ticker": "002304",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1798,
+        "ready": 562,
+        "source_text_available": 423
+      },
+      "raw_fact_versions": 4455,
+      "dimensional_versions": 1690,
+      "events": 18,
+      "computed_indicators": 801,
+      "in_scope_records": 20168,
+      "materialization_hash": "254c6701484dcd28cc2f790b13fe68815789c8a8aa8be50b33dc51f50163fd0a",
+      "coverage_sha256": "409da8fb630b6ac41628d4795d272337ad22214489e4e436fe1b075fca108e66"
+    },
+    {
+      "ticker": "600519",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1813,
+        "ready": 546,
+        "source_text_available": 424
+      },
+      "raw_fact_versions": 5793,
+      "dimensional_versions": 2010,
+      "events": 27,
+      "computed_indicators": 1040,
+      "in_scope_records": 22012,
+      "materialization_hash": "a1afc367e5a103e1b5ad8a745bbead5f939ad10d950cf0d6226bd0a2425a91f7",
+      "coverage_sha256": "92d6c6076adc8529982b62d712873880c8f96a0026f7b9bb5804f2628ed8d29b"
+    },
+    {
+      "ticker": "600809",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1828,
+        "ready": 538,
+        "source_text_available": 417
+      },
+      "raw_fact_versions": 6075,
+      "dimensional_versions": 1921,
+      "events": 28,
+      "computed_indicators": 1113,
+      "in_scope_records": 19729,
+      "materialization_hash": "c59fa29cc43179581ef76cbb135ad076e730e5b6e64b3c6c68e8fe6d32e69121",
+      "coverage_sha256": "dd02b22753e609739a10274f5abeea170584fc2b6b2defab69f50f1f4b8a0395"
+    },
+    {
+      "ticker": "603369",
+      "period_inputs": 2786,
+      "states": {
+        "not_applicable": 3,
+        "pending": 1830,
+        "ready": 538,
+        "source_text_available": 415
+      },
+      "raw_fact_versions": 3216,
+      "dimensional_versions": 1512,
+      "events": 12,
+      "computed_indicators": 591,
+      "in_scope_records": 18369,
+      "materialization_hash": "db5e6f6f5d2e87af71b402eb92dc9868889858d5f4e83c170464ed4be7073e9b",
+      "coverage_sha256": "996839576c5adf6cd258c4a23a72ff2666a3bd4e092164c94c72194298af9088"
+    }
+  ],
+  "total_period_input_states": {
+    "not_applicable": 21,
+    "pending": 12665,
+    "ready": 3856,
+    "source_text_available": 2960
+  },
+  "next_work_stages": {
+    "semantic_processing": 5068,
+    "research_context": 5642,
+    "deterministic_calculation": 1645,
+    "acquisition": 2507,
+    "document_reading": 763
+  },
+  "independently_checked_direct_facts": 32670,
+  "verified_structured_snapshots": 463,
+  "independently_checked_computed_indicators": 6861,
+  "verified_originals": 55,
+  "verified_official_table_values": 333,
+  "repeat_output_fingerprints_equal": true,
+  "baseline_document_slots": {
+    "parsed": 49
+  },
+  "baseline_document_counts": {
+    "cached": 51,
+    "not_selected": 153
+  },
+  "baseline_pdf_pages": 8058,
+  "document_repeat_network": false,
+  "document_evidence": {
+    "company_counts": {
+      "000568": 311,
+      "000596": 295,
+      "000858": 327,
+      "002304": 298,
+      "600031": 132,
+      "600519": 359,
+      "600809": 310,
+      "601088": 150,
+      "603369": 357
+    },
+    "evidence_count": 2539,
+    "route_counts": {
+      "RD01": 204,
+      "RD02": 193,
+      "RD03": 160,
+      "RD04": 205,
+      "RD05": 206,
+      "RD06": 206,
+      "RD07": 204,
+      "RD08": 204,
+      "RD09": 454,
+      "RD10": 149,
+      "RD11": 203,
+      "RD12": 151
+    },
+    "semantic_boundary": "source statements; no automatic research conclusion or numerical table inference"
+  },
+  "manual_acceptance": "pending",
+  "golden_business_acceptance": "10_pending",
+  "full_industry_semantics": false,
+  "complete_research_calculation_routes": false,
+  "verified_output_file_fingerprints": 42,
+  "local_api": {
+    "status_code": 200,
+    "endpoint": "/api/structured/registry",
+    "json_keys": [
+      "items",
+      "limit",
+      "next_offset",
+      "offset",
+      "total"
+    ],
+    "local_http": true,
+    "upstream_network_requests": 0
+  },
+  "checks": {
+    "combined_tests": "488 passed",
+    "latest_processing_tests": "13 passed",
+    "serve_binding_test": "1 passed",
+    "openspec_strict": "valid",
+    "method_library": "METHOD_LIBRARY_OK",
+    "golden_structural": true,
+    "golden_business_pending": 10,
+    "manual_acceptance": "pending"
+  }
+}
