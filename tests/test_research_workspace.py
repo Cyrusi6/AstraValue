@@ -135,3 +135,33 @@ def test_ratio_is_reproducible_and_rejects_unknown_facts(workspace):
     assert calc.calculate(rid, "ratio", {"numerator": "F1", "denominator": "F1"})["artifact_id"] == a["artifact_id"]
     with pytest.raises(ResearchError, match="unknown_fact"):
         calc.calculate(rid, "ratio", {"numerator": "other", "denominator": "F1"})
+
+
+def test_adjacent_document_page_is_bound_and_citable(workspace, monkeypatch, tmp_path):
+    import fitz
+    from analysis.research.drafts import Drafts
+    rid = workspace.prepare_research("600519", "2025-01-01")["research_id"]
+    path = tmp_path / "source.pdf"
+    with fitz.open() as document:
+        document.new_page().insert_text((30,30), "First page")
+        document.new_page().insert_text((30,30), "Cash flow explanation continued")
+        document.save(path)
+    monkeypatch.setattr(workspace, "read_evidence", lambda *a, **kw: {
+        "original_path": str(path), "source_url": "https://example.test/source.pdf",
+        "original_sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    row = workspace.read_document_page(rid, "parent", 2)
+    assert row["locator"] == "page:2"
+    assert "continued" in row["content"]
+    Drafts(workspace).save_section(rid,row["snapshot_id"],2,"Text", "Judgment", [row["artifact_id"]],["Change"])
+    with pytest.raises(ResearchError, match="document_page_out_of_range"):
+        workspace.read_document_page(rid, "parent", 3)
+
+
+def test_detention_requires_risk_class_and_explicit_research_trigger():
+    from datetime import date
+    from analysis.structured.reading import select_research_document
+    entry = {"ticker":"600519", "title":"关于高级管理人员被实施留置的公告", "published_at":"2026-03-14"}
+    normal = select_research_document(entry, as_of=date(2026,9,13))
+    assert normal["document_class"] == "D16" and not normal["selected"]
+    triggered = select_research_document(entry, as_of=date(2026,9,13),question_ids=["ES03.Q01"],trigger_reason="影响治理判断")
+    assert triggered["selected"] and triggered["document_class"] == "D16"

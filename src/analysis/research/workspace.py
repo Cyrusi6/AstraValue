@@ -303,6 +303,31 @@ class ResearchWorkspace:
                         (ident, research_id, kind, state["snapshot_id"], encode(value)))
         return {"artifact_id": ident, **value}
 
+    def read_document_page(self, research_id: str, evidence_id: str, document_page: int,
+                           page: int = 1, max_tokens: int = 2000):
+        """Read an adjacent physical PDF page from a verified evidence source, with bounded continuation."""
+        import fitz
+        from analysis.structured.research_lite import _split_utf8
+        if not 1 <= max_tokens <= 4000 or document_page < 1 or page < 1:
+            raise ResearchError("invalid_document_page_or_budget")
+        source = self.read_evidence(research_id, evidence_id, max_tokens=2000)
+        with fitz.open(source["original_path"]) as document:
+            if document_page > len(document):
+                raise ResearchError("document_page_out_of_range")
+            body = document[document_page-1].get_text()
+        if not body.strip():
+            return {"status": "processing_gap", "reason": "page_requires_ocr", "document_page": document_page}
+        chunks = _split_utf8(body, max_tokens * 2)
+        if page > len(chunks):
+            raise ResearchError("text_page_out_of_range")
+        proof = self.artifact(research_id, "evidence_read", {
+            "parent_evidence_id": evidence_id, "locator": f"page:{document_page}",
+            "source_url": source["source_url"], "original_path": source["original_path"],
+            "original_sha256": source["original_sha256"], "original_hash_verified": True,
+            "content": body, "status": "source_text_available"})
+        return {k: v for k,v in proof.items() if k != "content"} | {
+            "content": chunks[page-1], "page": page, "next_page": page+1 if page < len(chunks) else None}
+
     def artifacts(self, research_id: str, kind: str) -> list[dict]:
         state, _, _ = self.pack(research_id)
         with self.connect() as con:

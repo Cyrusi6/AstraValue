@@ -21,6 +21,7 @@ class Drafts:
             raise ResearchError("section_requires_number_text_judgment_evidence_and_invalidation")
         facts = {i["fact_ref"] for i in pack["metrics"] if i.get("fact_ref")}
         evidence = {i["evidence_id"] for i in pack["evidence"]}
+        evidence.update(i["artifact_id"] for i in self.w.artifacts(research_id,"evidence_read"))
         calculations = {i["artifact_id"] for i in self.w.artifacts(research_id,"calculation")}
         if set(evidence_refs) - facts - evidence - calculations:
             raise ResearchError("unknown_section_evidence")

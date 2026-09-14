@@ -9,7 +9,7 @@ def operations(workspace: ResearchWorkspace) -> dict:
     from .knowledge import Knowledge
     from .reports import Reports
     registry = {name: getattr(workspace, name) for name in (
-        "prepare_research", "get_task", "query_research", "read_evidence",
+        "prepare_research", "get_task", "query_research", "read_evidence", "read_document_page",
     )}
     for instance, names in (
         (Calculations(workspace), ("calculate",)),

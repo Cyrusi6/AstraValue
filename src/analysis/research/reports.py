@@ -197,7 +197,8 @@ class Reports:
         request.claims = []
         request.report_notes = "宿主模型自主研究；数据/公式/假设分别记录；人读验收未完成。"
         request.input_metadata["agent_research"] = {"snapshot_id":state["snapshot_id"],"draft":draft,
-            "evidence":payload["evidence"],"charts":charts,"calculations":self.w.artifacts(research_id,"calculation")}
+            "evidence":payload["evidence"] + [dict(x,evidence_id=x["artifact_id"]) for x in self.w.artifacts(research_id,"evidence_read")],
+            "charts":charts,"calculations":self.w.artifacts(research_id,"calculation")}
         bind_valuation_request(request, draft, request.input_metadata["agent_research"]["calculations"])
         # Use the project's existing report storage, models, timeseries and exports.
         report = AnalysisService(storage=ReportStorage(self.w.state / "reports.sqlite")).create_report(request)
