@@ -1,0 +1,11 @@
+{
+  "version": "research-workspace-v1",
+  "state_root": "var/research-workspace",
+  "identity_file": "tmp/data-layer-evidence/cninfo-stock-list.json",
+  "pack_roots": ["tmp/moutai-golden-v1/lite", "tmp/eight-step-lite-v1"],
+  "projection_roots": ["tmp/research-data-layer-v1", "tmp/research-data-layer-live-v1/materialized"],
+  "evidence_roots": ["tmp/eight-step-lite-v1/network-audit"],
+  "profile_id": "eight-step-lite-v1.0.0",
+  "max_tool_seconds": 120,
+  "max_attempts": 3
+}

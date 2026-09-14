@@ -223,8 +223,13 @@ class ReportBuilder:
             ):
                 missing.append(f"{metric_id}: 尚有期间未通过统一事实准入")
 
+        selected_methods = route.valuation_method_ids
+        if request.input_metadata.get("agent_research"):
+            if set(request.model_inputs) - set(selected_methods):
+                raise ValueError("agent_valuation_method_not_applicable_to_industry")
+            selected_methods = tuple(m for m in selected_methods if m in request.model_inputs)
         valuation_results, model_runs, unreferenced_numbers = self._run_valuations(
-            route.valuation_method_ids,
+            selected_methods,
             bundle,
             request.model_inputs,
             conflicts,
@@ -305,7 +310,7 @@ class ReportBuilder:
             ],
             event_ids=[item.event_id for item in events],
         )
-        return ReportVersion(
+        report = ReportVersion(
             parent_report_id=parent_report_id,
             version=version,
             ticker=request.ticker,
@@ -340,6 +345,11 @@ class ReportBuilder:
                 request.materialization_selected_fact_ids
             ),
         )
+
+        if request.input_metadata.get("agent_research"):
+            from .research.reports import apply_agent_research
+            report = apply_agent_research(report, request)
+        return report
 
     @staticmethod
     def _point_in_time_facts(facts: list[FactRecord], as_of: datetime) -> list[FactRecord]:

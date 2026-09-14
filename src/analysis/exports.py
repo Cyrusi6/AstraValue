@@ -42,6 +42,9 @@ def _claim_detail(claim) -> str:
 
 
 def render_markdown(report: ReportVersion) -> str:
+    if report.request_metadata.get("agent_body_markdown"):
+        from .research.reports import render_agent_markdown
+        return render_agent_markdown(report)
     c = report.conclusion
     used_methods = [run.method_ref for run in report.audit.model_runs if run.status.value == "成功"]
     lines = [
@@ -201,6 +204,9 @@ def render_markdown(report: ReportVersion) -> str:
 
 
 def render_html(report: ReportVersion) -> str:
+    if report.request_metadata.get("agent_body_markdown"):
+        from .research.reports import render_agent_html
+        return render_agent_html(report)
     c = report.conclusion
     status_class = "good" if report.status.value == "已复核" else "attention"
     sections = []

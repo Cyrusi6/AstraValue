@@ -1,5 +1,7 @@
 # 八步轻量核心版运行说明（2026-09-14 更新；统一截止日 2026-09-13）
 
+新增公司级研究入口见[研究工具运行说明](research-workspace-runbook.md)。模型通过共享 CLI／MCP 服务读取数据、自主提交判断与估值假设，再调用组装；下面保留轻量数据构建及旧技术报告复现入口，不能用其规则文字替代模型研究。
+
 当前实现版本为 `eight-step-lite-pack-v1.0.4`，profile 为 `eight-step-lite-v1.0.0`。新版本修复人读表格的累计/单季键冲突和估值倍数格式，旧七包保留。默认 `research lite` 命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入；报告需再调用第 7 节的 `structured report`。两条命令都不会自动确认评级、目标价或交易指令。七家公司旧轻量输入验收见 [逐公司验收表](eight-step-lite-acceptance.md)，当前仅推进[贵州茅台黄金报告验收](moutai-golden-report-acceptance.md)。
 
 ## 1. 环境与默认离线构建
