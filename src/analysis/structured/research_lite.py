@@ -14,7 +14,7 @@ from .scope import LITE_PROFILE_ID, ROOT, load_research_profile
 from .storage import canonical_json, canonical_sha256
 
 
-PACK_VERSION = "eight-step-lite-pack-v1.0.3"
+PACK_VERSION = "eight-step-lite-pack-v1.0.4"
 FORMULA_VERSION = "eight-step-lite-formulas-v1.0.0"
 STOCK_METRICS = {
     "cash",
@@ -1220,19 +1220,26 @@ def _count_tokens(text: str) -> dict[str, Any]:
         }
 
 
-def _format_number(value: str | None, unit: str | None) -> str:
+def _format_number(value: str | None, unit: str | None, metric_id: str = "") -> str:
     parsed = _decimal(value)
     if parsed is None:
         return "—"
     if unit == "CNY":
         return f"{parsed / Decimal('100000000'):.2f}亿元"
+    if metric_id in {"pe_ttm", "pb", "ps_ttm", "pe", "ps", "ev_ebitda", "eastmoney_pe_ttm", "eastmoney_pb_mrq", "eastmoney_ps_ttm"}:
+        return f"{parsed:.2f}倍"
     if unit == "ratio":
         return f"{parsed * 100:.2f}%"
     return f"{parsed.normalize()} {unit or ''}".strip()
 
 
-def _markdown_table(metric_entries: Sequence[Mapping[str, Any]], periods: Sequence[str]) -> str:
-    by_key = {(item["metric_id"], item["period"]): item for item in metric_entries}
+def _markdown_table(metric_entries: Sequence[Mapping[str, Any]], periods: Sequence[str], *, annual: bool = True) -> str:
+    by_key = {}
+    for item in metric_entries:
+        key = (item["metric_id"], item["period"], item["period_type"])
+        if key in by_key and by_key[key] != item:
+            raise ValueError(f"conflicting_display_metric:{key}")
+        by_key[key] = item
     metrics = []
     for item in metric_entries:
         if item["period"] in periods and item["metric_id"] not in {value[0] for value in metrics}:
@@ -1244,12 +1251,14 @@ def _markdown_table(metric_entries: Sequence[Mapping[str, Any]], periods: Sequen
     for metric_id, label in metrics:
         cells = []
         for period in periods:
-            item = by_key.get((metric_id, period))
+            item = by_key.get((metric_id, period, _desired_period_type(metric_id, annual=annual)))
             if not item or item["state"] != "ready":
                 cells.append("待补")
                 continue
             fact = item["fact"]
-            value = _format_number(fact["value"], fact["unit"])
+            if fact["period_type"] != item["period_type"]:
+                raise ValueError(f"display_fact_period_mismatch:{metric_id}:{period}")
+            value = _format_number(fact["value"], fact["unit"], metric_id)
             cells.append(f"{value} `[{item['fact_ref']}]`")
         lines.append("| " + label + " | " + " | ".join(cells) + " |")
     return "\n".join(lines)
@@ -1311,7 +1320,7 @@ def _render_markdown(payload: Mapping[str, Any], *, compact: bool = False) -> st
         "",
         "### 最近八个应需季度（流量为单季、存量为期末）",
         "",
-        _markdown_table([item for item in metrics if item["group"] == "B"], periods["quarters"]),
+        _markdown_table([item for item in metrics if item["group"] == "B"], periods["quarters"], annual=False),
         "",
         "## C 质量与风险",
         "",
@@ -1335,7 +1344,7 @@ def _render_markdown(payload: Mapping[str, Any], *, compact: bool = False) -> st
     )
     for peer in payload["peers"]:
         values = ", ".join(
-            f"{item['label']}={_format_number(item['value'], item['unit'])}"
+            f"{item['label']}={_format_number(item['value'], item['unit'], item['metric_id'])}"
             for item in peer["metrics"]
         )
         lines.append(f"- {peer['name']}（{peer['ticker']}）：{values or '可比指标待补'}")
@@ -1348,7 +1357,7 @@ def _render_markdown(payload: Mapping[str, Any], *, compact: bool = False) -> st
         if item["state"] == "ready":
             fact = item["fact"]
             lines.append(
-                f"- {item['label']}：{_format_number(fact['value'], fact['unit'])}，实际数据期 `{fact['period_end']}` `[{item['fact_ref']}]`"
+                f"- {item['label']}：{_format_number(fact['value'], fact['unit'], item['metric_id'])}，实际数据期 `{fact['period_end']}` `[{item['fact_ref']}]`"
             )
         else:
             lines.append(f"- {item['label']}：待补（{item['reason']}）")

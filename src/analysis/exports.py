@@ -31,6 +31,16 @@ LINK_GREEN = "008000"
 THIN_GRAY = Side(style="thin", color="D6DEE5")
 
 
+def _claim_detail(claim) -> str:
+    parts = []
+    if claim.evidence_ids:
+        parts.append("原文/记录ID：" + ", ".join(claim.evidence_ids))
+    for label, values in [("反证",claim.counter_evidence),("未知项",claim.unknowns),("失效条件",claim.invalidation_conditions)]:
+        if values:
+            parts.append(label + "：" + "；".join(values))
+    return "；".join(parts)
+
+
 def render_markdown(report: ReportVersion) -> str:
     c = report.conclusion
     used_methods = [run.method_ref for run in report.audit.model_runs if run.status.value == "成功"]
@@ -99,6 +109,8 @@ def render_markdown(report: ReportVersion) -> str:
                     + [f"source:{item}" for item in claim.evidence_source_ids]
                 ) or "分析判断"
                 lines.append(f"- [{claim.claim_kind.value}] {claim.text}（证据：{evidence}）")
+                if _claim_detail(claim):
+                    lines.append(f"  {_claim_detail(claim)}")
             lines.append("")
         for table in section.tables:
             lines.extend([f"### {table['name']}", "", _markdown_table(table.get("rows", [])), ""])
@@ -201,6 +213,7 @@ def render_html(report: ReportVersion) -> str:
                     " / ".join(
                         [f"fact:{item}" for item in claim.evidence_fact_ids]
                         + [f"source:{item}" for item in claim.evidence_source_ids]
+                        + [_claim_detail(claim)]
                     )
                     or "分析判断"
                 ),
@@ -349,6 +362,19 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
     checks_sheet = workbook.create_sheet("检查")
     _write_summary(summary, report)
     _write_sections(sections_sheet, report)
+    if report.request_metadata.get("display_metrics"):
+        table_sheet=workbook.create_sheet("核心期间表")
+        table_rows=[]
+        for table in report.sections[1].tables:
+            for row in table.get("rows",[]):
+                for key,value in row.items():
+                    if key not in {"指标","口径"}:
+                        table_rows.append([row.get("指标"),row.get("口径"),key,value])
+        _append_table(table_sheet,["指标","口径","期间","显示值与事实引用"],table_rows,[32,16,16,46])
+        index_sheet=workbook.create_sheet("核心事实索引")
+        _append_table(index_sheet,["短引用","fact_id","期间类型","单位"],
+            [[m.get("fact_ref"),m["fact"]["fact_id"],m["fact"]["period_type"],m["fact"]["unit"]]
+             for m in report.request_metadata["display_metrics"] if m.get("state")=="ready"],[12,65,20,16])
     _write_facts(facts_sheet, report)
     _write_dimensional_facts(dimensional_facts_sheet, report)
     _write_events(events_sheet, report)
@@ -426,6 +452,20 @@ def _write_summary(sheet, report: ReportVersion) -> None:
 
 
 def _write_sections(sheet, report: ReportVersion) -> None:
+    if report.request_metadata.get("display_metrics"):
+        rows=[]
+        for section in report.sections:
+            for claim in section.claims:
+                rows.append([section.number,section.title,claim.text,
+                    ", ".join(claim.evidence_fact_ids+claim.evidence_source_ids),_claim_detail(claim)])
+            if not section.claims:
+                rows.append([section.number,section.title,section.summary,"","；".join(section.warnings)])
+        _append_table(sheet,["步骤","标题","研究观察","事实与来源","原文定位、反证和边界"],rows,[8,26,80,60,70])
+        import math
+        for row_index,row in enumerate(rows,2):
+            lines=max(math.ceil(sum(2 if ord(c)>127 else 1 for c in str(v))/width) for v,width in zip(row,[8,26,80,60,70]))
+            sheet.row_dimensions[row_index].height=min(409,18*lines+12)
+        return
     headers = ["步骤", "标题", "摘要", "结论及证据", "方法引用", "注意事项"]
     rows = []
     for section in report.sections:
@@ -456,7 +496,7 @@ def _write_facts(sheet, report: ReportVersion) -> None:
         if urls:
             sheet.cell(row_index, 3).comment = Comment("来源：\n" + "\n".join(urls), "User")
         if fact.value is not None:
-            sheet.cell(row_index, 3).number_format = _excel_number_format(fact.unit)
+            sheet.cell(row_index, 3).number_format = ('0.00"倍"' if fact.metric_id in {"eastmoney_pe_ttm","eastmoney_pb_mrq","eastmoney_ps_ttm"} else _excel_number_format(fact.unit))
     sheet.freeze_panes = "C2"
 
 
@@ -1092,7 +1132,7 @@ def _html_to_pdf(html_path: Path, pdf_path: Path) -> None:
         ignore_cleanup_errors=True,
     ) as profile:
         generated_pdf = Path(profile) / "rendered.pdf"
-        command = [str(browser), "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--print-to-pdf-no-header", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", f"--user-data-dir={profile}", f"--print-to-pdf={generated_pdf}", html_path.resolve().as_uri()]
+        command = [str(browser), "--headless=new", "--disable-gpu", "--disable-background-networking", "--disable-component-update", "--no-first-run", "--host-resolver-rules=MAP * ~NOTFOUND", "--no-pdf-header-footer", "--print-to-pdf-no-header", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", f"--user-data-dir={profile}", f"--print-to-pdf={generated_pdf}", html_path.resolve().as_uri()]
         completed = subprocess.run(command, capture_output=True, text=True, timeout=90, creationflags=0x08000000)
         # Edge sometimes hands PDF finalization to a child process and returns
         # before the file is complete. Keep the temporary profile alive briefly

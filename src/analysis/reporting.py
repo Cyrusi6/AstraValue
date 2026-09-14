@@ -259,6 +259,23 @@ class ReportBuilder:
             data_quality_checks,
         )
         completeness, confidence = evidence_scores(facts, claims)
+        questions = request.research_coverage.get("questions", [])
+        if questions:
+            applicable = [q for q in questions if q.get("state") != "not_applicable"]
+            ready_count = sum(q.get("state") == "ready" for q in applicable)
+            completeness = min(completeness, ready_count / len(applicable)) if applicable else completeness
+            for q in applicable:
+                for rid in q.get("missing_requirement_ids", []):
+                    missing.append(f"{q['question_id']}/{rid}: 完整研究要求待补")
+                if q.get("state") != "ready" and not q.get("missing_requirement_ids"):
+                    missing.append(f"{q['question_id']}: 问题仍待补")
+        if request.research_coverage and not claims:
+            completeness = 0.0
+            missing.append("分析对象：尚无带证据的 ClaimRecord")
+        missing.extend(request.input_metadata.get("semantic_gaps", []))
+        missing.extend(f"{run.method_ref}: {run.failure_reason}" for run in model_runs if run.failure_reason)
+        from .structured.report_semantics import apply_sections
+        apply_sections(request, sections)
         conclusion = self._conclusion(request, claims, valuation_results, scenarios, conflicts, completeness, confidence)
         tracking_indicators = _tracking_indicators(request)
         active_fact_ids = {fact.fact_id for fact in facts}
@@ -303,6 +320,8 @@ class ReportBuilder:
             facts=facts,
             dimensional_facts=dimensional_facts,
             events=events,
+            industry_facts=[f for f in request.industry_facts if _datetime_le(f.available_at, request.as_of)],
+            peer_sets=[p for p in request.peer_sets if _datetime_le(p.as_of, request.as_of)],
             claims=claims,
             assumptions=request.assumptions,
             tracking_indicators=tracking_indicators,
@@ -365,6 +384,7 @@ class ReportBuilder:
         for inputs in request.model_inputs.values():
             for refs in _normalize_lineage(inputs.get("_lineage", {})).values():
                 referenced.update(ref.split(":", 1)[1] for ref in refs if ref.startswith("source:"))
+        referenced.update(sid for item in [*request.industry_facts, *request.peer_sets] for sid in item.source_ids)
         return [
             source
             for source in request.sources
@@ -662,6 +682,8 @@ class ReportBuilder:
             return [claim.text for claim in claims if claim.category.lower() in categories][:limit]
 
         invalidations = texts({"invalidation"}, 5)
+        if request.input_metadata.get("report_bridge_version"):
+            invalidations = sorted({text for claim in claims for text in claim.invalidation_conditions})
         tracking = sorted({item.tracking_metric for item in request.assumptions if item.tracking_metric})
         return ConclusionCard(
             rating=rating,
@@ -963,6 +985,10 @@ def _snapshot_id(
             item.model_dump(mode="json") for item in dimensional_facts
         ],
         "events": [item.model_dump(mode="json") for item in events],
+        "industry_facts": [item.model_dump(mode="json") for item in request.industry_facts if _datetime_le(item.available_at, request.as_of)],
+        "peer_sets": [item.model_dump(mode="json") for item in request.peer_sets if _datetime_le(item.as_of, request.as_of)],
+        "research_coverage": request.research_coverage,
+        "input_metadata": request.input_metadata,
     }
     digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     return f"ds-{digest[:20]}"
@@ -1125,6 +1151,10 @@ def _validate_request_lineage(request: ReportCreateRequest) -> list[str]:
                 errors.append(
                     f"{event.event_id}: 双源一致状态缺少两个独立上游来源"
                 )
+    for item in [*request.industry_facts, *request.peer_sets]:
+        missing_sources = set(item.source_ids) - set(source_map)
+        if missing_sources:
+            errors.append(f"行业或同行输入来源不存在: {sorted(missing_sources)}")
     for assumption in request.assumptions:
         if not assumption.source_ids:
             errors.append(f"{assumption.assumption_id}: 情景假设必须关联来源或用户假设记录")

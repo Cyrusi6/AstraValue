@@ -22,7 +22,9 @@ from .scope import LITE_PROFILE_ID, load_research_profile
 from .storage import canonical_sha256
 
 
-REPORT_BRIDGE_VERSION = "eight-step-lite-report-bridge-v1.0.0"
+REPORT_BRIDGE_VERSION = "eight-step-lite-report-bridge-v1.1.0"
+# 原 lite-derived ID 的数值投影合同未变；语义桥升级不能重写旧事实元数据。
+DERIVED_FACT_PROJECTION_VERSION = "eight-step-lite-report-bridge-v1.0.0"
 METRIC_ALIASES = {
     "operating_income": "revenue",
     "operating_cost": "cost_of_revenue",
@@ -208,7 +210,7 @@ def _fact_from_core(payload: Mapping[str, Any], ticker: str) -> FactRecord:
             "available_at": str(available_at),
             "decimal_value": str(payload.get("value")),
             "nature": "deterministic",
-            "report_bridge_version": REPORT_BRIDGE_VERSION,
+            "report_bridge_version": DERIVED_FACT_PROJECTION_VERSION,
             "source_namespace_id": payload.get("source_namespace_id"),
             "source_projection_role": payload.get("source_projection_role"),
         },
@@ -423,6 +425,8 @@ def _alias_fact(fact: FactRecord, *, annual_periods: set[date]) -> FactRecord | 
 def _coverage_projection(
     manifest: Mapping[str, Any], coverage: Mapping[str, Any]
 ) -> dict[str, Any]:
+    from .report_semantics import full_coverage
+    detailed = full_coverage(manifest, _read_jsonl)
     questions = []
     by_step: dict[str, list[str]] = defaultdict(list)
     for item in coverage.get("question_routes", ()):
@@ -431,6 +435,16 @@ def _coverage_projection(
         quality_state = str(item.get("quality_state") or "pending")
         state = quality_state if quality_state in {"ready", "not_applicable"} else "pending"
         required = list(item.get("full_requirement_refs") or ())
+        rows = [r for r in detailed if r["question_id"] == question_id]
+        ready_ids, na_ids = [], []
+        if detailed:
+            for rid in required:
+                states = [r["state"] for r in rows if r["requirement_id"] == rid]
+                if states and all(s == "not_applicable" for s in states):
+                    na_ids.append(rid)
+                elif states and all(s in {"ready", "not_applicable"} for s in states):
+                    ready_ids.append(rid)
+            state = "not_applicable" if required and len(na_ids) == len(required) else "ready" if required and len(ready_ids)+len(na_ids)==len(required) else "pending"
         by_step[step_id].append(state)
         questions.append(
             {
@@ -440,10 +454,10 @@ def _coverage_projection(
                 "state": state,
                 "applicability": "applicable",
                 "required_requirement_ids": required,
-                "ready_requirement_ids": required if state == "ready" else [],
-                "missing_requirement_ids": required if state == "pending" else [],
-                "not_applicable_requirement_ids": required if state == "not_applicable" else [],
-                "next_paths": [],
+                "ready_requirement_ids": ready_ids if detailed else required if state == "ready" else [],
+                "missing_requirement_ids": [r for r in required if r not in ready_ids + na_ids] if detailed else required if state == "pending" else [],
+                "not_applicable_requirement_ids": na_ids if detailed else required if state == "not_applicable" else [],
+                "next_paths": sorted({a for r in rows for a in r["next_actions"]}),
                 "method_status": "skeleton",
                 "assumption_status": "not_confirmed" if step_id in {"ES05", "ES08"} else "not_required",
                 "analysis_status": "not_started",
@@ -470,7 +484,8 @@ def _coverage_projection(
         "pack_identity_hash": manifest.get("pack_identity_hash"),
         "questions": questions,
         "steps": steps,
-        "requirements": coverage.get("requirements", []),
+        "requirements": detailed or coverage.get("requirements", []),
+        "core_requirements": coverage.get("requirements", []),
         "counts": coverage.get("counts", {}),
         "question_quality_counts": coverage.get("question_quality_counts", {}),
         "full_coverage_preserved": bool(coverage.get("full_coverage_preserved")),
@@ -527,7 +542,11 @@ def build_report_request(
     profile = load_research_profile(str(manifest["profile_id"]))
     supported = profile.get("industry_profile", {}).get("supported_tickers", {})
     resolved_industry = industry or ("消费" if ticker in supported else "未知")
-    coverage_hash = str(manifest["output_hashes"]["core-coverage.json"])
+    report_coverage = _coverage_projection(manifest, coverage)
+    coverage_hash = canonical_sha256(report_coverage)
+    from .report_semantics import semantic_inputs
+    semantic = semantic_inputs(pack_path, manifest, core, as_of, _read_jsonl)
+    sources.extend(semantic["sources"])
     return ReportCreateRequest(
         ticker=ticker,
         company_name=str(core.get("company_name") or supported.get(ticker) or ticker),
@@ -538,15 +557,21 @@ def build_report_request(
         sources=sources,
         facts=facts,
         dimensional_facts=dimensions,
+        claims=semantic["claims"],
+        events=semantic["events"],
+        peer_sets=semantic["peer_sets"],
         use_synced_facts=False,
         research_coverage_snapshot_id="lite-coverage-" + coverage_hash[:24],
-        research_coverage=_coverage_projection(manifest, coverage),
+        research_coverage=report_coverage,
         materialization_selected_fact_ids=sorted(selected_ids),
         report_notes=(
-            f"由冻结轻量包 {manifest['pack_id']} 生成；原文片段未自动转换为分析结论；"
+            f"由冻结轻量包 {manifest['pack_id']} 生成的黄金候选；定位原文形成带限制的研究观察；"
             "未提供用户确认的预测假设，估值和评级保持待补。"
         ),
         input_metadata={
+            "semantic_gaps": semantic["gaps"],
+            "evidence_index": semantic["evidence_index"],
+            "display_metrics": semantic["display_metrics"],
             "report_bridge_version": REPORT_BRIDGE_VERSION,
             "lite_pack_id": manifest["pack_id"],
             "lite_pack_identity_hash": manifest["pack_identity_hash"],

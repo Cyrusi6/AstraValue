@@ -44,11 +44,15 @@ class AnalysisService:
         self.storage.save_research_records(
             dimensional_facts=request.dimensional_facts,
             events=request.events,
+            industry_facts=request.industry_facts,
+            peer_sets=request.peer_sets,
         )
         self.timeseries.append_facts(request.facts)
         self.timeseries.append_research_records(
             dimensional_facts=request.dimensional_facts,
             events=request.events,
+            industry_facts=request.industry_facts,
+            peer_sets=request.peer_sets,
         )
         self.storage.save_report(report)
         self.timeseries.export_snapshot(report.ticker, report.data_snapshot_id, report.facts)
@@ -282,6 +286,8 @@ class AnalysisService:
             facts=deepcopy(report.facts),
             dimensional_facts=deepcopy(report.dimensional_facts),
             events=deepcopy(report.events),
+            industry_facts=deepcopy(report.industry_facts),
+            peer_sets=deepcopy(report.peer_sets),
             claims=deepcopy(report.claims),
             assumptions=deepcopy(report.assumptions),
             verification_records=deepcopy(report.audit.verification_records),

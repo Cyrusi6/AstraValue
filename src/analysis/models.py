@@ -573,6 +573,11 @@ class ClaimRecord(BaseModel):
     claim_kind: ClaimKind
     evidence_source_ids: list[str] = Field(default_factory=list)
     evidence_fact_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+    evidence_spans: list[EvidenceSpan] = Field(default_factory=list)
+    counter_evidence: list[str] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
+    invalidation_conditions: list[str] = Field(default_factory=list)
     confidence: float = Field(default=0.5, ge=0, le=1)
     as_of: datetime = Field(default_factory=utc_now)
 
@@ -762,6 +767,8 @@ class ReportCreateRequest(BaseModel):
     facts: list[FactRecord] = Field(default_factory=list)
     dimensional_facts: list[DimensionalFactRecord] = Field(default_factory=list)
     events: list[EventRecord] = Field(default_factory=list)
+    industry_facts: list[IndustryFactRecord] = Field(default_factory=list)
+    peer_sets: list[PeerSetVersion] = Field(default_factory=list)
     claims: list[ClaimRecord] = Field(default_factory=list)
     assumptions: list[AssumptionRecord] = Field(default_factory=list)
     verification_records: list[VerificationRecord] = Field(default_factory=list)
