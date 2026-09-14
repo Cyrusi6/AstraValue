@@ -10,6 +10,10 @@
 - 接入真实模型研究成果；代码不得用原文摘录、固定结论句式或非空 ClaimRecord 代替研究。数值和图表统一引用冻结事实与计算结果。
 - 最终正文以结论、解释及趋势／比较图为主体，详细表格、内部编号和完整来源记录放入附录。先验收贵州茅台，再验证其余六家白酒；前端与全市场批处理暂缓。
 
+- 采用预处理入库与MCP研究工具入口，CLI复用同一服务；交互覆盖首包、状态恢复、定向数据/证据/知识、补采、计算、章节保存、绘图、组装与成品查看。
+- 常规图用版本化模板，定制图由模型调用只读数据沙盒；探索计算允许但独立验证，未验证不作正式指标，复用稳定方法再沉淀。
+- 不以总耗时缩减标准研究；只有可能实质改变评级、估值或重大风险的资料才追加深入，单次执行有上限和可恢复状态。
+
 ## Capabilities
 
 ### New Capabilities
@@ -24,7 +28,7 @@
 
 ## Impact
 
-- 影响 `src/analysis/structured`、`src/analysis/formulas.py`、`src/analysis/reporting.py`、`src/analysis/service.py`、CLI/API 和前端数据展示。
+- 影响 `src/analysis/structured`、`src/analysis/formulas.py`、`src/analysis/reporting.py`、`src/analysis/service.py`、CLI/API、MCP适配与绘图/报告检查入口；前端仍暂缓。
 - 复用现有 SQLite 结构化存储、共享快照、`FactRecord`/`ReportVersion` 和导出器，不创建第二套原始数据存储。
 - 需要新增版本化配置和报告元数据；不会提交凭据、原始响应、数据库或生成报告。
 - 严格历史模式只使用 `available_at` 不晚于截止时点的记录；当前研究允许供应商历史序列，但报告必须标注 point-in-time 限制。
