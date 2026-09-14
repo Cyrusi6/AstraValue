@@ -156,6 +156,22 @@ def test_original_download_recovers_corrupt_partial_blob_without_losing_bytes(tm
     assert cached['cache_reused'] and len(calls)==2
 
 
+def test_reviewed_issuer_and_media_hosts_preserve_source_role(tmp_path, monkeypatch):
+    import httpx
+    from analysis.acquisition.research_fetch import ResearchFetch
+    import analysis.acquisition.research_fetch as module
+    original_client = httpx.Client
+    monkeypatch.setattr(module.httpx, 'Client', lambda **_: original_client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, content=b'<html>statement</html>'))))
+    monkeypatch.setattr(module.time, 'sleep', lambda _: None)
+    fetch = ResearchFetch(tmp_path)
+    for host, role in [('www.moutaichina.com','issuer_statement'), ('m.thepaper.cn','media_report')]:
+        _, proof = fetch.fetch('https://' + host + '/article')
+        assert proof['source_role'] == role
+    with pytest.raises(ValueError, match='unregistered'):
+        fetch.fetch('https://www.moutaichina.com.example.test/article')
+
+
 def test_missing_financials_do_not_shorten_the_required_coverage_window():
     from analysis.structured.research import required_latest_period
     assert required_latest_period(date(2026,9,13))==date(2026,6,30)

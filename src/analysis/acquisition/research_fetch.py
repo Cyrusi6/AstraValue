@@ -10,6 +10,12 @@ from urllib.parse import urlsplit
 
 import httpx
 
+# Reviewed disclosure hosts. A company statement or media quote is not a verified financial fact.
+RESEARCH_HOST_ROLES = {
+    'www.moutaichina.com': 'issuer_statement',
+    'm.thepaper.cn': 'media_report',
+}
+
 
 class ResearchFetch:
     def __init__(self, root: Path, *, refresh=False):
@@ -19,7 +25,7 @@ class ResearchFetch:
 
     def fetch(self, url, *, data=None, max_bytes=100*1024*1024):
         host=urlsplit(url).hostname or ''
-        if urlsplit(url).scheme!='https' or not (host.endswith('.cninfo.com.cn') or host in {'www.cninfo.com.cn','data.stats.gov.cn','www.stats.gov.cn'}):
+        if urlsplit(url).scheme!='https' or not (host.endswith('.cninfo.com.cn') or host in {'www.cninfo.com.cn','data.stats.gov.cn','www.stats.gov.cn'} or host in RESEARCH_HOST_ROLES):
             raise ValueError('unregistered_research_document_host')
         identity=json.dumps({'url':url,'data':data},sort_keys=True,ensure_ascii=False,separators=(',',':'))
         key=hashlib.sha256(identity.encode()).hexdigest(); index=self.root/'requests'/f'{key}.json'
@@ -53,6 +59,7 @@ class ResearchFetch:
                         if not path.exists():
                             temp=path.with_suffix('.tmp');temp.write_bytes(body);temp.replace(path)
                         saved={'request':json.loads(identity),'request_key':key,'http_status':response.status_code,
+                            'source_role':RESEARCH_HOST_ROLES.get(host, 'registered_disclosure'),
                             'mime_type':response.headers.get('content-type','application/octet-stream'),'sha256':sha,'relative_path':relative,
                             'observed_at':datetime.now(timezone.utc).isoformat(),'proxy_used':proxy is not None,'attempts':attempts,'cache_reused':False}
                         index.parent.mkdir(parents=True,exist_ok=True)

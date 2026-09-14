@@ -25,6 +25,7 @@ var/reports/
 var/evidence/
 var/derived/
 var/backups/
+var/research-workspace/
 *.acquisition-binding-intent
 *.acquisition-root-marker
 *.sqlite*
