@@ -83,6 +83,15 @@ def test_local_policy_failure_is_not_restricted() -> None:
     assert classification.outcome != "restricted"
 
 
+@pytest.mark.parametrize(
+    "reason",
+    ["research_scope_context_missing", "research_scope_body_not_selected"],
+)
+def test_research_scope_policy_failures_are_recordable(reason: str) -> None:
+    classification = classify_response(status_code=200, policy_reason=reason)
+    assert classification == AttemptClassification("policy_skipped", reason)
+
+
 def test_no_data_requires_schema_total_pages_and_terminal_proof() -> None:
     valid = classify_discovery_completion(
         normalized_resource_count=0,

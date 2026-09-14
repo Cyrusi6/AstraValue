@@ -125,6 +125,15 @@ class StructuredResolveRequest(BaseModel):
     as_of: date | None = None
 
 
+class StructuredReportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pack_dir: str = Field(min_length=1)
+    output_dir: str = Field(min_length=1)
+    formats: list[str] = Field(default_factory=lambda: ["md", "html", "xlsx", "pdf"])
+    industry: str | None = None
+
+
 def create_app(
     service: AnalysisService | None = None,
     acquisition_runtime: AcquisitionRuntime | None = None,
@@ -809,6 +818,21 @@ def create_app(
         return _redacted(
             _structured_service(request).coverage(
                 snapshot_id, limit=limit, offset=offset
+            )
+        )
+
+    @application.post("/api/structured/reports", status_code=201)
+    async def structured_report(
+        payload: StructuredReportRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        return _redacted(
+            await run_in_threadpool(
+                _structured_service(request).report,
+                payload.pack_dir,
+                output_dir=payload.output_dir,
+                formats=tuple(payload.formats),
+                industry=payload.industry,
             )
         )
 

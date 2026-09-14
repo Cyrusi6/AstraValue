@@ -69,6 +69,15 @@ class FakeService:
     def coverage(self, snapshot_id, **kwargs):
         return {"coverage_snapshot_id": snapshot_id, "total": 0, "items": []}
 
+    def report(self, pack_dir, **kwargs):
+        self.calls.append(("report", pack_dir, kwargs))
+        return {
+            "report_id": "report-1",
+            "data_snapshot_id": "snapshot-1",
+            "outputs": {"md": {"relative_path": "600519/report.md"}},
+            "performed_network_io": False,
+        }
+
 
 def invoke(monkeypatch, capsys, fake, *arguments):
     monkeypatch.setattr(cli, "_create_structured_service", lambda db, root: fake)
@@ -124,6 +133,32 @@ def test_query_subcommands_bind_database_and_do_not_install_scheduler(monkeypatc
     ):
         code, _ = invoke(monkeypatch, capsys, fake, *arguments)
         assert code == 0
+
+
+def test_structured_report_passes_pack_output_and_formats(monkeypatch, capsys):
+    fake = FakeService()
+    code, output = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "report",
+        "--pack",
+        "lite-pack",
+        "--output",
+        "reports",
+        "--format",
+        "md",
+        "--format",
+        "xlsx",
+    )
+    assert code == 0
+    assert output["report_id"] == "report-1"
+    assert output["performed_network_io"] is False
+    assert fake.calls[-1] == (
+        "report",
+        "lite-pack",
+        {"output_dir": "reports", "formats": ("md", "xlsx"), "industry": None},
+    )
 
 
 def test_repair_commands_are_explicit_bounded_and_do_not_echo_storage_paths(

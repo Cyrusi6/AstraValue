@@ -117,6 +117,11 @@ class ReportBuilder:
         # Re-validate a copied payload so callers cannot bypass model invariants
         # by mutating an already-created Pydantic object before building.
         request = ReportCreateRequest.model_validate(request.model_dump(mode="python"))
+        materialization_selected_ids = (
+            frozenset(request.materialization_selected_fact_ids)
+            if request.materialization_selected_fact_ids
+            else None
+        )
         claims_errors = validate_claims(request.claims, request.facts, request.sources)
         input_errors = _validate_request_lineage(request)
         if claims_errors or input_errors:
@@ -167,7 +172,9 @@ class ReportBuilder:
             events,
         )
 
-        latest = _latest_numeric_facts(facts)
+        latest = _latest_numeric_facts(
+            facts, materialization_selected_ids=materialization_selected_ids
+        )
         derived = compute_financial_snapshot(latest)
         conflicts = [f"{fact.metric_id}: 核验状态为待核验" for fact in facts if fact.verification_status == VerificationStatus.PENDING]
         conflicts.extend(
@@ -207,7 +214,13 @@ class ReportBuilder:
                 for item in critical_facts
                 if item.metric_id == metric_id and item.value is not None
             ]
-            if metric_facts and not all(is_fact_consumable(item) for item in metric_facts):
+            if metric_facts and not all(
+                is_fact_consumable(
+                    item,
+                    materialization_selected_ids=materialization_selected_ids,
+                )
+                for item in metric_facts
+            ):
                 missing.append(f"{metric_id}: 尚有期间未通过统一事实准入")
 
         valuation_results, model_runs, unreferenced_numbers = self._run_valuations(
@@ -224,7 +237,13 @@ class ReportBuilder:
             method_ref=method_refs["STEP.SCENARIOS"],
             as_of=request.as_of,
         )
-        data_quality_checks = self._data_quality_checks(facts, latest, method_refs)
+        data_quality_checks = self._data_quality_checks(
+            facts,
+            latest,
+            method_refs,
+            research_coverage=request.research_coverage,
+            materialization_selected_ids=materialization_selected_ids,
+        )
         sections = self._sections(
             facts,
             dimensional_facts,
@@ -289,6 +308,7 @@ class ReportBuilder:
             tracking_indicators=tracking_indicators,
             model_inputs=request.model_inputs,
             request_metadata={
+                **dict(request.input_metadata),
                 "industry_route": route.key,
                 "report_notes": request.report_notes,
                 "sync_result_id": request.sync_result_id,
@@ -297,6 +317,9 @@ class ReportBuilder:
             },
             research_coverage_snapshot_id=request.research_coverage_snapshot_id,
             research_coverage=dict(request.research_coverage),
+            materialization_selected_fact_ids=sorted(
+                request.materialization_selected_fact_ids
+            ),
         )
 
     @staticmethod
@@ -659,9 +682,28 @@ class ReportBuilder:
         )
 
     def _data_quality_checks(
-        self, facts: list[FactRecord], latest: dict[str, float], method_refs: dict[str, str]
+        self,
+        facts: list[FactRecord],
+        latest: dict[str, float],
+        method_refs: dict[str, str],
+        *,
+        research_coverage: dict[str, Any] | None = None,
+        materialization_selected_ids: frozenset[str] | None = None,
     ) -> list[dict[str, Any]]:
         checks: list[dict[str, Any]] = []
+        periods = (research_coverage or {}).get("periods") or (
+            (research_coverage or {}).get("analysis_scope") or {}
+        )
+        annual_target = (
+            len(periods.get("annual", ()))
+            if isinstance(periods, dict) and periods.get("annual")
+            else 5
+        )
+        quarter_target = (
+            len(periods.get("quarters", ()))
+            if isinstance(periods, dict) and periods.get("quarters")
+            else 12
+        )
         annual_revenue_periods = {
             item.period_end
             for item in facts
@@ -675,26 +717,28 @@ class ReportBuilder:
         checks.extend(
             [
                 {
-                    "check": "五年年度覆盖",
-                    "status": "OK" if len(annual_revenue_periods) >= 5 else "WARN",
-                    "actual_difference": len(annual_revenue_periods) - 5,
+                    "check": f"{annual_target}年年度覆盖",
+                    "status": "OK" if len(annual_revenue_periods) >= annual_target else "WARN",
+                    "actual_difference": len(annual_revenue_periods) - annual_target,
                     "tolerance": 0,
-                    "message": f"营业收入年度期数={len(annual_revenue_periods)}，目标不少于5",
+                    "message": f"营业收入年度期数={len(annual_revenue_periods)}，目标不少于{annual_target}",
                     "method_ref": method_refs["FIN.NORMALIZATION"],
                 },
                 {
-                    "check": "十二个单季覆盖",
-                    "status": "OK" if len(quarter_revenue_periods) >= 12 else "WARN",
-                    "actual_difference": len(quarter_revenue_periods) - 12,
+                    "check": f"{quarter_target}个单季覆盖",
+                    "status": "OK" if len(quarter_revenue_periods) >= quarter_target else "WARN",
+                    "actual_difference": len(quarter_revenue_periods) - quarter_target,
                     "tolerance": 0,
-                    "message": f"营业收入单季度期数={len(quarter_revenue_periods)}，目标不少于12",
+                    "message": f"营业收入单季度期数={len(quarter_revenue_periods)}，目标不少于{quarter_target}",
                     "method_ref": method_refs["FIN.NORMALIZATION"],
                 },
             ]
         )
         critical = [
             item
-            for item in self._critical_facts_in_analysis_window(facts)
+            for item in self._critical_facts_in_analysis_window(
+                facts, annual_target=annual_target
+            )
             if item.value is not None
         ]
         dual_count = sum(
@@ -702,10 +746,19 @@ class ReportBuilder:
         )
         supplier_count = sum(
             item.verification_status == VerificationStatus.SUPPLIER_DIRECT
-            and is_fact_consumable(item)
+            and is_fact_consumable(
+                item,
+                materialization_selected_ids=materialization_selected_ids,
+            )
             for item in critical
         )
-        consumable_count = sum(is_fact_consumable(item) for item in critical)
+        consumable_count = sum(
+            is_fact_consumable(
+                item,
+                materialization_selected_ids=materialization_selected_ids,
+            )
+            for item in critical
+        )
         checks.append(
             {
                 "check": "关键字段统一事实准入",
@@ -756,12 +809,12 @@ class ReportBuilder:
         return checks
 
     def _critical_facts_in_analysis_window(
-        self, facts: list[FactRecord]
+        self, facts: list[FactRecord], *, annual_target: int = 5
     ) -> list[FactRecord]:
-        """Limit acceptance checks to the report's five-year analysis window.
+        """Limit acceptance checks to the report's configured annual window.
 
         A selected annual filing also contains the preceding year's comparison
-        column.  That raw value is useful lineage, but it sits outside the five
+        column.  That raw value is useful lineage, but it sits outside the
         requested annual periods and must not inflate the dual-source
         denominator.
         """
@@ -775,7 +828,11 @@ class ReportBuilder:
                 and item.period_end is not None
             }
         )
-        window_start = annual_periods[-5] if len(annual_periods) >= 5 else None
+        window_start = (
+            annual_periods[-annual_target]
+            if len(annual_periods) >= annual_target
+            else None
+        )
         return [
             item
             for item in facts
@@ -784,8 +841,15 @@ class ReportBuilder:
         ]
 
 
-def _latest_numeric_facts(facts: list[FactRecord]) -> dict[str, float]:
-    latest = latest_consumable_facts(facts)
+def _latest_numeric_facts(
+    facts: list[FactRecord],
+    *,
+    materialization_selected_ids: frozenset[str] | None = None,
+) -> dict[str, float]:
+    latest = latest_consumable_facts(
+        facts,
+        materialization_selected_ids=materialization_selected_ids,
+    )
     return {metric_id: fact.value for metric_id, fact in latest.items() if fact.value is not None}
 
 

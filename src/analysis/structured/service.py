@@ -12,6 +12,8 @@ from analysis.acquisition.repository import (
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.models import SyncRequest, SyncResult
+from analysis.exports import export_report
+from analysis.service import AnalysisService
 
 from .exceptions import (
     StructuredBusyError,
@@ -361,6 +363,94 @@ class StructuredDataService:
             "events": [item.model_dump(mode="json") for item in result.events],
             "field_gaps": list(result.field_gaps),
             "sources": [item.model_dump(mode="json") for item in result.sources],
+        }
+
+    def report(
+        self,
+        pack_dir: Path | str,
+        *,
+        output_dir: Path | str,
+        formats: Sequence[str] = ("md", "html", "xlsx", "pdf"),
+        industry: str | None = None,
+    ) -> dict[str, Any]:
+        """从冻结轻量包生成一个持久报告版本及同源导出。"""
+
+        normalized_formats = tuple(dict.fromkeys(str(item).lower() for item in formats))
+        unsupported = sorted(set(normalized_formats) - {"md", "html", "xlsx", "pdf"})
+        if unsupported or not normalized_formats:
+            raise ValueError(
+                "structured report仅支持md、html、xlsx和pdf"
+                + (f": {', '.join(unsupported)}" if unsupported else "")
+            )
+        report_storage = self.acquisition_runtime.report_storage
+        if report_storage.db_path.resolve() != self.storage.db_path.resolve():
+            raise StructuredIntegrityError("structured report database binding mismatch")
+        from .reporting_bridge import build_report_request
+
+        request = build_report_request(
+            pack_dir,
+            industry=industry,
+            source_lookup=report_storage.get_source,
+        )
+        report = AnalysisService(storage=report_storage).create_report(request)
+        root = Path(output_dir).resolve()
+        target = root / report.ticker / f"v{report.version}-{report.report_id[:8]}"
+        target.mkdir(parents=True, exist_ok=False)
+        report_json = target / "report.json"
+        report_json.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        paths = {"json": report_json}
+        for format_name in normalized_formats:
+            paths[format_name] = export_report(report, format_name, target)
+
+        from .storage import canonical_json
+        from .research_lite import _hash_file
+
+        outputs = {
+            name: {
+                "path": str(path),
+                "relative_path": path.relative_to(root).as_posix(),
+                "sha256": _hash_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for name, path in paths.items()
+        }
+        manifest = {
+            "schema": "structured-report-output.v1",
+            "status": "created",
+            "report_id": report.report_id,
+            "report_version": report.version,
+            "ticker": report.ticker,
+            "company_name": report.company_name,
+            "industry": report.industry,
+            "industry_route": report.request_metadata.get("industry_route"),
+            "data_snapshot_id": report.data_snapshot_id,
+            "research_coverage_snapshot_id": report.research_coverage_snapshot_id,
+            "method_bundle_id": report.method_bundle_id,
+            "lite_pack_id": report.request_metadata.get("lite_pack_id"),
+            "lite_pack_identity_hash": report.request_metadata.get(
+                "lite_pack_identity_hash"
+            ),
+            "materialization_selected_fact_count": len(
+                report.materialization_selected_fact_ids
+            ),
+            "fact_count": len(report.facts),
+            "dimensional_fact_count": len(report.dimensional_facts),
+            "rating": report.conclusion.rating.value,
+            "rating_confirmed": report.conclusion.rating_confirmed,
+            "performed_network_io": False,
+            "outputs": outputs,
+        }
+        manifest_path = target / "report-manifest.json"
+        manifest_path.write_text(canonical_json(manifest) + "\n", encoding="utf-8")
+        return {
+            **manifest,
+            "output_dir": str(target),
+            "manifest": {
+                "path": str(manifest_path),
+                "relative_path": manifest_path.relative_to(root).as_posix(),
+                "sha256": _hash_file(manifest_path),
+                "bytes": manifest_path.stat().st_size,
+            },
         }
 
     def repair_plan(

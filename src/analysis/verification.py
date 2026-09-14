@@ -369,6 +369,7 @@ def evidence_scores(facts: list[FactRecord], claims: list[ClaimRecord]) -> tuple
         VerificationStatus.DUAL_SOURCE: 1.0,
         VerificationStatus.AUTHORITATIVE_SINGLE: 0.9,
         VerificationStatus.SUPPLIER_DIRECT: 0.85,
+        VerificationStatus.DERIVED: 0.85,
         VerificationStatus.ESTIMATED: 0.6,
         VerificationStatus.NOT_DISCLOSED: 0.2,
         VerificationStatus.UNAVAILABLE: 0.0,

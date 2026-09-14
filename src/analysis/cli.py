@@ -269,6 +269,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     structured_coverage.add_argument("--offset", type=int, default=0)
     _add_bound_storage_arguments(structured_coverage)
 
+    structured_report = structured_commands.add_parser(
+        "report", help="从冻结轻量包生成八步报告及四格式导出"
+    )
+    structured_report.add_argument("--pack", required=True, dest="pack_dir")
+    structured_report.add_argument("--output", required=True, dest="output_dir")
+    structured_report.add_argument(
+        "--format",
+        action="append",
+        choices=["md", "html", "xlsx", "pdf"],
+        dest="formats",
+        help="可重复；默认生成md、html、xlsx和pdf",
+    )
+    structured_report.add_argument("--industry", help="显式行业证据已确认时覆盖包内路由")
+    _add_bound_storage_arguments(structured_report)
+
     args = parser.parse_args(argv)
     if args.command == "serve":
         import uvicorn
@@ -430,6 +445,13 @@ def _run_structured_command(args: argparse.Namespace) -> int:
         elif command == "coverage":
             value = service.coverage(
                 args.snapshot_id, limit=args.limit, offset=args.offset
+            )
+        elif command == "report":
+            value = service.report(
+                args.pack_dir,
+                output_dir=args.output_dir,
+                formats=tuple(args.formats or ("md", "html", "xlsx", "pdf")),
+                industry=args.industry,
             )
         else:
             raise ValueError(f"unknown structured command: {command}")

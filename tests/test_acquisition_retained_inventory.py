@@ -4,7 +4,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from analysis.acquisition.adapters.official import CninfoAcquisitionAdapter
+from analysis.acquisition.adapters.official import (
+    CninfoAcquisitionAdapter,
+    OfficialAcquisitionAdapter,
+)
 from analysis.acquisition.models import AcquisitionPlan
 from analysis.acquisition.registry import DEFAULT_REGISTRY_PATH
 from analysis.acquisition.retained_inventory import export_cninfo_inventory, plan_retained_inventory, validate_inventory
@@ -32,13 +35,18 @@ def origin_bundle(tmp_path, *, audit=False):
                         "adjunctUrl": "finalpage/2001/audit.pdf"})
                     data["totalAnnouncement"] = 3
             return envelope(url=work.url, body=json.dumps(data).encode())
+
+    class LegacyCninfoAdapter(CninfoAcquisitionAdapter):
+        def fetch_resource(self, work):
+            return OfficialAcquisitionAdapter.fetch_resource(self, work)
+
     registry = DEFAULT_REGISTRY_PATH.with_name("business_model_sources.v1.9.json") if audit else DEFAULT_REGISTRY_PATH
     runtime = make_runtime(tmp_path/"origin", None, registry_path=registry)
-    adapter = CninfoAcquisitionAdapter(Transport(), runtime.snapshot_bytes)
+    adapter = LegacyCninfoAdapter(Transport(), runtime.snapshot_bytes)
     runtime.orchestrator._adapter_resolver = lambda *_: adapter
     now = datetime.now(timezone.utc)
     plan = runtime.create_plan(runtime.build_profile("600519"), mode="incremental", run_kind="ad_hoc",
-                                as_of=now, start_at=now-timedelta(days=1))
+                               as_of=now, start_at=now-timedelta(days=1))
     result = runtime.orchestrator.execute_run(plan.run.run_id)
     assert result.material_gap_count == 0
     runtime.close()

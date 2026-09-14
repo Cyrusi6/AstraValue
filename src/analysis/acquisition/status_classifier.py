@@ -55,6 +55,8 @@ _POLICY_REASONS = {
     "license_not_approved",
     "manual_access_review_required",
     "retention_replay_conflict",
+    "research_scope_context_missing",
+    "research_scope_body_not_selected",
 }
 
 

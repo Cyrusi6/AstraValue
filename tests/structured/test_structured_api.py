@@ -79,6 +79,16 @@ class FakeStructuredService:
             "items": rows[offset : offset + limit],
         }
 
+    def report(self, pack_dir, *, output_dir, formats, industry):
+        return {
+            "report_id": "report-1",
+            "pack_dir": pack_dir,
+            "output_dir": output_dir,
+            "formats": formats,
+            "industry": industry,
+            "performed_network_io": False,
+        }
+
     def sync(self, ticker, options):
         return SyncResult(
             ticker=ticker,
@@ -153,3 +163,22 @@ def test_unbound_structured_query_is_503(service):
     response = client.get("/api/structured/registry")
     assert response.status_code == 503
     assert response.json()["error"] == "structured_service_unavailable"
+
+
+def test_structured_report_api_contract_and_path_redaction(service):
+    client = TestClient(create_app(service, structured_service=FakeStructuredService()))
+    response = client.post(
+        "/api/structured/reports",
+        json={
+            "pack_dir": "D:/private/lite-pack",
+            "output_dir": "D:/private/reports",
+            "formats": ["md", "html", "xlsx", "pdf"],
+            "industry": "消费",
+        },
+    )
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["report_id"] == "report-1"
+    assert payload["formats"] == ["md", "html", "xlsx", "pdf"]
+    assert payload["pack_dir"] != "D:/private/lite-pack"
+    assert payload["output_dir"] != "D:/private/reports"

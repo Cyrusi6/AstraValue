@@ -254,6 +254,7 @@ def render_html(report: ReportVersion) -> str:
         for item in report.assumptions
     ]
     coverage_rows = _coverage_rows(report)
+    coverage_print_rows = _coverage_print_rows(report)
     audit_blocks = "".join(
         [
             "<h3>来源清单</h3>" + _html_table(source_rows),
@@ -293,7 +294,8 @@ def render_html(report: ReportVersion) -> str:
 {f'<aside class="fixture-note">{html.escape(str(note))}</aside>' if note else ''}</section>
 <section class="audit"><div class="section-heading"><p>DATA READINESS</p><h2>八步数据覆盖</h2></div>
 <p class="meta">覆盖快照 {html.escape(report.research_coverage_snapshot_id or '该版本未评估')} · 数据状态 {html.escape(str(report.research_coverage.get('overall_status', '未评估')))}</p>
-{_html_table(coverage_rows)}</section>
+<div class="screen-only">{_html_table(coverage_rows)}</div>
+<div class="print-only">{_html_table(coverage_print_rows, table_class='coverage-print')}</div></section>
 {''.join(sections)}
 <section class="audit"><div class="section-heading"><p>AUDIT TRAIL</p><h2>审计附录</h2></div>{audit_blocks}</section>
 <footer>个人投研辅助材料，不构成投资建议。评级需由用户确认，所有数字应通过审计附录复核。</footer>
@@ -935,6 +937,48 @@ def _coverage_rows(report: ReportVersion) -> list[dict[str, Any]]:
     ]
 
 
+def _coverage_print_rows(report: ReportVersion) -> list[dict[str, Any]]:
+    """Keep PDF coverage readable while retaining the complete HTML table."""
+
+    rows = []
+    for row in _coverage_rows(report):
+        required_count = _json_list_count(row.get("必需项"))
+        ready_count = _json_list_count(row.get("已得必需项"))
+        progress = (
+            f"{ready_count}/{required_count}"
+            if required_count is not None and ready_count is not None
+            else "见完整明细"
+        )
+        rows.append(
+            {
+                "步骤": row.get("步骤"),
+                "问题": row.get("问题"),
+                "数据状态": row.get("数据状态"),
+                "适用性": row.get("适用性"),
+                "要求进度": progress,
+                "待补必需项": row.get("待补必需项"),
+                "补充路径": row.get("补充路径"),
+                "方法/假设/研究": " / ".join(
+                    str(row.get(key, "unknown"))
+                    for key in ("方法状态", "假设状态", "研究状态")
+                ),
+            }
+        )
+    return rows
+
+
+def _json_list_count(value: Any) -> int | None:
+    if isinstance(value, (list, tuple, set)):
+        return len(value)
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return None
+    return len(parsed) if isinstance(parsed, list) else None
+
+
 def _unique_values(*groups: Any) -> list[Any]:
     values: list[Any] = []
     for group in groups:
@@ -1309,7 +1353,7 @@ def _markdown_cell(value: Any) -> str:
     return _stringify(value).replace("|", "\\|").replace("\n", "<br>")
 
 
-def _html_table(rows: Any) -> str:
+def _html_table(rows: Any, *, table_class: str = "") -> str:
     normalized = _normalize_rows(rows)
     if not normalized:
         return "<p class='muted'>暂无该数据</p>"
@@ -1320,7 +1364,8 @@ def _html_table(rows: Any) -> str:
                 columns.append(key)
     head = "".join(f"<th>{html.escape(str(item))}</th>" for item in columns)
     body = "".join("<tr>" + "".join(f"<td>{html.escape(_stringify(row.get(key)))}</td>" for key in columns) + "</tr>" for row in normalized)
-    return f"<div class='table-scroll'><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
+    class_attribute = f" class='{html.escape(table_class)}'" if table_class else ""
+    return f"<div class='table-scroll'><table{class_attribute}><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
 
 
 def _stringify(value: Any) -> str:
@@ -1367,5 +1412,5 @@ def _excel_number_format(unit: Any) -> str:
 
 
 _CSS = """
-:root{--ink:#17212b;--muted:#657483;--navy:#173b57;--blue:#2e678f;--pale:#f2f6f8;--line:#d9e1e7;--green:#1d7a45;--amber:#a56600;--red:#a6302b}*{box-sizing:border-box}body{margin:0;background:#e9eef1;color:var(--ink);font:14px/1.65 Inter,"Microsoft YaHei","Noto Sans CJK SC",sans-serif}main{max-width:1180px;margin:0 auto;padding:34px 28px 70px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;background:var(--navy);color:white;padding:32px 36px;border-radius:18px 18px 0 0}.hero h1{font-size:34px;line-height:1.2;margin:5px 0}.hero h1 span{font-size:18px;font-weight:500;opacity:.75}.hero p{margin:0}.eyebrow{letter-spacing:.12em;font-size:12px;color:#b9d6e9}.status{padding:7px 14px;border-radius:999px;font-weight:700;background:#fff;color:var(--navy)}.status.good{color:var(--green)}.status.attention{color:var(--amber)}section{background:white;border:1px solid var(--line);border-top:0;padding:30px 36px}.conclusion{border-top:4px solid #d5a940}.section-heading p{margin:0;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.16em}.section-heading h2{font-size:26px;margin:2px 0 20px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpis article{padding:17px;border:1px solid var(--line);background:var(--pale);border-radius:9px}.kpis label,.kpis small{display:block;color:var(--muted)}.kpis strong{display:block;font-size:21px;margin:3px 0}.triad{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}.triad h3{font-size:15px;border-bottom:2px solid var(--navy);padding-bottom:7px}.meta,.method-ref,small,.muted{color:var(--muted);font-size:12px}.fixture-note,.warning{margin-top:20px;padding:12px 15px;border-left:4px solid #d5a940;background:#fff8df}.step{display:grid;grid-template-columns:62px 1fr;gap:20px}.step-no{font:700 23px/1 Georgia,serif;color:var(--blue);padding-top:4px}.step h2{margin:0;font-size:23px}.lede{font-size:15px}.claims{padding-left:18px}.claims li{margin:7px 0}.claims small{display:block}.badge{display:inline-block;margin-right:7px;padding:1px 8px;border-radius:99px;background:#e2eef5;color:var(--blue);font-size:11px}.table-block{margin:20px 0}.table-block h3,.audit h3{font-size:15px;margin:22px 0 8px}.table-scroll{overflow:auto;border:1px solid var(--line);border-radius:7px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:var(--navy);color:white;text-align:left;position:sticky;top:0}th,td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere}tr:last-child td{border-bottom:0}.audit{border-top:5px solid var(--navy)}footer{text-align:center;background:var(--navy);color:#c9d7e1;padding:22px;border-radius:0 0 18px 18px;font-size:12px}@media(max-width:800px){main{padding:0}.hero{border-radius:0}.kpis,.triad{grid-template-columns:1fr 1fr}.step{grid-template-columns:42px 1fr}section{padding:24px 18px}}@media print{@page{size:A4;margin:13mm 11mm}body{background:white;font-size:10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}main{max-width:none;margin:0;padding:0}.hero{border-radius:0;padding:20px 24px}.hero h1{font-size:24px}section{padding:18px 22px}.step{break-before:page;display:block}.step-no{float:right}.step h2{font-size:19px}.kpis{grid-template-columns:repeat(4,1fr)}.kpis article{padding:10px}.kpis strong{font-size:15px}.triad{gap:12px}.table-scroll{overflow:visible}table{font-size:8px;table-layout:fixed}th,td{padding:4px;word-break:normal;overflow-wrap:anywhere}.audit{break-before:page}.audit h3{break-after:avoid}footer{border-radius:0}.status{font-size:10px}}
+:root{--ink:#17212b;--muted:#657483;--navy:#173b57;--blue:#2e678f;--pale:#f2f6f8;--line:#d9e1e7;--green:#1d7a45;--amber:#a56600;--red:#a6302b}*{box-sizing:border-box}body{margin:0;background:#e9eef1;color:var(--ink);font:14px/1.65 Inter,"Microsoft YaHei","Noto Sans CJK SC",sans-serif}main{max-width:1180px;margin:0 auto;padding:34px 28px 70px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;background:var(--navy);color:white;padding:32px 36px;border-radius:18px 18px 0 0}.hero h1{font-size:34px;line-height:1.2;margin:5px 0}.hero h1 span{font-size:18px;font-weight:500;opacity:.75}.hero p{margin:0}.eyebrow{letter-spacing:.12em;font-size:12px;color:#b9d6e9}.status{padding:7px 14px;border-radius:999px;font-weight:700;background:#fff;color:var(--navy)}.status.good{color:var(--green)}.status.attention{color:var(--amber)}section{background:white;border:1px solid var(--line);border-top:0;padding:30px 36px}.conclusion{border-top:4px solid #d5a940}.section-heading p{margin:0;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.16em}.section-heading h2{font-size:26px;margin:2px 0 20px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpis article{padding:17px;border:1px solid var(--line);background:var(--pale);border-radius:9px}.kpis label,.kpis small{display:block;color:var(--muted)}.kpis strong{display:block;font-size:21px;margin:3px 0}.triad{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}.triad h3{font-size:15px;border-bottom:2px solid var(--navy);padding-bottom:7px}.meta,.method-ref,small,.muted{color:var(--muted);font-size:12px}.fixture-note,.warning{margin-top:20px;padding:12px 15px;border-left:4px solid #d5a940;background:#fff8df}.step{display:grid;grid-template-columns:62px 1fr;gap:20px}.step-no{font:700 23px/1 Georgia,serif;color:var(--blue);padding-top:4px}.step h2{margin:0;font-size:23px}.lede{font-size:15px}.claims{padding-left:18px}.claims li{margin:7px 0}.claims small{display:block}.badge{display:inline-block;margin-right:7px;padding:1px 8px;border-radius:99px;background:#e2eef5;color:var(--blue);font-size:11px}.table-block{margin:20px 0}.table-block h3,.audit h3{font-size:15px;margin:22px 0 8px}.table-scroll{overflow:auto;border:1px solid var(--line);border-radius:7px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:var(--navy);color:white;text-align:left;position:sticky;top:0}th,td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere}tr:last-child td{border-bottom:0}.audit{border-top:5px solid var(--navy)}.print-only{display:none}footer{text-align:center;background:var(--navy);color:#c9d7e1;padding:22px;border-radius:0 0 18px 18px;font-size:12px}@media(max-width:800px){main{padding:0}.hero{border-radius:0}.kpis,.triad{grid-template-columns:1fr 1fr}.step{grid-template-columns:42px 1fr}section{padding:24px 18px}}@media print{@page{size:A4;margin:13mm 11mm}body{background:white;font-size:10px;print-color-adjust:exact;-webkit-print-color-adjust:exact}main{max-width:none;margin:0;padding:0}.hero{border-radius:0;padding:20px 24px}.hero h1{font-size:24px}section{padding:18px 22px}.step{break-before:page;display:block}.step-no{float:right}.step h2{font-size:19px}.kpis{grid-template-columns:repeat(4,1fr)}.kpis article{padding:10px}.kpis strong{font-size:15px}.triad{gap:12px}.table-scroll{overflow:visible}table{font-size:8px;table-layout:fixed}th,td{padding:4px;word-break:normal;overflow-wrap:anywhere}.screen-only{display:none}.print-only{display:block}.coverage-print th:nth-child(1){width:7%}.coverage-print th:nth-child(2){width:9%}.coverage-print th:nth-child(3){width:8%}.coverage-print th:nth-child(4){width:8%}.coverage-print th:nth-child(5){width:8%}.coverage-print th:nth-child(6){width:30%}.coverage-print th:nth-child(7){width:20%}.coverage-print th:nth-child(8){width:10%}.audit{break-before:page}.audit h3{break-after:avoid}footer{border-radius:0}.status{font-size:10px}}
 """

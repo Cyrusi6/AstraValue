@@ -734,6 +734,7 @@ class ReportVersion(BaseModel):
     request_metadata: dict[str, Any] = Field(default_factory=dict)
     research_coverage_snapshot_id: str | None = None
     research_coverage: dict[str, Any] = Field(default_factory=dict)
+    materialization_selected_fact_ids: list[str] = Field(default_factory=list)
 
     @field_validator("sections")
     @classmethod
@@ -773,9 +774,19 @@ class ReportCreateRequest(BaseModel):
     event_sync_result_id: str | None = None
     research_coverage_snapshot_id: str | None = None
     research_coverage: dict[str, Any] = Field(default_factory=dict)
+    materialization_selected_fact_ids: list[str] = Field(default_factory=list)
+    input_metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_price_timestamp(self) -> "ReportCreateRequest":
+        selected = self.materialization_selected_fact_ids
+        if len(selected) != len(set(selected)):
+            raise ValueError("物化选择事实ID不得重复")
+        missing_selected = sorted(set(selected) - {item.fact_id for item in self.facts})
+        if missing_selected:
+            raise ValueError(
+                "物化选择事实ID必须存在于报告事实中: " + ", ".join(missing_selected)
+            )
         if self.current_price is None:
             if self.price_as_of is not None:
                 raise ValueError("没有当前价格时不应单独提供价格时点")

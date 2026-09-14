@@ -86,6 +86,7 @@ def latest_consumable_facts(
     *,
     as_of: datetime | None = None,
     strict_historical: bool = False,
+    materialization_selected_ids: frozenset[str] | None = None,
 ) -> dict[str, FactRecord]:
     latest: dict[str, FactRecord] = {}
     for fact in facts:
@@ -93,6 +94,7 @@ def latest_consumable_facts(
             fact,
             as_of=as_of,
             strict_historical=strict_historical,
+            materialization_selected_ids=materialization_selected_ids,
         ):
             continue
         current = latest.get(fact.metric_id)

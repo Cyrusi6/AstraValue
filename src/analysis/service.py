@@ -298,4 +298,19 @@ class AnalysisService:
             ),
             research_coverage_snapshot_id=report.research_coverage_snapshot_id,
             research_coverage=deepcopy(report.research_coverage),
+            materialization_selected_fact_ids=deepcopy(
+                report.materialization_selected_fact_ids
+            ),
+            input_metadata={
+                key: deepcopy(value)
+                for key, value in report.request_metadata.items()
+                if key
+                not in {
+                    "industry_route",
+                    "report_notes",
+                    "sync_result_id",
+                    "dimensional_sync_result_id",
+                    "event_sync_result_id",
+                }
+            },
         )

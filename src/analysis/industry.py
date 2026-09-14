@@ -30,8 +30,17 @@ class IndustryRouter:
                 candidates.append(normalized[: -len(suffix)])
         key = next(
             (self._aliases[item] for item in candidates if item in self._aliases),
-            normalized if normalized in self._routes else self._default,
+            normalized if normalized in self._routes else None,
         )
+        if key is None:
+            return IndustryRoute(
+                key="unknown",
+                label="行业未知",
+                industry_method_id="STEP.INDUSTRY",
+                valuation_method_ids=(),
+                required_metrics=(),
+                warnings=("行业画像尚未证实；不自动套用普通企业估值模型",),
+            )
         data = self._routes[key]
         return IndustryRoute(
             key=key,
