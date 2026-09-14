@@ -1,6 +1,6 @@
 # 八步轻量核心版实施计划（交给 Sol）
 
-日期：2026-09-13。状态：第 5 节实现与自动/缓存验收已完成；当前联网仅完成茅台期后目录，人工业务验收仍为 pending。实际命令见 [轻量运行说明](eight-step-lite-runbook.md)，结果见 [逐公司验收表](eight-step-lite-acceptance.md)。
+日期：2026-09-13；状态更新：2026-09-14。第 5 节实现与自动/缓存验收已完成，七家公司期后目录均已真实刷新并闭合；用户已明确确认“全部通过”，七家公司当前轻量输入包的人工业务验收为 `passed`。完整 54 题研究、报告、前端和全市场批处理仍未完成或继续暂停。实际命令见 [轻量运行说明](eight-step-lite-runbook.md)，结果见 [逐公司验收表](eight-step-lite-acceptance.md)。
 
 ## 1. 执行目标与边界
 
@@ -150,7 +150,7 @@ python -m analysis.structured.research evidence `
 
 定向测试优先扩展 `tests/structured/test_research_scope.py`、`test_research_processing.py` 及必要轻量包测试，覆盖预算保留风险、证据真实性、时间窗口、重复运行、补采范围。运行相关测试、`openspec validate eight-step-production-pipeline-v1 --strict`、`git diff --check`；通过后无新疑点不反复全测。
 
-交付完成指：上述实现和验证证据已保存，用户能直接生成并阅读七家公司核心包，所有未取得或待处理输入有具体位置/原因，缓存复用可复算。不是“数据全齐”，也不是“八步研究/人工验收完成”。缺来源可交付透明 partial 包；不可用全空包、尚未实现的选择逻辑或虚构风险摘要满足交付。最终逐公司列出 ready/source_text_available/pending、token数、输入期间、真实请求数、剩余必要输入与处理项。
+交付完成指：上述实现和验证证据已保存，用户能直接生成并阅读七家公司核心包，所有未取得或待处理输入有具体位置/原因，缓存复用可复算。用户于 2026-09-14 已确认这七个轻量输入包人工验收通过；这仍不等于“数据全齐”或“完整八步研究完成”。缺来源可交付透明 partial 包；不可用全空包、尚未实现的选择逻辑或虚构风险摘要满足交付。最终逐公司列出 ready/source_text_available/pending、token数、输入期间、真实请求数、剩余必要输入与处理项。
 
 ## 8. 给 Sol 的启动指令
 
