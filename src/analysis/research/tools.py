@@ -8,6 +8,7 @@ def operations(workspace: ResearchWorkspace) -> dict:
     from .jobs import MaterialJobs
     from .knowledge import Knowledge
     from .reports import Reports
+    from .valuation_history import ValuationHistory
     registry = {name: getattr(workspace, name) for name in (
         "prepare_research", "get_task", "query_research", "read_evidence", "read_document_page",
     )}
@@ -18,6 +19,7 @@ def operations(workspace: ResearchWorkspace) -> dict:
         (MaterialJobs(workspace), ("request_materials", "query_material_requirements", "resume_task", "adopt_snapshot")),
         (Knowledge(workspace), ("search_knowledge",)),
         (Reports(workspace), ("build_report", "view_report")),
+        (ValuationHistory(workspace), ("query_valuation",)),
     ):
         registry.update({name: getattr(instance, name) for name in names})
 

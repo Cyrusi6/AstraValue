@@ -40,6 +40,8 @@ python -m analysis.research.cli search_knowledge --arguments '{"question":"现�
 
 ## MCP 与补采状态
 
+新增 `query_valuation(research_id,start_date,end_date,peers,reference_multiple)` 从已登记真实缓存生成独立估值事实投影，返回区间PE统计、1/3年窗口敏感性和共同有效日同行比较。只读原缓存、不发网络请求、不改旧研究包；历史窗口单独进入合同哈希，保留正式准入、源哈希和复算记录。数据缺失返回共同日期缺口，跨运行冲突拒绝静默覆盖。具体接口、已有能力和仍待接入的API见[研究补采自动化清单](research-automation-map.md)。
+
 MCP stdio 服务：`python -m analysis.research.mcp_server`。设置与 CLI 相同的 Python 环境和依赖（`pip install -e ".[research]"`）；宿主配置中的 command 使用已安装依赖的 Python 绝对路径，args 为 `-m analysis.research.mcp_server`，PYTHONPATH 指向本项目 src。MCP 与 CLI 调用同一服务；图片查看返回 MCP Image。已经验证真实进程握手、工具发现和错误返回，尚未完成 Codex／Claude Code 各自的完整宿主验收。
 
 `request_materials`、`query_material_requirements`、`resume_task` 已有持久任务接口；失败重试与正常分轮分别计数，同一资料需求不能改写问题文本绕过重试预算。补采候选快照必须显式 `adopt_snapshot`，不会自动混入原研究。该采集路径仍待真实联网、中断及来源备选验收，不能将接口存在视为已完成自动补采。

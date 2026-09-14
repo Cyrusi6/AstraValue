@@ -76,7 +76,8 @@ class StructuredFactMaterializer:
                     strict_historical: bool = False,
                     interpretation_contract: str | None = None,
                     research_scope: bool | None = None,
-                    research_profile_id: str | None = None) -> MaterializationResult:
+                    research_profile_id: str | None = None,
+                    valuation_window: tuple[str, str] | None = None) -> MaterializationResult:
         cutoff = _timestamp(as_of) if as_of is not None else None
         if strict_historical and cutoff is None:
             raise ValueError("strict_historical requires timezone-aware as_of")
@@ -112,6 +113,17 @@ class StructuredFactMaterializer:
         market_start = context.frozen_config.get("valuation_start")
         market_cutoff = (cutoff or self.repository.get_run(run_id).as_of).date().isoformat() if research_scope else None
         market_latest = self.storage.latest_market_date(run_id, market_cutoff) if research_scope else None
+        if valuation_window is not None:
+            # Explicit research projection, never rewrite the frozen acquisition context.
+            if not research_scope or len(valuation_window) != 2:
+                raise ValueError("valuation_window_requires_research_scope_and_two_dates")
+            start, end = (date.fromisoformat(v).isoformat() for v in valuation_window)
+            if start > end or end > market_cutoff:
+                raise ValueError("invalid_valuation_window")
+            market_start, market_cutoff = start, end
+            contract_hash = canonical_sha256({"contract": contract_hash,
+                "valuation_window": [start, end], "projection": "valuation-history-v1",
+                "fields": ["PE_TTM", "PB_MRQ", "CLOSE_PRICE"]})
         jobs = {str(j["job_id"]): j for j in self.storage.list_jobs(run_id, limit=None)}
         datasets = {d["dataset_id"]: d for d in context.frozen_config.get("datasets", [])}
         frozen_sources = {(s["source_definition_id"], str(s.get("version", s.get("source_definition_version")))): s
@@ -152,6 +164,8 @@ class StructuredFactMaterializer:
                     for name, value in load_scope()["datasets"].items()
                     if value["selection"] != "excluded" and name in mapped_datasets
                 ]
+        if valuation_window is not None:
+            read_options["dataset_ids"] = ["market_cap"]
         for record, fields in self.storage.iter_committed_record_bundles(run_id, **read_options):
             job = jobs.get(str(record.get("job_id")))
             candidates += len(fields)
@@ -206,6 +220,9 @@ class StructuredFactMaterializer:
             source = _source_for_snapshot(snapshot, job, source_definition)
             for field in fields:
                 raw_name = field.get("raw_field_name")
+                if valuation_window is not None and raw_name not in {"PE_TTM", "PB_MRQ", "CLOSE_PRICE"}:
+                    gap("outside_valuation_projection", record, field)
+                    continue
                 if research_scope and not field_selected(
                     dataset_id, raw_name, research_profile_id
                 ):

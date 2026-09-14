@@ -1,5 +1,6 @@
 {
   "version": "research-workspace-v1",
+  "valuation_caches": [{"db": "D:/估值模型-worktrees/business-model-cninfo-direct-empty/var/pilots/cninfo-content-archive-20260905/runtime/analysis.db", "data_root": "D:/估值模型-worktrees/business-model-cninfo-direct-empty/var/pilots/cninfo-content-archive-20260905/runtime/data"}],
   "state_root": "var/research-workspace",
   "identity_file": "tmp/data-layer-evidence/cninfo-stock-list.json",
   "pack_roots": ["tmp/moutai-golden-v1/lite", "tmp/eight-step-lite-v1"],

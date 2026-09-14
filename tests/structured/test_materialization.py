@@ -78,8 +78,17 @@ class Fixture:
     def list_jobs(self, run_id, **_):
         return self.jobs
 
-    def iter_committed_record_bundles(self, run_id):
-        yield from self.rows
+    def iter_committed_record_bundles(self, run_id, dataset_ids=None):
+        for record, fields in self.rows:
+            if dataset_ids is None or fields[0]['dataset_id'] in dataset_ids:
+                yield record, fields
+
+    def latest_market_date(self, run_id, cutoff):
+        return max((r['raw_row'].get('TRADE_DATE', '') for r, _ in self.rows
+                    if r['raw_row'].get('TRADE_DATE', '') <= cutoff), default=None)
+
+    def get_run(self, run_id):
+        return SimpleNamespace(as_of=NOW)
 
     def get_raw_resource_snapshot(self, snapshot_id):
         return self.snapshots[snapshot_id]
@@ -398,3 +407,59 @@ def test_registered_same_source_ttm_is_preferred():
     result = fixture.run()
     ttm = [f for f in result.facts if f.period_type == "ttm"]
     assert len(ttm) == 1 and not ttm[0].derived_from_fact_ids
+
+
+def test_explicit_valuation_window_is_separate_stable_and_does_not_change_context():
+    fixture = Fixture(embedded=True)
+    rule = {"dataset_id":"market_cap", "raw_field":"PE_TTM", "standard_field":"pe_ttm",
+        "nature":"observed", "unit":"multiple", "period_kind":"market_quote", "value_kind":"ratio",
+        "definition_id":"test:pe", "multiplier":"1", "scope":"consolidated",
+        "stored_unit":"multiple", "original_unit":"multiple"}
+    for day in ['2026-09-08','2026-09-09','2026-09-10']:
+        fixture.add('market_cap','PE_TTM','20',day,row={'TRADE_DATE':day},rule=rule)
+    fixture.add()
+    fixture.get_run_context('run-1')
+    original = deepcopy(fixture.context.frozen_config)
+    default = fixture.run(research_scope=True)
+    history = fixture.run(research_scope=True,valuation_window=('2026-09-08','2026-09-09'))
+    assert {f.period_end.isoformat() for f in history.facts} == {'2026-09-08','2026-09-09'}
+    assert {f.metric_id for f in history.facts} == {'pe_ttm'}
+    assert history.materialization_hash == fixture.run(research_scope=True,valuation_window=('2026-09-08','2026-09-09')).materialization_hash
+    assert default.contract_hash != history.contract_hash
+    assert default.materialization_hash == fixture.run(research_scope=True).materialization_hash
+    assert original == fixture.context.frozen_config
+    with pytest.raises(ValueError, match='invalid_valuation_window'):
+        fixture.run(research_scope=True,valuation_window=('2026-09-10','2026-09-09'))
+    with pytest.raises(ValueError, match='invalid_valuation_window'):
+        fixture.run(research_scope=True,valuation_window=('2026-09-08','2026-09-11'))
+    with pytest.raises(ValueError, match='valuation_window_requires'):
+        fixture.run(valuation_window=('2026-09-08','2026-09-09'))
+
+
+def test_valuation_admission_checks_original_bytes_units_and_selection(tmp_path):
+    from dataclasses import replace
+    from analysis.research.valuation_history import admit
+    from analysis.research.workspace import ResearchError, sha
+    fixture = Fixture()
+    fixture.add()
+    result = fixture.run()
+    fact = result.facts[0]
+    fact.metric_id = 'eastmoney_pe_ttm'
+    fact.unit = 'ratio'
+    fact.period_type = 'market_quote'
+    fact.metadata['interpretation_definition_id'] = 'verified-test'
+    raw = tmp_path/'response.json'
+    raw.write_text('{"value":"100.5"}',encoding='utf-8')
+    snapshot = fixture.snapshots[fact.metadata['structured_snapshot_id']]
+    snapshot.archive_relative_path = 'response.json'
+    snapshot.sha256 = sha(raw)
+    rows, facts = admit(result, fixture, tmp_path.resolve(), {})
+    assert len(facts) == 1 and rows['eastmoney_pe_ttm']['2026-06-30']['value'] == '100.5'
+    assert not admit(replace(result, selected_fact_ids=()), fixture, tmp_path.resolve(), {})[1]
+    fact.unit = 'percent'
+    with pytest.raises(ResearchError, match='semantics'):
+        admit(result, fixture, tmp_path.resolve(), {})
+    fact.unit = 'ratio'
+    raw.write_text('changed',encoding='utf-8')
+    with pytest.raises(ResearchError, match='snapshot_bytes'):
+        admit(result, fixture, tmp_path.resolve(), {})

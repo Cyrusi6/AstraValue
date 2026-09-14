@@ -22,7 +22,7 @@ def test_stdio_initialize_list_and_invalid_research_is_structured_error():
                 await session.initialize()
                 listing = await session.list_tools()
                 names = {tool.name for tool in listing.tools}
-                assert {"prepare_research", "calculate", "save_section", "build_report", "view_report"} <= names
+                assert {"prepare_research", "calculate", "save_section", "build_report", "view_report", "query_valuation"} <= names
                 response = await session.call_tool("get_task", {"research_id": "nonexistent-test"})
                 assert response.isError
                 assert "unknown_research_id" in str(response.content)
