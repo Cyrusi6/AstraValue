@@ -679,6 +679,24 @@ def _auxiliary_inputs(roots: Sequence[Path]) -> list[dict[str, Any]]:
     return values
 
 
+def _merge_request_audit(
+    existing: Sequence[Mapping[str, Any]], current: Sequence[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """合并多公司目录请求；同一缓存键保留首次真实 I/O 证据。"""
+    merged: dict[str, dict[str, Any]] = {}
+    for item in [*existing, *current]:
+        request_key = str(item.get("request_key") or "")
+        if not request_key:
+            raise ValueError("catalog_request_key_missing")
+        previous = merged.get(request_key)
+        if previous is not None:
+            if previous.get("sha256") != item.get("sha256"):
+                raise ValueError(f"catalog_request_snapshot_conflict:{request_key}")
+            continue
+        merged[request_key] = dict(item)
+    return [merged[key] for key in sorted(merged)]
+
+
 def refresh_lite_catalog(
     *, output_root: Path, ticker: str, as_of: date, profile_id: str = LITE_PROFILE_ID
 ) -> dict[str, Any]:
@@ -817,11 +835,16 @@ def refresh_lite_catalog(
         for item in existing.get("catalogs", [])
         if not (item.get("ticker") == ticker and item.get("scope") == "post_annual_events")
     ] + [catalog]
-    existing["requests"] = transport.requests
+    current_network_io = any(
+        not item.get("cache_reused", False) for item in transport.requests
+    )
+    existing["requests"] = _merge_request_audit(
+        existing.get("requests", []), transport.requests
+    )
     existing["profile_id"] = profile_id
     existing["profile_sha256"] = profile["content_sha256"]
     existing["performed_network_io"] = any(
-        not item.get("cache_reused", False) for item in transport.requests
+        not item.get("cache_reused", False) for item in existing["requests"]
     )
     existing["manual_acceptance"] = "pending"
     _write_json(existing_path, existing)
@@ -835,7 +858,7 @@ def refresh_lite_catalog(
         "uncached_requests": sum(
             not item.get("cache_reused", False) for item in transport.requests
         ),
-        "performed_network_io": existing["performed_network_io"],
+        "performed_network_io": current_network_io,
         "output": str(existing_path.resolve()),
         "stock_list_request_key": stock_proof["request_key"],
     }

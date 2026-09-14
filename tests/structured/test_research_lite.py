@@ -3,7 +3,14 @@ import json
 from datetime import date
 from pathlib import Path
 
-from analysis.structured.research_lite import build_lite_pack, lite_periods, read_evidence
+import pytest
+
+from analysis.structured.research_lite import (
+    _merge_request_audit,
+    build_lite_pack,
+    lite_periods,
+    read_evidence,
+)
 from analysis.structured.scope import LITE_PROFILE_ID, load_research_profile
 
 
@@ -129,3 +136,14 @@ def test_historical_as_of_uses_latest_disclosed_interim(tmp_path):
     payload=json.loads((Path(result['pack_dir'])/'core-pack.json').read_text(encoding='utf8'))
     interim=payload['catalog']['required_reports']['latest_interim']
     assert interim['period']=='2025-06-30' and interim['resource_ids']==['prior-interim']
+
+
+def test_catalog_request_audit_accumulates_and_preserves_real_io():
+    first={'request_key':'stock-list','sha256':'a','cache_reused':False}
+    replay={'request_key':'stock-list','sha256':'a','cache_reused':True}
+    company={'request_key':'company-page','sha256':'b','cache_reused':False}
+    merged=_merge_request_audit([first],[replay,company])
+    assert [item['request_key'] for item in merged]==['company-page','stock-list']
+    assert next(item for item in merged if item['request_key']=='stock-list')['cache_reused'] is False
+    with pytest.raises(ValueError,match='catalog_request_snapshot_conflict'):
+        _merge_request_audit([first],[first|{'sha256':'changed'}])
