@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## 1. 数据契约与注册表
 
 - [x] 1.1 在 `src/analysis/acquisition/models.py` 增加采集 mode/run/attempt 状态枚举及 `SourceDefinition`、`SourceQueryDefinition`、`CompanyAcquisitionProfile`、`AcquisitionRun`/event、`PhysicalQueryPlanItem`、`PhysicalQueryCoverageLink`、`AcquisitionExecutionLease`、`AcquisitionAttempt`/event/segment、`DiscoveryObservation`/`DiscoveryProof`/`DiscoveredResource`、`ResourceObservation`、`CoverageEntry`/resolution、`SourceCheckpoint`、`BarrierResolution`、`StorageNamespace`、`StorageBindingIntent`、`SourceCandidate`、`ContentBlob`、`RawResourceSnapshot`、`SnapshotIntegrityEvent`、`DerivedArtifact`、`EvidenceSnapshotManifest` 模型，并通过兼容导出保持旧 `src/analysis/models.py` 引用可用；运行 `python -m pytest tests/test_acquisition_models.py -q` 验证时区/精度、枚举、冻结字段、plan-to-coverage M:N 身份、attempt 只引用 plan item、lease epoch/TTL、outcome 与 abandoned 互斥、barrier resolution 引用、binding intent 不含绝对路径、`content|discovery_response` 条件字段和其他非法组合。

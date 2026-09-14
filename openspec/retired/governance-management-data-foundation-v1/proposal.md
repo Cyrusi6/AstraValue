@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## Why
 
 AstraValue 当前第三步只有治理事件展示和方法 skeleton，尚不能回答“在历史时点，当时已经公开的信息支持怎样的治理与管理层画像”，也不能为项目大脑 Codex 提供可追溯的按需证据查询。现在需要建立独立的数据底座，使 Codex 能在严格无未来信息的前提下自主补采、判断并完成报告，同时把业务缺失与技术完整性失败明确分开。

@@ -6,6 +6,9 @@ context: |
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
   Project: AstraValue, an audit-first A-share eight-step financial analysis and valuation workbench.
   Authority boundaries: 计划.md owns long-term product goals and business invariants; docs/methodology/ and config/methods/ own finance methodology and executable rules; OpenSpec owns one software change's proposal, behavioral contract, design, and tasks; 阶段日志.md owns actual test runs, online sync evidence, report versions, and trust boundaries.
+  Current execution entry: openspec/changes/eight-step-production-pipeline-v1/tasks.md; other changes retain historical or deferred contracts, not parallel work orders.
+  Four layers: framework acquisition and compact processing; optional source-grounded knowledge; host Codex/Claude Code autonomous analysis, assumptions, valuation, rating and prose; deterministic calculation, charts and assembly.
+  Per-assumption user confirmation is not a prerequisite for new research. Human report usability acceptance remains separate.
   Existing methodology files marked content_status: skeleton are not validated finance methodology. OpenSpec must link to them, never silently promote them to complete.
   Never place tokens, credentials, licensed datasets, raw announcements, databases, browser profiles, or generated reports in OpenSpec artifacts or Git.
   Separate automated tests, real online sample checks, and manual golden-sample acceptance. Passing one category never implies the others passed.

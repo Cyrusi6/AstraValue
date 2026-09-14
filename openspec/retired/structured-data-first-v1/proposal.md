@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## Why
 
 当前财务同步默认依次访问正式披露、AKShare、新浪和 BaoStock，关键字段缺少正式披露时仍被降为待核验；公告执行器围绕商业模式正文覆盖，不能表达已经选定的“结构化字段主源成功即可消费、只有缺口补源、重要报告按问题精读”。本变更落实 [字段与阅读基线](../../../docs/acquisition/structured-data-field-plan-v1.md)、[数据层计划 v2.1](../../../八步全量研究数据层实施计划.md) 和 [来源规则](../../../docs/methodology/evidence_policy.md)。

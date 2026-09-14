@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## 1. 有界恢复实施
 
 - [x] 1.1 实现公共 selector 父范围验证及 v1 元数据，首次 overlap 与连续后继不扩窗测试通过。

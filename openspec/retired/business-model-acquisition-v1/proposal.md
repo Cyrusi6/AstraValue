@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## Why
 
 AstraValue 已具备正式公告下载、哈希归档和部分 point-in-time 快照能力，但来源、查询、失败与覆盖结果仍分散在硬编码适配器和自由文本汇总中，无法证明一次“公司业务与商业模式”采集是否对所有合法、适用且相关的来源与时间范围做过完整尝试。现在需要先建立可审计、可增量、不可回写历史的采集底座，再把材料交给解析器或 Codex；长期目标与证据边界继续以 [计划.md](../../../计划.md) 为准，当前仍为骨架的方法论继续以 [第一步方法文件](../../../docs/methodology/steps/01_business_model.md) 为准。

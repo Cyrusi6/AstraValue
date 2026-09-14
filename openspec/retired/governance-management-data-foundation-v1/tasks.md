@@ -1,3 +1,5 @@
+> 历史参考，已于2026-09-14退出活动队列；原任务状态保留，不作当前执行指令。当前任务见 [eight-step-production-pipeline-v1](../../changes/eight-step-production-pipeline-v1/tasks.md)。
+
 ## 1. 并行安全边界与治理注册配置
 
 - [x] 1.1 创建 src/analysis/governance 包、GovernanceAcquisitionPort 和 tests/governance/fakes.py，只引用 shared kernel 的 run、coverage、raw snapshot、manifest 与补采协议，不定义 GovernanceRun、GovernanceCheckpoint、ContentBlob 或 EvidenceSnapshotManifest；运行 python -m pytest tests/governance/test_acquisition_port.py -q，证明 fake 可驱动治理层且不存在第二套控制面。
