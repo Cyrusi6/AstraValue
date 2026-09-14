@@ -1,16 +1,9 @@
-# Retiring the last requirement
+# Removing the last requirement
 
-Read before removing the last requirement from a main spec. Inspect the entire current main spec and `.openspec.yaml`; a targeted excerpt is insufficient to establish safe retirement.
+Read the entire main spec before retiring a capability. Delete `spec.md` only if:
+- This run removes its last requirement; the file was not already empty.
+- It is well formed with Purpose, and has no content beyond its title, Purpose, Requirements and canonical requirement/scenario/example blocks.
+- The change declares `retire_capabilities: true`.
+- The resolved real path stays inside the real specs root; do not follow an external symlink.
 
-Delete `spec.md` only when ALL conditions hold:
-
-1. Removing requirements in this run leaves no requirement blocks.
-2. The rest is well formed, including an existing `## Purpose`.
-3. The main spec was not already empty: if nothing was removed, change nothing.
-4. Every other nonblank line belongs to the title, Purpose, Requirements header, or canonical requirement statements, scenarios or fenced examples. Additional sections block retirement.
-5. The change metadata declares `retire_capabilities: true`.
-6. The resolved real path is inside the real main-specs root. Do not follow a capability-directory symlink to delete an external file.
-
-If any condition fails, leave that capability unchanged, identify the blocker and explain its resolution. Never write an empty `## Requirements` section. Plan the capability edit before writing so a blocked retirement does not leave partial removals behind.
-
-When allowed, delete the file with a literal, verified path; remove its directory only if actually empty. Report the removed `spec.md` and its Purpose. Give checkout-scoped recovery guidance; a pasteable Git restore command is appropriate only for a tracked spec in the caller's checkout. An already-retired, absent capability is an idempotent no-op.
+If any condition fails, leave that capability unchanged and report the blocker. Never leave an empty Requirements section. Remove the directory only if empty. Report the deleted spec and Purpose; already-retired absent specs are a no-op.
