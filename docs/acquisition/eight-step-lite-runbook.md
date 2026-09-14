@@ -1,4 +1,4 @@
-# 八步轻量核心版运行说明（2026-09-13）
+# 八步轻量核心版运行说明（2026-09-14 更新；统一截止日 2026-09-13）
 
 当前实现版本为 `eight-step-lite-pack-v1.0.3`，profile 为 `eight-step-lite-v1.0.0`。默认命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入，不生成报告、评级、目标价或交易指令。七家公司实际验收见 [逐公司验收表](eight-step-lite-acceptance.md)。
 
@@ -11,23 +11,14 @@ $env:PYTHONIOENCODING='utf-8'
 $env:PYTHONPATH=(Resolve-Path src).Path
 ```
 
-茅台包显式引用已保存的期后公告目录证据；该命令本身不联网：
+七家公司均显式引用已保存的期后公告目录证据；该命令本身不联网，并按 ticker 参数顺序串行构建：
 
 ```powershell
 python -m analysis.structured.research lite `
   --input tmp/research-data-layer-v1 `
   --supplement tmp/research-data-layer-live-v1/materialized `
   --supplement tmp/eight-step-lite-v1/network-audit/2026-09-13 `
-  --ticker 600519 --as-of 2026-09-13 `
-  --output tmp/eight-step-lite-v1
-```
-
-其余六家公司可由同一进程按参数顺序串行构建：
-
-```powershell
-python -m analysis.structured.research lite `
-  --input tmp/research-data-layer-v1 `
-  --supplement tmp/research-data-layer-live-v1/materialized `
+  --ticker 600519 `
   --ticker 000858 --ticker 000568 --ticker 000596 `
   --ticker 002304 --ticker 600809 --ticker 603369 `
   --as-of 2026-09-13 --output tmp/eight-step-lite-v1
@@ -47,7 +38,7 @@ python -m analysis.structured.research lite `
   --output tmp/eight-step-lite-v1 --execute
 ```
 
-2026-09-13 已实际执行一次，证据位于 `tmp/eight-step-lite-v1/network-audit/2026-09-13/live-documents.json`：4 个未缓存请求、62 条公告、3 页闭合，`terminal=true`、`body_downloaded=false`。无需更新时不要为验收重复联网。若目录不可达，保留直连、`http://127.0.0.1:7897` 或适用官方备选的实际失败证据，不把目录失败写成“无重大变化”。
+截至 2026-09-14，七家公司均已按统一截止日真实执行。证据位于 `tmp/eight-step-lite-v1/network-audit/2026-09-13/live-documents.json`：20 个唯一请求、454 条公告、19 个公告页全部闭合，`body_downloaded=false`。无需更新时不要为验收重复联网。若目录不可达，保留直连、`http://127.0.0.1:7897` 或适用官方备选的实际失败证据，不把目录失败写成“无重大变化”。
 
 ## 3. 定向读取原文
 
@@ -90,6 +81,6 @@ python scripts/validate_eight_step_lite.py `
 ## 6. 明确保留的边界
 
 - 当前只验收七家白酒；银行、保险、券商和未知行业返回“轻量画像未验证”，不能套普通企业公式。
-- 七包构建和复跑均为零网络；当前联网只完成茅台期后目录，其余六家公司目录仍待按用途刷新。
+- 七包构建和复跑均为零网络；七家公司期后目录已完成真实刷新，但未触发正文仍需在人工验收中决定是否读取。
 - 54 题质量状态仍为 `pending`，因为全量 requirement 的语义、方法和外部研究缺口没有被轻量路由删除。
 - 报告、前端和全市场批处理仍暂停；人工业务验收为 `pending`。
