@@ -210,7 +210,14 @@ class ResearchWorkspace:
         if sha(path / "manifest.json") != state["manifest_sha256"]:
             raise ResearchError("frozen_manifest_changed")
         self._verify_pack(path)
-        return state, path, read_json(path / "core-pack.json")
+        payload = read_json(path / "core-pack.json")
+        for item in payload.get("supplemental_evidence", []):
+            if sha(Path(item["original_path"])) != item["original_sha256"]:
+                raise ResearchError("supplement_integrity_failed")
+        for item in payload.get("processing_attachments", []):
+            if sha(Path(item["path"])) != item["sha256"]:
+                raise ResearchError("processing_attachment_integrity_failed")
+        return state, path, payload
 
     def get_task(self, research_id: str, include_pack: bool = False) -> dict:
         state, revision = self.task(research_id)
@@ -261,7 +268,7 @@ class ResearchWorkspace:
             rows = [{**x, "questions": sorted(x["questions"]), "periods": sorted(x["periods"])} for x in grouped.values()]
         elif topic == "evidence" or topic in {"business", "governance", "capital", "industry"}:
             rows = [{k: i.get(k) for k in ("evidence_id", "group", "period", "locator", "excerpt", "source_url")}
-                    for i in payload["evidence"] if topic == "evidence" or i.get("group") in TOPICS[topic]]
+                    for i in payload["evidence"] + payload.get("supplemental_evidence", []) if topic == "evidence" or i.get("group") in TOPICS[topic]]
         else:
             if period_type not in {"cumulative", "single_quarter", "instant", "current", "ttm", "ratio", "all"}:
                 raise ResearchError("unknown_period_type")
@@ -280,7 +287,16 @@ class ResearchWorkspace:
     def read_evidence(self, research_id: str, evidence_id: str, page: int = 1, max_tokens: int = 2000):
         if not 1 <= max_tokens <= 4000:
             raise ResearchError("evidence_budget_out_of_range")
-        state, path, _ = self.pack(research_id)
+        state, path, payload = self.pack(research_id)
+        item = next((x for x in payload.get("supplemental_evidence", []) if x["evidence_id"] == evidence_id), None)
+        if item:
+            from analysis.structured.research_lite import _split_utf8
+            chunks = _split_utf8(item["content"], max_tokens * 2)
+            if not 1 <= page <= len(chunks):
+                raise ResearchError("text_page_out_of_range")
+            return {**{k:v for k,v in item.items() if k not in {"content", "selection"}},
+                    "content":chunks[page-1], "page":page,"next_page":page+1 if page<len(chunks) else None,
+                    "original_hash_verified":True,"research_id":research_id,"snapshot_id":state["snapshot_id"]}
         result = read_evidence(pack_dir=path, evidence_id=evidence_id, page=page, max_tokens=max_tokens)
         if not result["original_hash_verified"]:
             raise ResearchError("original_evidence_integrity_failed")

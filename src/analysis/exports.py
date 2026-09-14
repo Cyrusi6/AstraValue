@@ -376,6 +376,11 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
                 for key,value in row.items():
                     if key not in {"指标","口径"}:
                         table_rows.append([row.get("指标"),row.get("口径"),key,value])
+        if report.request_metadata.get("agent_body_markdown"):
+            from analysis.structured.research_lite import _format_number
+            table_rows = [[m["label"],m["period_type"],m["period"],
+                           _format_number(m["fact"]["value"],m["fact"]["unit"],m["metric_id"]) if m.get("fact") else "缺失"]
+                          for m in report.request_metadata["display_metrics"]]
         _append_table(table_sheet,["指标","口径","期间","显示值与事实引用"],table_rows,[32,16,16,46])
         index_sheet=workbook.create_sheet("核心事实索引")
         _append_table(index_sheet,["短引用","fact_id","期间类型","单位"],
@@ -385,12 +390,30 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
     _write_dimensional_facts(dimensional_facts_sheet, report)
     _write_events(events_sheet, report)
     assumption_rows = _write_assumptions(assumptions_sheet, report)
-    _write_scenarios(scenarios_sheet, report, assumption_rows)
+    if report.request_metadata.get("agent_body_markdown") and any(x["method"]=="pe_scenarios" for x in report.request_metadata.get("agent_calculations",[])):
+        _append_table(scenarios_sheet,["本版方法","计算结果入口","方法边界"],
+                      [["归母盈利情景与PE","模型估值结果","未使用通用现金流预测，不把该模型的参数缺失当作本版PE失败"]],[32,28,80])
+    else:
+        _write_scenarios(scenarios_sheet, report, assumption_rows)
     _write_valuations(valuation_sheet, report)
     _write_audit(audit_sheet, report)
     _write_methods(methods_sheet, report)
     _write_coverage(coverage_sheet, report)
     _write_checks(checks_sheet, report)
+    if report.request_metadata.get("agent_body_markdown"):
+        scenarios=[]; derived=[]
+        for calc in report.request_metadata.get("agent_calculations",[]):
+            if calc["method"] == "pe_scenarios":
+                scenarios += [[x["name"],float(x["growth"]),float(x["multiple"]),float(x["eps"]),float(x["fair_value"]),float(x["upside"]),x["reason"],calc["artifact_id"]] for x in calc["result"]["scenarios"]]
+            for row in calc["result"].get("rows",[]):
+                derived.append([row.get("metric"),row.get("period") or str(row.get("start"))+"至"+str(row.get("end")),_stringify(row),calc["artifact_id"]])
+        _append_table(workbook.create_sheet("模型估值结果"),["情景","盈利增长","预测PE","EPS","每股价值","相对现价","依据","计算ID"],scenarios,[12,14,12,16,16,16,70,42])
+        _append_table(workbook.create_sheet("派生指标计算"),["指标","期间","结果及输入","计算ID"],derived,[30,28,80,42])
+        _append_table(workbook.create_sheet("补充披露整理"),["类别","期间","值与边界","证据"],
+                      [[x["type"],x["period"],_stringify(x),x["evidence_id"]] for x in report.request_metadata.get("organized_disclosures",[])],[30,20,80,42])
+        _append_table(workbook.create_sheet("正文引用追溯"),["注号","引用ID","来源或公式","期间","定位","原件哈希"],
+            [[i,x['reference'],x['detail'].get('source_url') or x['detail'].get('formula_version') or _stringify(x['detail'].get('fact',{}).get('source_ids')),x['detail'].get('period'),x['detail'].get('locator'),x['detail'].get('original_sha256')]
+             for i,x in enumerate(report.request_metadata.get('agent_citations',[]),1)],[12,44,80,18,70,68])
     for sheet in workbook.worksheets:
         sheet.sheet_view.showGridLines = False
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
@@ -413,7 +436,7 @@ def _write_summary(sheet, report: ReportVersion) -> None:
     sheet.row_dimensions[1].height = 27
     metadata = [
         ("报告状态", report.status.value), ("研究评级", c.rating.value),
-        ("评级确认", "已确认" if c.rating_confirmed else "待用户确认"), ("行业", report.industry),
+        ("评级来源", "宿主模型自主判断" if report.request_metadata.get("agent_body_markdown") else "已确认" if c.rating_confirmed else "待用户确认"), ("行业", report.industry),
         ("报告版本", report.version), ("数据截止", report.as_of.isoformat()),
         ("数据快照", report.data_snapshot_id), ("方法集合", report.method_bundle_id),
         ("八步覆盖快照", report.research_coverage_snapshot_id or "该版本未评估"),
@@ -431,6 +454,9 @@ def _write_summary(sheet, report: ReportVersion) -> None:
         ("安全边际", c.margin_of_safety, "0.0%"), ("证据完整度", c.evidence_completeness, "0.0%"),
         ("证据可信度", c.evidence_confidence, "0.0%"),
     ]
+    if report.request_metadata.get("agent_body_markdown"):
+        kpis = kpis[:5] + [("已写章节",len(report.sections),"0"),
+                          ("判断引用覆盖",c.evidence_completeness,"0.0%")]
     for index, (label, value, fmt) in enumerate(kpis):
         col = index + 1
         sheet.cell(9, col, label).font = Font(bold=True, color=MUTED)
@@ -1139,7 +1165,7 @@ def _html_to_pdf(html_path: Path, pdf_path: Path) -> None:
     ) as profile:
         generated_pdf = Path(profile) / "rendered.pdf"
         command = [str(browser), "--headless=new", "--disable-gpu", "--disable-background-networking", "--disable-component-update", "--no-first-run", "--host-resolver-rules=MAP * ~NOTFOUND", "--no-pdf-header-footer", "--print-to-pdf-no-header", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=10000", f"--user-data-dir={profile}", f"--print-to-pdf={generated_pdf}", html_path.resolve().as_uri()]
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=90, creationflags=0x08000000)
+        completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90, creationflags=0x08000000)
         # Edge sometimes hands PDF finalization to a child process and returns
         # before the file is complete. Keep the temporary profile alive briefly
         # and replace the destination only after the new artifact can be opened.

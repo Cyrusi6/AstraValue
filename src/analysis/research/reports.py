@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import html
 import re
-from datetime import date
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 from analysis.models import AssumptionRecord, ClaimRecord, ClaimKind, ReportSection, ResearchRating, ScenarioName, SourceRecord
@@ -12,7 +12,7 @@ from .drafts import Drafts
 from .workspace import ResearchError, ResearchWorkspace, sha, digest
 
 
-def bind_valuation_request(request, draft, calculations):
+def bind_valuation_request(request, draft, calculations, storage=None):
     """Keep assumptions and base valuation in the existing audit and Excel contract."""
     cid = draft["conclusion"]["calculation_id"]
     if not cid:
@@ -22,9 +22,20 @@ def bind_valuation_request(request, draft, calculations):
         raise ResearchError("active_valuation_calculation_required")
     labels = {"bear": ScenarioName.BEAR, "base": ScenarioName.BASE, "bull": ScenarioName.BULL}
     source_id = "host-assumption-" + cid
-    request.sources.append(SourceRecord(source_id=source_id, name="宿主模型显式估值假设",
+    source = SourceRecord(source_id=source_id, name="宿主模型显式估值假设",
         source_type="host-model-assumption",
-        document_hash=digest(calc["assumptions"])))
+        document_hash=digest(calc["assumptions"]))
+    if storage is not None:
+        from analysis.storage import StorageError
+        try:
+            previous = storage.get_source(source_id)
+        except StorageError:
+            previous = None
+        if previous is not None:
+            if previous.model_dump(exclude={"retrieved_at"}) != source.model_dump(exclude={"retrieved_at"}):
+                raise ResearchError("assumption_source_conflict")
+            source = previous
+    request.sources.append(source)
     for row in calc["result"]["scenarios"]:
         for name, unit in (("growth", "ratio"), ("multiple", "times")):
             request.assumptions.append(AssumptionRecord(
@@ -133,6 +144,15 @@ def apply_agent_research(report, request):
     report.request_metadata["agent_citations"] = [{"reference":ref, "detail": metrics.get(ref) or evidence.get(ref) or calculations.get(ref)} for ref in cited]
     report.request_metadata["rating_origin"] = "host_model"
     report.request_metadata["research_status"] = "authored_pending_review"
+    report.request_metadata["research_progress"] = {"authored_sections":len(sections), "required_sections":8,
+        "linked_claims":len(claims), "full_question_data_status":report.research_coverage.get("overall_status"),
+        "human_acceptance":"pending"}
+    report.conclusion.evidence_completeness = len(claims)/len(sections)
+    report.request_metadata["evidence_completeness_scope"] = "已撰写判断的有效引用覆盖；不是54题数据完整度"
+    if cid:
+        actual_date = calculations[cid]["result"]["price_fact_period"]
+        report.conclusion.price_as_of = datetime.combine(date.fromisoformat(actual_date),time.min,tzinfo=timezone.utc)
+        report.request_metadata["price_time_precision"] = "date_only"
     report.audit.missing_items = [x for x in report.audit.missing_items if x != "分析对象：尚无带证据的 ClaimRecord"]
     report.request_metadata["agent_calculations"] = list(calculations.values())
     return report
@@ -146,19 +166,26 @@ def render_agent_markdown(report):
     if c.fair_value_base is not None:
         text += f"**基准价值：{c.fair_value_base:.2f}元/股；情景区间：{c.fair_value_low:.2f}—{c.fair_value_high:.2f}元/股。**\n\n"
     if c.current_price is not None:
-        text += f"参考价格：{c.current_price:.2f}元；价格记录时点：{c.price_as_of.isoformat() if c.price_as_of else '缺失'}。\n\n"
+        text += f"参考价格：{c.current_price:.2f}元；行情日期：{c.price_as_of.date().isoformat() if c.price_as_of else '缺失'}。\n\n"
     text += meta["agent_body_markdown"]
-    text += "\n\n## 附录：证据与计算\n\n正文为模型研究判断；历史事实、预测假设和计算结果分别留存。完整财务明细与血缘见同版Excel及JSON。\n\n"
+    text += "\n\n## 附录：证据与计算\n\n正文为模型研究判断；历史事实、预测假设和计算结果分别留存。完整财务明细、原件哈希与精确定位见同版Excel及JSON。八章已撰写，具体资料缺口见各节；用户阅读验收仍待完成。\n\n"
     for i,item in enumerate(meta["agent_citations"],1):
         row = item["detail"]
         if "fact" in row:
-            detail = f"{row.get('label',row.get('metric_id'))}，{row.get('period')}，{row.get('period_type')}；事实 {row['fact']['fact_id']}"
+            detail = f"{row.get('label',row.get('metric_id'))}，实际数据期 {row['fact'].get('period_end') or row.get('period')}；标准值与来源见同版事实索引。"
         elif "locator" in row:
-            detail = f"原文 {row.get('period')}，{row.get('locator')}；{row.get('source_url','')}；原件SHA256 {row.get('original_sha256','')}"
+            locator=row.get('locator','')
+            if locator.startswith('pages:'): locator='第'+locator[6:].replace(',','、')+'页'
+            elif locator.startswith('page:'): locator='第'+locator[5:]+'页'
+            elif locator.startswith('json:'): locator='结构化记录，精确定位见JSON'
+            title=row.get('title') or '公司披露原文'
+            for key,label in {"channel_inventory":"渠道库存","platform_transactions":"线上交易","product_mix":"产品结构"}.items():
+                title=title.replace(key,label)
+            detail = f"[{title}]({row.get('source_url','')})，{row.get('period')}，{locator}。"
         else:
-            detail = f"计算 {row.get('method')}，版本 {row.get('formula_version')}；假设及输入见JSON计算记录。"
+            label={'financial_summary':'历史增速与合并口径杜邦计算','pe_scenarios':'盈利情景、每股价值与敏感性计算'}.get(row.get('method'),row.get('method'))
+            detail = f"{label}；公式、输入、假设及版本见同版计算记录。"
         text += f"{i}. {detail}\n\n"
-    text += "### 覆盖与未完成项\n\n核心数据、全文研究和报告质量分别验收。完整54题覆盖不等于正文研究完成度；明确资料缺口见各节，人工人读仍待验收。\n"
     return text
 
 
@@ -166,8 +193,9 @@ def render_agent_html(report):
     import markdown
     # Markdown is agent text, not executable HTML. Images are generated data URIs only.
     body = markdown.markdown(html.escape(render_agent_markdown(report),quote=False),extensions=["tables"])
+    body = re.sub(r"([。；])((?:\[注\d+\])+)",r'<span style="white-space:nowrap">\1\2</span>',body)
     return """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>研究报告</title>
-<style>@page{size:A4;margin:18mm 18mm 20mm}body{font-family:'Microsoft YaHei',sans-serif;color:#1b2a38;line-height:1.8;max-width:900px;margin:30px auto;font-size:14px}h1{font-size:29px;color:#15384d}h2{font-size:21px;margin-top:32px;break-after:avoid}h3{break-after:avoid}p{orphans:3;widows:3}img{max-width:100%;break-inside:avoid}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid #dce3e7;padding:8px;text-align:left}th{background:#edf3f5}li{overflow-wrap:anywhere}a{color:#235e79}@media print{body{margin:0;max-width:none}h2{margin-top:22px}img,table{break-inside:avoid}}</style><body>""" + body + "</body></html>"
+<style>@page{size:A4;margin:18mm 18mm 20mm}body{font-family:'Microsoft YaHei',sans-serif;color:#1b2a38;line-height:1.8;max-width:900px;margin:30px auto;font-size:14px}h1{font-size:29px;color:#15384d}h2{font-size:21px;margin-top:32px;break-after:avoid}h3{break-after:avoid}p{orphans:3;widows:3;break-inside:avoid}img{max-width:100%;break-inside:avoid}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid #dce3e7;padding:8px;text-align:left}th{background:#edf3f5}li{overflow-wrap:anywhere}a{color:#235e79}@media print{body{margin:0;max-width:none}h2{margin-top:22px}img,table{break-inside:avoid}}</style><body>""" + body + "</body></html>"
 
 
 class Reports:
@@ -197,11 +225,15 @@ class Reports:
         request.claims = []
         request.report_notes = "宿主模型自主研究；数据/公式/假设分别记录；人读验收未完成。"
         request.input_metadata["agent_research"] = {"snapshot_id":state["snapshot_id"],"draft":draft,
-            "evidence":payload["evidence"] + [dict(x,evidence_id=x["artifact_id"]) for x in self.w.artifacts(research_id,"evidence_read")],
+            "evidence":payload["evidence"] + payload.get("supplemental_evidence", []) + [dict(x,evidence_id=x["artifact_id"]) for x in self.w.artifacts(research_id,"evidence_read")],
             "charts":charts,"calculations":self.w.artifacts(research_id,"calculation")}
-        bind_valuation_request(request, draft, request.input_metadata["agent_research"]["calculations"])
+        request.input_metadata["processing_audit"] = payload.get("processing_audit")
+        request.input_metadata["organized_disclosures"] = payload.get("organized_disclosures", [])
+        request.input_metadata["processing_attachments"] = payload.get("processing_attachments", [])
+        storage = ReportStorage(self.w.state / "reports.sqlite")
+        bind_valuation_request(request, draft, request.input_metadata["agent_research"]["calculations"], storage)
         # Use the project's existing report storage, models, timeseries and exports.
-        report = AnalysisService(storage=ReportStorage(self.w.state / "reports.sqlite")).create_report(request)
+        report = AnalysisService(storage=storage).create_report(request)
         target = self.w.state / "reports" / report.ticker / report.report_id
         target.mkdir(parents=True,exist_ok=False)
         (target/"report.json").write_text(report.model_dump_json(indent=2),encoding="utf-8")

@@ -489,6 +489,19 @@ def _select_metric_entries(
                 prior_period = date(int(period[:4]) - 1, int(period[5:7]), int(period[8:10])).isoformat()
                 prior = _select_metric(lookup, spec["metric_id"], prior_period, period_type, conflicts)
                 entries.append(_metric_entry(spec, period, period_type, fact, prior))
+        if profile.get("include_balance_predecessor") and spec["metric_id"] in {"total_assets", "total_liabilities"}:
+            period = str(int(periods["annual"][0][:4])-1)+"-12-31"
+            fact = _select_metric(lookup, spec["metric_id"], period, "instant", conflicts)
+            entries.append(_metric_entry(spec, period, "instant", fact, None))
+        if profile.get("include_latest_cumulative_and_ttm") and _desired_period_type(spec["metric_id"], annual=True) == "cumulative":
+            period = periods["quarters"][-1]
+            prior_period = str(int(period[:4]) - 1) + period[4:]
+            for kind in ("cumulative", "ttm"):
+                if any(x["metric_id"] == spec["metric_id"] and x["period"] == period and x["period_type"] == kind for x in entries):
+                    continue
+                fact = _select_metric(lookup, spec["metric_id"], period, kind, conflicts)
+                prior = _select_metric(lookup, spec["metric_id"], prior_period, kind, conflicts)
+                entries.append(_metric_entry(spec, period, kind, fact, prior))
     return entries
 
 

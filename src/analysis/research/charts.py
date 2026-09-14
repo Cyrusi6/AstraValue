@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 from pathlib import Path
 
-from .workspace import ResearchWorkspace, ResearchError, digest, sha
+from .workspace import ResearchWorkspace, ResearchError, digest, sha, read_json
 
 
 class Charts:
@@ -21,7 +21,8 @@ class Charts:
         available = {x["metric_id"] for x in pack["metrics"] if x["state"] == "ready"}
         return {"items": [{"template": k, "title": title, "status": "available" if set(metrics) <= available else "input_gap"}
                          for k,(title,metrics,_) in self.TEMPLATES.items()],
-                "conditional": ["valuation_sensitivity requires calculation_id", "杜邦与现金流瀑布暂未接入，不能以趋势图冒充"]}
+                "conditional": ["valuation_sensitivity requires PE calculation_id", "dupont requires financial_summary calculation_id",
+                                "history_pe/peer_pe require adopted verified valuation history", "现金流瀑布尚未接入，不能以趋势图冒充"]}
 
     def create_chart(self, research_id: str, template: str, calculation_id: str | None = None):
         """Create a deterministic chart from the active snapshot; missing values are gaps, never zero."""
@@ -49,6 +50,42 @@ class Charts:
             for i,g in enumerate(growths):
                 for j,m in enumerate(multiples):
                     ax.text(j,i,f"{values[g,m]:.0f}",ha="center",va="center",color="#121e29")
+        elif template in {"history_pe", "peer_pe"}:
+            bound = [x for x in pack.get("supplemental_evidence",[]) if x.get("source_role")=="verified_deterministic_calculation"]
+            if len(bound)!=1:
+                raise ResearchError("bound_valuation_history_required")
+            history = read_json(Path(bound[0]["original_path"]))
+            fig,ax=plt.subplots(figsize=(9.5,4.2))
+            if template == "history_pe":
+                from datetime import date
+                series=history["series"][state["ticker"]]["eastmoney_pe_ttm"]
+                data=[{"date":d,**v} for d,v in sorted(series.items())]
+                title="历史市盈率（TTM）"
+                ax.plot([date.fromisoformat(x["date"]) for x in data],[float(x["value"]) for x in data],color="#225b72",linewidth=1.8,label="历史PE（TTM）")
+                reference=float(history["summary"]["history"][state["ticker"]]["reference_multiple"])
+                ax.axhline(reference,color="#bd8549",linestyle="--",label=f"{reference:g}倍参考线")
+                ax.set_ylabel("倍");ax.legend(frameon=False)
+            else:
+                from analysis.structured.scope import load_research_profile
+                names=load_research_profile(pack["profile_id"])["industry_profile"]["supported_tickers"]
+                data=[{"ticker":t,"date":history["summary"]["comparison_date"],**v["eastmoney_pe_ttm"]} for t,v in history["summary"]["rows"].items()]
+                data.sort(key=lambda x:(x["ticker"]!=state["ticker"],x["ticker"]))
+                title="同日同行市盈率（TTM）｜"+history["summary"]["comparison_date"]
+                ax.bar([names.get(x["ticker"],x["ticker"]) for x in data],[float(x["value"]) for x in data],color=["#225b72"]+["#9eb9c4"]*(len(data)-1))
+                for i,x in enumerate(data):ax.text(i,float(x["value"])+.4,f"{float(x['value']):.2f}",ha="center")
+                ax.set_ylabel("倍");ax.set_ylim(0,max(float(x["value"]) for x in data)*1.2)
+            ax.grid(axis="y",alpha=.2)
+        elif template == "dupont":
+            calculation=next((x for x in self.w.artifacts(research_id,"calculation") if x["artifact_id"]==calculation_id),None)
+            if not calculation or calculation["method"]!="financial_summary":raise ResearchError("financial_summary_required")
+            data=[x for x in calculation["result"]["rows"] if x["metric"]=="consolidated_dupont"]
+            if not data:raise ResearchError("dupont_inputs_missing")
+            title="合并口径杜邦分解（含少数股东，非加权归母ROE）"
+            fig,axs=plt.subplots(1,4,figsize=(11,3.8))
+            for ax,key,label,scale in zip(axs,["net_margin","asset_turnover","equity_multiplier","roe"],["净利率（%）","资产周转率（次）","权益乘数（倍）","总权益收益率（%）"],[100,1,1,100]):
+                ax.plot([x["period"][:4] for x in data],[float(x[key])*scale for x in data],marker="o",color="#225b72")
+                ax.set_title(label,fontsize=11);ax.tick_params(axis="x",rotation=45);ax.grid(axis="y",alpha=.2)
+            fig.suptitle(title,fontsize=13);ax=axs[-1]
         elif template in self.TEMPLATES:
             title, metrics, style = self.TEMPLATES[template]
             periods = pack["periods"]["annual"]
@@ -71,7 +108,7 @@ class Charts:
             ax.legend(frameon=False);ax.grid(axis="y",alpha=.2)
         else:
             raise ResearchError("unknown_chart_template")
-        ax.set_title(title,loc="left",pad=18,fontweight="bold")
+        if template != "dupont":ax.set_title(title,loc="left",pad=18,fontweight="bold")
         fig.tight_layout()
         ident = "chart_" + digest([state["snapshot_id"], template, data])[:24]
         path = self.w.state / "charts" / (ident + ".png")

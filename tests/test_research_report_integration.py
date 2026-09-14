@@ -36,6 +36,15 @@ def test_real_frozen_pack_to_existing_report_and_exports(tmp_path):
     folder = Path(report["outputs"]["md"]["path"]).parent
     saved = json.loads((folder / "report.json").read_text(encoding="utf-8"))
     assert len(saved["claims"]) == 8
+    assert saved["conclusion"]["price_as_of"].startswith("2026-09-11")
+    assert saved["request_metadata"]["price_time_precision"] == "date_only"
+    assert saved["request_metadata"]["research_progress"]["authored_sections"] == 8
+    from openpyxl import load_workbook
+    book = load_workbook(report["outputs"]["xlsx"]["path"])
+    assert book["核心期间表"].max_row > 100
+    assert book["模型估值结果"].max_row == 4
+    assert book["情景测算"].max_row == 2
+    assert book["情景测算"]["B2"].value == "模型估值结果"
     assert len(saved["assumptions"]) == 6
     assert saved["audit"]["model_runs"][0]["status"] == "成功"
     assert len(saved["audit"]["model_runs"]) == 1
@@ -43,6 +52,8 @@ def test_real_frozen_pack_to_existing_report_and_exports(tmp_path):
     assert "{{" not in Path(report["outputs"]["md"]["path"]).read_text(encoding="utf-8")
     assert sha(path / "manifest.json") == before
     assert w.get_task(rid)["stages"]["rendering"] == "rendered_pending_review"
+    repeated = Reports(w).build_report(rid, ["md"])
+    assert repeated["report_version"] == report["report_version"] + 1
     drafts.save_section(rid,sid,1,"未知引用 {{cite:missing}}", "测试", ["F199"], ["测试"])
     with pytest.raises(ResearchError, match="unknown_citation"):
         Reports(w).build_report(rid, ["md"])

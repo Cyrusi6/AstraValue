@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -10,6 +11,7 @@ from .storage import canonical_sha256
 
 SCOPE_ID = "eight-step-scope-v1.0.0"
 LITE_PROFILE_ID = "eight-step-lite-v1.0.0"
+STANDARD_PROFILE_ID = "eight-step-standard-v1.1.0"
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -23,6 +25,15 @@ def load_scope():
 
 @lru_cache(maxsize=2)
 def load_research_profile(profile_id: str):
+    if profile_id in {STANDARD_PROFILE_ID, "eight-step-standard-v1.0.0"}:
+        value = deepcopy(load_research_profile(LITE_PROFILE_ID))
+        value.update(profile_id=profile_id, version=profile_id.rsplit("v",1)[1], authority="计划.md")
+        value["windows"].update(complete_annual_years=5, required_quarters=12)
+        value["include_latest_cumulative_and_ttm"] = True
+        if profile_id == STANDARD_PROFILE_ID:
+            value["include_balance_predecessor"] = True
+        value["content_sha256"] = canonical_sha256({k: v for k, v in value.items() if k != "content_sha256"})
+        return value
     if profile_id != LITE_PROFILE_ID:
         raise ValueError(f"unknown_research_profile:{profile_id}")
     path = ROOT / "config/structured_data/research_lite.v1.json"
@@ -74,7 +85,10 @@ def selected_datasets(requested=None, research_profile_id=None):
 
 def scope_start(as_of: date, research_profile_id=None) -> date:
     if research_profile_id:
-        load_research_profile(research_profile_id)
+        profile = load_research_profile(research_profile_id)
+        if research_profile_id in {STANDARD_PROFILE_ID, "eight-step-standard-v1.0.0"}:
+            annual_year = as_of.year - (1 if as_of >= date(as_of.year, 4, 30) else 2)
+            return date(annual_year - profile["windows"]["complete_annual_years"], 1, 1)
         # 3 displayed annual years plus one predecessor year for actual formulas.
         return date(as_of.year - 4, 1, 1)
     # Five complete years plus a predecessor year for average balances/TTM.

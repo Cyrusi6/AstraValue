@@ -26,7 +26,7 @@ class Calculations:
         self.w = workspace
 
     def calculate(self, research_id: str, method: str, bindings: dict[str, str], assumptions: dict[str, Any] | None = None):
-        """Compute ratio, CAGR or PE scenarios from bound fact references; explicit assumptions need reasons."""
+        """Compute financial_summary, ratio, CAGR or PE scenarios; explicit assumptions need reasons."""
         state, _, payload = self.w.pack(research_id)
         facts = {i["fact_ref"]: i for i in payload["metrics"] if i.get("fact_ref") and i.get("fact")}
         if any(ref not in facts for ref in bindings.values()):
@@ -42,7 +42,49 @@ class Calculations:
             if set(inputs) != set(names):
                 raise ResearchError("required_fact_bindings:" + ",".join(names))
 
-        if method == "ratio":
+        if method == "financial_summary":
+            if bindings or assumptions:
+                raise ResearchError("financial_summary_uses_frozen_history_only")
+            indexed = {(x["metric_id"], x["period"], x["period_type"]): x for x in facts.values() if x["state"] == "ready"}
+            rows, gaps = [], []
+            annual = payload["periods"]["annual"]
+            for metric in ("operating_income", "parent_net_profit"):
+                a, b = indexed.get((metric,annual[0],"cumulative")), indexed.get((metric,annual[-1],"cumulative"))
+                if a and b:
+                    if any(a["fact"].get(k)!=b["fact"].get(k) for k in ("unit","scope","currency")):
+                        raise ResearchError("cagr_unit_or_scope_mismatch")
+                    years = int(annual[-1][:4])-int(annual[0][:4])
+                    start, end = number(a["fact"]["value"]), number(b["fact"]["value"])
+                    if years > 0 and min(start,end)>0:
+                        rows.append({"metric":metric+"_cagr", "start":annual[0],"end":annual[-1],"years":years,
+                                     "value":str((end/start)**(Decimal(1)/years)-1),"unit":"ratio",
+                                     "formula":"(end/start)^(1/actual_years)-1", "input_fact_ids":[a["fact"]["fact_id"],b["fact"]["fact_id"]]})
+            for period in annual:
+                prior = str(int(period[:4])-1)+"-12-31"
+                keys=[("net_profit",period,"cumulative"),("operating_income",period,"cumulative"),
+                      ("total_assets",period,"instant"),("total_assets",prior,"instant"),
+                      ("total_liabilities",period,"instant"),("total_liabilities",prior,"instant")]
+                items=[indexed.get(k) for k in keys]
+                if any(x is None for x in items):
+                    gaps.append({"method":"consolidated_dupont","period":period,"missing":[list(k) for k,x in zip(keys,items) if x is None]});continue
+                if len({(x["fact"]["scope"],x["fact"]["currency"],x["fact"]["unit"]) for x in items})!=1 or items[0]["fact"]["unit"]!="CNY" or items[0]["fact"]["scope"]!="consolidated":
+                    raise ResearchError("dupont_scope_or_unit_mismatch")
+                profit,revenue,a1,a0,l1,l0=[number(x["fact"]["value"]) for x in items]
+                assets=(a1+a0)/2; equity=(a1-l1+a0-l0)/2
+                if min(revenue,assets,equity)<=0:
+                    gaps.append({"method":"consolidated_dupont","period":period,"reason":"nonpositive_denominator"});continue
+                rows.append({"metric":"consolidated_dupont", "period":period,"unit":"ratio",
+                             "net_margin":str(profit/revenue),"asset_turnover":str(revenue/assets),
+                             "equity_multiplier":str(assets/equity),"roe":str(profit/equity),
+                             "average_assets":str(assets),"average_equity":str(equity),
+                             "formula":"net_profit/revenue * revenue/average_assets * average_assets/average_total_equity",
+                             "input_fact_ids":[x["fact"]["fact_id"] for x in items],
+                             "boundary":"合并净利润/期初期末平均总权益，含少数股东；非披露的加权归母ROE，非ROIC"})
+            return self.w.artifact(research_id,"calculation",{"method":method,"formula_version":"research-financial-summary-v1",
+                 "bindings":{},"assumptions":{},"result":{"rows":rows,"gaps":gaps},
+                 "input_fact_ids":{ref:x["fact"]["fact_id"] for ref,x in facts.items()},
+                 "validation":"deterministic_calculation","status":"ready_with_gaps" if gaps else "ready"})
+        elif method == "ratio":
             require(["numerator", "denominator"])
             a, b = selected["numerator"], selected["denominator"]
             if any(a.get(k) != b.get(k) for k in ["period", "period_type"]):
@@ -116,7 +158,7 @@ class Calculations:
                       "scenarios": rows, "sensitivity": sensitivity,
                       "limitation": "one-year forward earnings scenario; current shares assumed unchanged; not reported historical EPS"}
         else:
-            return {"status": "capability_gap", "method": method, "supported": ["ratio", "cagr", "pe_scenarios"]}
+            return {"status": "capability_gap", "method": method, "supported": ["ratio", "cagr", "pe_scenarios", "financial_summary"]}
         return self.w.artifact(research_id, "calculation", {"method": method, "formula_version": "research-calculations-v1",
             "bindings": bindings, "input_fact_ids": {k: v["fact"]["fact_id"] for k, v in selected.items()},
             "input_definitions": {k: {"period": v["period"], "period_type": v["period_type"], "unit": v["fact"]["unit"]} for k,v in selected.items()},
