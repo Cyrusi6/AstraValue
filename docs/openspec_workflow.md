@@ -1,6 +1,6 @@
 # OpenSpec 使用指南
 
-本项目使用 OpenSpec 管理“单次软件变更”的需求、可观察行为、技术设计和实施任务。当前固定版本为 `1.12.0`，Codex 集成位于 `.agents/skills/`，项目配置位于 `openspec/config.yaml`。
+本项目使用 OpenSpec 管理“单次软件变更”的需求、可观察行为、技术设计和实施任务。当前固定版本为 `1.12.0`，Codex 集成位于 `.agents/skills/`，项目配置位于 `openspec/config.yaml`。项目技能采用[按任务读取的上下文约定](openspec_context.md)，无需全量重读、例行文件哈希或固定交接模板。
 
 OpenSpec 不替代以下权威内容：
 
@@ -110,7 +110,7 @@ openspec validate --all --strict --no-interactive
 openspec doctor
 ```
 
-升级 OpenSpec 后运行 `openspec update`，并审阅 `.agents/skills/` 的差异再提交。当前全局配置已关闭匿名遥测，并启用 `propose, explore, apply, update, sync, archive, verify` 七个工作流。
+升级 OpenSpec 前先保存本地 Skill 定制；`openspec update` 可能覆盖入口文件，升级后合入上游必要契约并检查引用，不直接丢弃项目的精简规则。当前全局配置已关闭匿名遥测，并启用 `propose, explore, apply, update, sync, archive, verify` 七个工作流。
 
 ## 禁止项
 
