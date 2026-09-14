@@ -1,6 +1,6 @@
 # 八步轻量核心版运行说明（2026-09-14 更新；统一截止日 2026-09-13）
 
-当前实现版本为 `eight-step-lite-pack-v1.0.3`，profile 为 `eight-step-lite-v1.0.0`。默认命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入，不生成报告、评级、目标价或交易指令。七家公司实际验收见 [逐公司验收表](eight-step-lite-acceptance.md)。
+当前实现版本为 `eight-step-lite-pack-v1.0.3`，profile 为 `eight-step-lite-v1.0.0`。默认 `research lite` 命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入；报告需再调用第 7 节的 `structured report`。两条命令都不会自动确认评级、目标价或交易指令。七家公司实际验收见 [逐公司验收表](eight-step-lite-acceptance.md)。
 
 ## 1. 环境与默认离线构建
 
@@ -83,4 +83,21 @@ python scripts/validate_eight_step_lite.py `
 - 当前只验收七家白酒；银行、保险、券商和未知行业返回“轻量画像未验证”，不能套普通企业公式。
 - 七包构建和复跑均为零网络；七家公司期后目录已完成真实刷新。本次轻量输入人工验收确认不触发目录中其他正文，但后续具体研究问题仍可按需触发，不能据此推断“无事项”或“无风险”。
 - 54 题质量状态仍为 `pending`，因为全量 requirement 的语义、方法和外部研究缺口没有被轻量路由删除。
-- 用户于 2026-09-14 明确确认“全部通过”，七家公司当前轻量输入包的人工业务验收为 `passed`；报告、前端和全市场批处理仍暂停。
+- 用户于 2026-09-14 明确确认“全部通过”，七家公司当前轻量输入包的人工业务验收为 `passed`。随后 2.1、2.2 报告流水线已恢复并完成；前端和全市场批处理仍暂停。
+
+## 7. 转换为八步报告
+
+先读取每家公司 `last-run-audit.json` 记录的当前 pack，或者显式使用验收清单中的 pack-id。贵州茅台示例：
+
+```powershell
+python -m analysis.cli structured report `
+  --pack 'tmp/eight-step-lite-v1/600519/2026-09-13/<pack-id>' `
+  --output tmp/structured-reports-v1 `
+  --db tmp/research-data-layer-live-v1/analysis.db `
+  --data-root tmp/research-data-layer-live-v1/data `
+  --json
+```
+
+转换器会复核 pack 及上游哈希，从完整 `coverage-facts.jsonl` 补齐确定性派生闭包和来源，并保留 lite 物化选择 ID。年度累计口径映射为报告使用的 `annual`，`operating_income` 等已登记指标生成确定性 alias；不修改轻量包、源数据库或原件。
+
+默认导出 Markdown、HTML、XLSX、PDF 四种格式，核心价格、报告版本、数据快照、事实 ID 和缺口来自同一 `ReportVersion`。截至 2026-09-14，七家公司均已离线生成并完成四格式一致性、Excel 公式错误扫描和 PDF 全页渲染检查；评级均为“暂不评级”，DCF/相对估值因缺少用户确认假设保持待补。

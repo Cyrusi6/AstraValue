@@ -1,6 +1,6 @@
 # 八步数据层运行说明（2026-09-13）
 
-本轮运行链路为：范围与身份校验 → 有界采集及原始响应 → 内容寻址原件 → 带定位解析 → 字段解释与标准化 → 事实及确定性指标 → 54 题逐期间覆盖与后续工作。报告、前端改造、全市场批处理继续暂停。
+本轮运行链路为：范围与身份校验 → 有界采集及原始响应 → 内容寻址原件 → 带定位解析 → 字段解释与标准化 → 事实及确定性指标 → 54 题逐期间覆盖 → 冻结轻量包 → 单证券八步报告。报告 CLI/API 与四格式导出已接通；前端改造和全市场批处理继续暂停。
 
 工作树 `D:/估值模型-worktrees/fact-materialization-ultra`，分支 `codex/fact-materialization-ultra`。真实验收和具体缺口见 [交付验证](research-data-layer-verification.md)，删除清单见 [清理审计](data-layer-cleanup-audit.md)。新增轻量研究包的直接命令见 [轻量运行说明](eight-step-lite-runbook.md)，逐公司结果见 [轻量验收](eight-step-lite-acceptance.md)。
 
@@ -101,4 +101,34 @@ PDF 保留页与文本块坐标；HTML 保留段落、物理表格行/单元格�
 | `tmp/research-data-layer-live-v1/` | 独立真实采集库、请求捕获、行业与增量样本、精确补采状态 |
 | `tmp/data-layer-evidence/output-audit-after.json` | 原件哈希、独立复算与重复输出字节一致性验收 |
 
-`history/` 是旧物化版本证据。`source_text_available` 表示有可追溯原文，`pending` 继续列明单位/期间、方法、判断或来源缺口。K01–K11 的整条研究计算路线尚未全部自动接入，`calculation_status.complete_route_integrated=false` 明示此处理边界；已有单季/TTM、毛利率和本轮财务指标可以独立使用。报告、前端与全市场任务没有因此自动验收。
+`history/` 是旧物化版本证据。`source_text_available` 表示有可追溯原文，`pending` 继续列明单位/期间、方法、判断或来源缺口。K01–K11 的整条研究计算路线尚未全部自动接入，`calculation_status.complete_route_integrated=false` 明示此处理边界；已有单季/TTM、毛利率和本轮财务指标可以独立使用。报告可以保留这些缺口生成草稿，但前端与全市场任务没有因此自动验收。
+
+## 6. 从冻结轻量包生成报告
+
+`structured report` 校验轻量包 manifest、上游文件哈希和物化选择，只从 `coverage-facts.jsonl` 构造同一冻结输入。报告存储必须与结构化服务绑定同一 `analysis.db`；不匹配时失败关闭。
+
+```powershell
+python -m analysis.cli structured report `
+  --pack 'tmp/eight-step-lite-v1/600519/2026-09-13/<pack-id>' `
+  --output tmp/structured-reports-v1 `
+  --db tmp/research-data-layer-live-v1/analysis.db `
+  --data-root tmp/research-data-layer-live-v1/data `
+  --json
+```
+
+默认一次生成 Markdown、HTML、XLSX 和 PDF，并额外保存冻结 `report.json` 与 `report-manifest.json`。`--format` 可重复用于限制导出格式。命令不发起网络请求；每次创建新的持久报告版本，输出目录为 `<output>/<ticker>/v<version>-<report-id前8位>/`。
+
+绑定同一结构化服务启动 API 后，也可调用：
+
+```http
+POST /api/structured/reports
+Content-Type: application/json
+
+{
+  "pack_dir": "tmp/eight-step-lite-v1/600519/2026-09-13/<pack-id>",
+  "output_dir": "tmp/structured-reports-v1",
+  "formats": ["md", "html", "xlsx", "pdf"]
+}
+```
+
+报告只自动写入确定性历史事实、公式结果、覆盖状态和缺口。未提供用户确认的增长、WACC、终值、情景概率或评级时，估值保持失败或待补，评级保持“暂不评级”；这不是报告生成失败。
