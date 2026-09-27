@@ -35,7 +35,7 @@
 - 当前代码审计确认：`SyncRequest` 已无生产调用；`SyncResult` 的物理表和迁移仍支撑旧数据库恢复，唯一运行时回填点是 `AnalysisService._with_synced_facts`。若选择保留兼容，建议切断新报告的自动回填，只保留只读 getter、迁移和历史报告读取。
 - v1.11 注册表仍保存 5 个 `legacy_definitions` 身份，但新 planner/orchestrator 不遍历它们；删除这些字段会改变默认 registry hash 并使已有 snapshot/DB 无法按原身份复核，因此是否只读保留与 Sync 兼容一起决定。
 - `AnalysisService.patch_assumptions/recalculate/reanalyze/review` 当前没有公开 API 路由，只被旧测试和内部兼容代码调用；`ReportVersion` 查询、变化查看和导出仍是公开只读能力。是否连这些内部旧版本编辑方法一起删除，随历史兼容取舍处理。
-- 知识候选在独立工作树的 `tests/knowledge` 仍有 1 项发布门失败：缺少当前工作树可验证的 `KNOWLEDGE_ACCEPTANCE`、agent sample 和 human review；历史 `candidate-54-v2` JSON 不能直接当作当前主线验收。另有旧 `src/analysis/research/knowledge.py` 与新 `analysis.knowledge` 两套知识入口，迁移新服务后需决定适配或删除旧入口。
+- 知识候选在独立工作树的 `tests/knowledge` 当前仍有 1 项发布门失败：缺少当前工作树可验证的 `KNOWLEDGE_ACCEPTANCE`、agent sample 和 human review；历史 `candidate-54-v2` JSON 还会因 `candidate_content_identity` 哈希不匹配而被拒绝。另有旧 `src/analysis/research/knowledge.py` 与新 `analysis.knowledge` 两套知识入口，迁移新服务后需决定适配或删除旧入口。
 - `business_model_sources.v1.0–v1.10` 是否保留为只读历史注册表。
 - 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
 - 旧 `src/analysis/research/knowledge.py`（research-cards）是否迁移为新 `analysis.knowledge.KnowledgeService` 的适配层后删除；当前研究工作区的 `Catalog` 和工具注册仍在调用它。
