@@ -2,7 +2,7 @@
 
 更新时间：2026-09-28
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
-当前分支：`codex/fact-materialization-ultra`，HEAD `8a9442c`（清理清单状态更新）
+当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
 这份清单把代码事实、已确认的产品决策和后续验收分开记录。表中的“动作”是目标处置，不表示已经完成删除或合并；在验收门通过前，不得用 `git branch -D`、工作树删除或批量删除替代迁移。
 
@@ -47,7 +47,7 @@
 
 - 主线：`main` / `181a4cb`。
 - 候选整合分支：`codex/knowledge-base-v1` / `027ac38`，包含 `fact-materialization-ultra` 及三个 knowledge 分支的已提交等价补丁。
-- 当前事实工作树：`codex/fact-materialization-ultra` / `8a9442c`，清理与结构化增量修复已提交；仍有三个未跟踪临时文件待确认。
+- 当前事实工作树：`codex/fact-materialization-ultra`，清理与结构化增量修复已提交；仍有三个未跟踪临时文件待确认。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。
