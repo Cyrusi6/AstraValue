@@ -23,7 +23,7 @@
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、`AnalysisService.create_report` 的直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告入口**；保留 `ReportVersion`、导出和审计对象作为研究工作区链路的结果模型。 | 只能从研究工作区冻结包经 reporting bridge 生成报告；旧直接输入测试、前端入口、文档和 CLI 同步移除。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **待用户决定：保留只读历史版本或迁移后删除**。生产默认只使用 `v1.11`。 | 无论取舍，manifest、快照和报告必须保留可追溯的 registry version/hash；旧文件不能作为当前默认来源。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
-| P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`；fact worktree 已将清理、增量修复和回采记录提交到 `d10c6f9`，仅保留 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 三个未跟踪临时文件；knowledge-base worktree 有未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以 knowledge-base 为候选基线，先纳入 fact worktree 已提交内容和两份茅台文档，再 fast-forward/整理到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
+| P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`；fact worktree 当前 HEAD `987d55a`，清理、增量修复、知识候选和回采记录已提交，仅保留 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 三个未跟踪临时文件；knowledge-base worktree 有未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
 ## 决策与验收边界
 
@@ -40,7 +40,7 @@
 
 当前尚未等同于完成的事项：
 
-1. 旧 adapters、全量编排和直接报告写入口已从当前 worktree 删除；剩余工作是回归验证、研究内容整合和分支收口。
+1. 旧 adapters、全量编排和直接报告写入口已从当前 worktree 删除；知识候选、发布门和历史 acceptance 已选择性迁入，剩余工作是用户决策、回归验证、研究内容整合和分支收口。
 2. 600519 已在空数据根完成真实结构化 baseline、重复计划幂等、物化和研究包/报告回放；真实 acquisition incremental 仍受 `safe_through=null` 门禁，不能写成已完成。
 3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
 4. 分支删除属于最后一步；未提交内容未保存、测试或人工验收未完成时不得执行。
