@@ -11,7 +11,7 @@
 - `0da1881`：显式启动 runtime 时同时绑定结构化 API。
 - `d10a2a7`：财务输入缺失时仍保留应需披露期间。
 - `93ac313`：已有字段期间不明时进入语义处理，不再安排重复补采。
-- 原始生产库、原始响应、旧原件、冻结合同、归档和必要回放模块保留。实际删除仅 `scripts/run_demo.py`、`scripts/smoke_online_sources.py`，理由与路径安全核验见 [清理审计](data-layer-cleanup-audit.md)。
+- 原始生产库、原始响应、旧原件、冻结合同、归档和必要回放模块保留。清理阶段删除两个重复 CLI 包装脚本、旧 `src/analysis/adapters/` 生产实现及其同步兼容测试；新 `src/analysis/acquisition/adapters/` 和历史快照回放保留。理由与路径安全核验见 [清理审计](data-layer-cleanup-audit.md)。
 
 ## 2. 各层实际结果
 
