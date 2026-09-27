@@ -10,15 +10,16 @@
 3. **模型职责**：由 Codex 自主完成假设、估值、评级和写作；研究工作区和报告链必须保存输入、来源、计算和审计记录。
 4. **治理**：治理模块走全链路接入，不作为孤立包保留。治理数据需进入结构化运行、研究工作区和报告审计边界。
 5. **business-profile**：只移植 `business-profile-v1` 的独有业务画像逻辑到统一业务分析入口；不直接合并该旧基线分支。
-6. **fact worktree 未提交内容**：4 组未提交研究内容全部纳入；两份贵州茅台验收文档全部保留。
-7. **唯一事实路径**：新 `StructuredFactMaterializer` 与 `research_lite` 是唯一物化/研究包路径，不再并行维护旧财务拼装和旧全量抓取路径。
-8. **唯一报告路径**：研究工作区 → reporting bridge → `ReportVersion`。保留 `ReportVersion`、导出和审计能力作为结果模型，但删除 `/api/reports` 直接输入。
-9. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
-10. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
-11. **来源注册表（待用户确认）**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 是否保留为只读历史证据，待用户选择。无论取舍，历史 manifest、快照和报告必须保留 registry version/hash 定位。
-12. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更。
-13. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
-14. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
+6. **知识分支整合边界**：`codex/knowledge-base-v1` 当前合并结果重新带回旧 adapters、旧 `structured/research.py` 和包装入口，不能整支直接合并；只迁移知识产品和已核验研究内容，沿用当前候选工作树的删除结果。
+7. **fact worktree 未提交内容**：4 组未提交研究内容全部纳入；两份贵州茅台验收文档全部保留。
+8. **唯一事实路径**：新 `StructuredFactMaterializer` 与 `research_lite` 是唯一物化/研究包路径，不再并行维护旧财务拼装和旧全量抓取路径。
+9. **唯一报告路径**：研究工作区 → reporting bridge → `ReportVersion`。保留 `ReportVersion`、导出和审计能力作为结果模型，但删除 `/api/reports` 直接输入。
+10. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
+11. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
+12. **来源注册表（待用户确认）**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 是否保留为只读历史证据，待用户选择。无论取舍，历史 manifest、快照和报告必须保留 registry version/hash 定位。
+13. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更。
+14. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
+15. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
 
 ## 本次新增的结构化入口决定
 
