@@ -56,6 +56,7 @@
 - 相同截止时间重复 baseline 返回 `created=false`、`attempted_job_ids=[]`，说明计划幂等；由于仍有失败/空响应，incremental 安全门禁拒绝本次增量，不能把它写成增量成功。
 - 全量 Python 测试已通过（1680 passed、15 skipped）；`compileall`、前端 build、OpenSpec strict 和 `git diff --check` 也已通过。`tests/structured` 覆盖连续财务增量、事件 overlap、失败 coverage 门禁和动态报告期刷新。真实 API 的长期增量窗口仍待用贵州茅台完成，不能用这些离线/Mock 测试替代联网验收。
 - `reconcile` 的 acquisition 证据存在，但普通 structured run 尚未提供独立 reconcile mode；在实现或补充契约前，不能把 acquisition reconcile 测试当成 structured 链完整验收。
+- 知识产品已按文件选择性迁入当前工作树；知识回归为 79 项通过，发布门新增 `candidate_content_identity` 哈希检查。全量 pytest 的唯一失败仍是当前候选缺少重新绑定的 Agent 样例和人工验收，不是代码回归失败；旧 acceptance 哈希不匹配时会被拒绝。
 
 ## 交接约束
 
