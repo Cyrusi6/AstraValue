@@ -12,3 +12,7 @@ class StructuredBusyError(StructuredServiceError):
 
 class StructuredIntegrityError(StructuredServiceError):
     """Persisted structured evidence failed an integrity check."""
+
+
+class StructuredServiceUnavailable(StructuredServiceError):
+    """The structured API was called without its explicitly bound service."""

@@ -27,6 +27,12 @@ class Calculations:
 
     def calculate(self, research_id: str, method: str, bindings: dict[str, str], assumptions: dict[str, Any] | None = None):
         """Compute financial_summary, ratio, CAGR or PE scenarios; explicit assumptions need reasons."""
+        from .distributions import METHODS, calculate_distribution
+        from .note_calculations import METHODS as NOTE_METHODS, calculate_note
+        if method in NOTE_METHODS:
+            return calculate_note(self.w,research_id,method,bindings,assumptions)
+        if method in METHODS:
+            return calculate_distribution(self.w, research_id, method, bindings, assumptions or {})
         state, _, payload = self.w.pack(research_id)
         facts = {i["fact_ref"]: i for i in payload["metrics"] if i.get("fact_ref") and i.get("fact")}
         if any(ref not in facts for ref in bindings.values()):
@@ -124,6 +130,8 @@ class Calculations:
             if set(assumptions) != {"scenarios", "sensitivity_growth", "sensitivity_multiples"}:
                 raise ResearchError("explicit_scenarios_and_sensitivity_required")
             scenarios = assumptions["scenarios"]["value"]
+            if not isinstance(scenarios, list) or any(not isinstance(x, dict) for x in scenarios):
+                raise ResearchError("scenarios.value_requires_array_of_scenario_objects")
             if len(scenarios) != 3 or {x.get("name") for x in scenarios} != {"bear", "base", "bull"}:
                 raise ResearchError("bear_base_bull_required")
             base_eps = inputs["earnings"] / inputs["shares"]
@@ -158,7 +166,7 @@ class Calculations:
                       "scenarios": rows, "sensitivity": sensitivity,
                       "limitation": "one-year forward earnings scenario; current shares assumed unchanged; not reported historical EPS"}
         else:
-            return {"status": "capability_gap", "method": method, "supported": ["ratio", "cagr", "pe_scenarios", "financial_summary"]}
+            return {"status": "capability_gap", "method": method, "supported": ["ratio", "cagr", "pe_scenarios", "financial_summary", *sorted(METHODS)]}
         return self.w.artifact(research_id, "calculation", {"method": method, "formula_version": "research-calculations-v1",
             "bindings": bindings, "input_fact_ids": {k: v["fact"]["fact_id"] for k, v in selected.items()},
             "input_definitions": {k: {"period": v["period"], "period_type": v["period_type"], "unit": v["fact"]["unit"]} for k,v in selected.items()},

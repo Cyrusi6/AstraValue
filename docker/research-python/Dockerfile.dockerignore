@@ -1,0 +1,10 @@
+**
+!docker/
+!docker/research-python/
+!docker/research-python/Dockerfile
+!docker/research-python/requirements.txt
+!src/
+!src/analysis/
+!src/analysis/research/
+!src/analysis/research/python_sandbox_worker.py
+!src/analysis/research/python_sandbox_exporter.py

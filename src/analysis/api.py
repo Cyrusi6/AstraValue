@@ -7,13 +7,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .adapters.manager import AdapterManager, StructuredServiceUnavailable
 from .documents import SourceReviewRequired, ingest_registered_document
 from .exports import export_report
 from .models import (
@@ -22,7 +21,6 @@ from .models import (
     FactVerificationRequest,
     ReportCreateRequest,
     ReviewRequest,
-    SyncRequest,
     VerificationStatus,
 )
 from .registry import MethodRegistryError, PROJECT_ROOT
@@ -64,6 +62,7 @@ from .structured.exceptions import (
     StructuredBusyError,
     StructuredConflictError,
     StructuredIntegrityError,
+    StructuredServiceUnavailable,
 )
 
 
@@ -162,13 +161,6 @@ def create_app(
     application.state.acquisition_runtime = bound_runtime
     application.state.acquisition_v1_enabled = enabled
     application.state.structured_service = structured_service
-    application.state.adapters = (
-        bound_runtime.adapter_manager
-        if bound_runtime is not None
-        else AdapterManager(structured_service=structured_service)
-    )
-    if structured_service is not None:
-        application.state.adapters.structured_service = structured_service
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -835,52 +827,6 @@ def create_app(
                 industry=payload.industry,
             )
         )
-
-    @application.post("/api/companies/{ticker}/sync")
-    async def sync_company(
-        ticker: str,
-        request: Request,
-        response: Response,
-        options: SyncRequest = Body(default_factory=SyncRequest),
-    ) -> dict:
-        current = _service(request)
-        if (
-            "business_model" in options.scopes
-            and _optional_acquisition_runtime(request) is None
-        ):
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "business_model采集必须启用并注入同一database/data_root的"
-                    "AcquisitionRuntime"
-                ),
-            )
-        result = await run_in_threadpool(application.state.adapters.sync, ticker, options)
-        if result.source_strategy == "structured-first-v1":
-            response.status_code = 202
-        current.storage.save_sync_result(result)
-        current.timeseries.append_facts(result.facts)
-        research_records = {
-            "dimensional_facts": result.dimensional_facts,
-            "events": result.events,
-            "industry_facts": result.industry_facts,
-            "forecast_snapshots": result.forecast_snapshots,
-            "peer_sets": result.peer_sets,
-        }
-        current.timeseries.append_research_records(**research_records)
-        research_snapshot_ids = sorted(
-            {
-                item.data_snapshot_id
-                for records in research_records.values()
-                for item in records
-            }
-        )
-        for snapshot_id in research_snapshot_ids:
-            current.timeseries.export_research_snapshot(
-                snapshot_id,
-                **research_records,
-            )
-        return _redacted(result)
 
     @application.get("/api/timeseries/{ticker}")
     def get_timeseries(

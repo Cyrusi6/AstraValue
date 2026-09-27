@@ -89,7 +89,6 @@ class AcquisitionRuntime:
     orchestrator: Any | None = None
     _owns_http_client: bool = True
     _analysis_service: Any | None = field(default=None, repr=False)
-    _adapter_manager: Any | None = field(default=None, repr=False)
     _composition_lock: Any = field(default_factory=threading.RLock, repr=False)
     _frozen_definition_cache: dict[
         tuple[str, str, str, tuple[tuple[str, str, str], ...]],
@@ -257,20 +256,6 @@ class AcquisitionRuntime:
 
                 self._analysis_service = AnalysisService(storage=self.report_storage)
             return self._analysis_service
-
-    @property
-    def adapter_manager(self) -> Any:
-        """Return the one compatibility manager wired to this runtime."""
-
-        with self._composition_lock:
-            if self._adapter_manager is None:
-                from ..adapters.manager import AdapterManager
-
-                self._adapter_manager = AdapterManager(
-                    loaded_registry=self.loaded_registry,
-                    acquisition_runtime=self,
-                )
-            return self._adapter_manager
 
     def bind_analysis_service(self, service: Any) -> Any:
         """Adopt an explicitly supplied facade only when it uses our store."""

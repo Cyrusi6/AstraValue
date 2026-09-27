@@ -8,6 +8,10 @@ from .workspace import POLICY, ResearchWorkspace
 
 
 def create_server(workspace: ResearchWorkspace | None = None):
+    # Initialize plotting before MCP dispatches worker calls; pyplot is not thread safe.
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot
     server = FastMCP("AstraValue Research", instructions=POLICY)
     registry = operations(workspace or ResearchWorkspace())
     for name, function in registry.items():

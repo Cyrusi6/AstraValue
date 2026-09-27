@@ -11,6 +11,63 @@ from analysis.reporting import STEP_TITLES
 from .drafts import Drafts
 from .workspace import ResearchError, ResearchWorkspace, sha, digest
 
+REPORT_TOKEN = re.compile(r"\{\{(\w+):([^{}]+)\}\}")
+
+
+def exploration_value(exploration: dict, field: str):
+    """Render a validated exploratory scalar without promoting it into the standard fact namespace."""
+    from decimal import Decimal, InvalidOperation
+    value = exploration.get("result", {})
+    for part in field.split("."):
+        if not part or not isinstance(value, dict) or part not in value:
+            raise ResearchError("unknown_exploration_value_reference:" + field)
+        value = value[part]
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ResearchError("exploration_value_must_be_numeric_scalar")
+    try:
+        number = Decimal(str(value))
+    except InvalidOperation as exc:
+        raise ResearchError("exploration_value_must_be_numeric_scalar") from exc
+    if not number.is_finite():
+        raise ResearchError("nonfinite_exploration_value")
+    unit = exploration.get("output_unit", "")
+    if isinstance(unit, dict):
+        unit = unit.get(field, "")
+    if unit == "ratio":
+        return format_ratio(number)
+    rendered = format(number, ".12g")
+    unit = {"CNY": "元", "shares": "股", "times": "倍", "percent": "%"}.get(unit, unit)
+    return rendered + (str(unit) if unit else "")
+
+
+def referenced_custom_artifacts(workspace, research_id, draft):
+    """Load only referenced custom work; an unrelated abandoned experiment never blocks a report."""
+    chart_ids, exploration_ids = set(), set()
+    for section in draft["sections"]:
+        exploration_ids.update(ref for ref in section["evidence_refs"] if ref.startswith("exploration_"))
+        for kind, ref in REPORT_TOKEN.findall(section["markdown"]):
+            if kind == "chart":
+                chart_ids.add(ref)
+            elif kind == "explore":
+                exploration_ids.add(ref.split(".", 1)[0])
+            elif kind == "cite" and ref.startswith("exploration_"):
+                exploration_ids.add(ref)
+    from .charts import Charts
+    charts = [Charts(workspace).report_chart(research_id, key) for key in sorted(chart_ids)]
+    explorations = []
+    if exploration_ids:
+        from .custom_python import get_validated_exploration
+        from .custom_archive import archive_exploration
+        explorations = [archive_exploration(workspace, research_id, get_validated_exploration(workspace, research_id, key))
+                        for key in sorted(exploration_ids)]
+    return charts, explorations
+
+
+def format_ratio(value):
+    from decimal import Decimal
+    percent=value*100
+    return f"{percent:.6g}%" if 0<abs(percent)<Decimal('0.01') else f"{percent:.2f}%"
+
 
 def bind_valuation_request(request, draft, calculations, storage=None):
     """Keep assumptions and base valuation in the existing audit and Excel contract."""
@@ -60,6 +117,15 @@ def apply_agent_research(report, request):
     if not agent:
         return report
     draft = agent["draft"]
+    if draft.get("conclusion", {}).get("contract_version") == "buy-side-v2":
+        from .authoring import check_prose
+        risk = draft["conclusion"].get("risk_summary", "")
+        if not risk.strip() or len(re.sub(r"\s", "", risk)) > 300:
+            raise ResearchError("risk_summary_requires_1_to_300_nonspace_characters")
+        for section in draft["sections"]:
+            if section.get("contract_version") != "buy-side-v2":
+                raise ResearchError("mixed_writing_contract")
+            check_prose(section["markdown"], section["number"])
     if [x["number"] for x in draft["sections"]] != list(range(1,9)) or not draft["conclusion"]:
         raise ResearchError("complete_agent_draft_required")
     if agent["snapshot_id"] != report.request_metadata.get("lite_pack_id"):
@@ -68,7 +134,12 @@ def apply_agent_research(report, request):
     evidence = {x["evidence_id"]: x for x in agent["evidence"]}
     calculations = {x["artifact_id"]: x for x in agent["calculations"]}
     charts = {x["artifact_id"]: x for x in agent["charts"]}
-    allowed = set(metrics) | set(evidence) | set(calculations)
+    explorations = {x["artifact_id"]: x for x in agent.get("explorations", [])}
+    for item in explorations.values():
+        if (item.get("mode") != "calculation" or item.get("validation_status") != "validated"
+                or not item.get("validation_id") or item.get("snapshot_id") != agent["snapshot_id"]):
+            raise ResearchError("validated_current_exploration_required")
+    allowed = set(metrics) | set(evidence) | set(calculations) | set(explorations)
     claims = []
     sections = []
     bodies = []
@@ -81,11 +152,38 @@ def apply_agent_research(report, request):
                 raise ResearchError("unknown_chart_reference:"+ref)
             chart = charts[ref]
             return f"\n\n![{chart['title']}](data:image/png;base64,{chart['image_base64']})\n\n" if images else f"（图：{chart['title']}）"
+        if kind == "explore":
+            if "." not in ref:
+                raise ResearchError("exploration_value_field_required")
+            eid, field = ref.split(".", 1)
+            if eid not in explorations:
+                raise ResearchError("unknown_exploration_reference:" + eid)
+            result = exploration_value(explorations[eid], field)
+            if eid not in cited:
+                cited.append(eid)
+            return f"{result}（经验证的探索计算，见注{cited.index(eid)+1}）"
         if kind == "value":
+            if "." in ref:
+                cid, field = ref.rsplit(".", 1)
+                calc = calculations.get(cid)
+                if not calc or field != "value" or calc.get("result", {}).get("unit") != "ratio":
+                    raise ResearchError("unknown_calculation_value_reference:"+ref)
+                from decimal import Decimal
+                value = Decimal(calc["result"][field])
+                if not value.is_finite():
+                    raise ResearchError("nonfinite_calculation_value")
+                if cid not in cited:
+                    cited.append(cid)
+                return format_ratio(value)
             if ref not in metrics:
                 raise ResearchError("unknown_value_reference:"+ref)
             from analysis.structured.research_lite import _format_number
             item = metrics[ref]
+            unit = item["fact"]["unit"]
+            if unit in {"shares", "CNY_per_share"}:
+                from decimal import Decimal
+                number = Decimal(str(item["fact"]["value"]))
+                return f"{number:,.0f}股" if unit == "shares" else f"{number:.2f}元/股"
             return _format_number(item["fact"]["value"], item["fact"]["unit"], item["metric_id"])
         if kind == "cite":
             if ref not in allowed:
@@ -104,7 +202,7 @@ def apply_agent_research(report, request):
             return text+"\n"
         raise ResearchError("unknown_report_reference_kind")
 
-    token = re.compile(r"\{\{(\w+):([^{}]+)\}\}")
+    token = REPORT_TOKEN
     for section in draft["sections"]:
         if set(section["evidence_refs"]) - allowed:
             raise ResearchError("unknown_agent_claim_evidence")
@@ -121,6 +219,8 @@ def apply_agent_research(report, request):
             raise ResearchError("malformed_report_reference")
         sections.append(ReportSection(number=section["number"],title=STEP_TITLES[section["number"]-1],summary=plain,claims=[claim]))
         bodies.append(f"## {section['number']}. {STEP_TITLES[section['number']-1]}\n\n{rendered}")
+        if section["number"] == 6 and draft["conclusion"].get("contract_version") == "buy-side-v2":
+            bodies[-1] += "\n\n### 下行风险与评级失效触发条件\n\n" + draft["conclusion"]["risk_summary"]
     conclusion = draft["conclusion"]
     report.sections = sections
     report.claims = claims
@@ -141,7 +241,10 @@ def apply_agent_research(report, request):
     report.schema_version = "1.1.0"
     report.request_metadata["agent_body_markdown"] = "\n\n".join(bodies)
     report.request_metadata["agent_summary"] = conclusion["summary"]
-    report.request_metadata["agent_citations"] = [{"reference":ref, "detail": metrics.get(ref) or evidence.get(ref) or calculations.get(ref)} for ref in cited]
+    # An exploratory evidence reference still needs its method and limitations in the appendix,
+    # even when a chapter describes the finding without interpolating a numeric field.
+    cited.extend(ref for ref in explorations if ref not in cited)
+    report.request_metadata["agent_citations"] = [{"reference":ref, "detail": metrics.get(ref) or evidence.get(ref) or calculations.get(ref) or explorations.get(ref)} for ref in cited]
     report.request_metadata["rating_origin"] = "host_model"
     report.request_metadata["research_status"] = "authored_pending_review"
     report.request_metadata["research_progress"] = {"authored_sections":len(sections), "required_sections":8,
@@ -155,6 +258,8 @@ def apply_agent_research(report, request):
         report.request_metadata["price_time_precision"] = "date_only"
     report.audit.missing_items = [x for x in report.audit.missing_items if x != "分析对象：尚无带证据的 ClaimRecord"]
     report.request_metadata["agent_calculations"] = list(calculations.values())
+    report.request_metadata["agent_explorations"] = list(explorations.values())
+    report.request_metadata["agent_charts"] = list(charts.values())
     return report
 
 
@@ -168,10 +273,21 @@ def render_agent_markdown(report):
     if c.current_price is not None:
         text += f"参考价格：{c.current_price:.2f}元；行情日期：{c.price_as_of.date().isoformat() if c.price_as_of else '缺失'}。\n\n"
     text += meta["agent_body_markdown"]
-    text += "\n\n## 附录：证据与计算\n\n正文为模型研究判断；历史事实、预测假设和计算结果分别留存。完整财务明细、原件哈希与精确定位见同版Excel及JSON。八章已撰写，具体资料缺口见各节；用户阅读验收仍待完成。\n\n"
+    text += "\n\n## 附录：证据与计算\n\n完整财务明细、计算假设和来源定位见同版Excel及JSON。\n\n"
     for i,item in enumerate(meta["agent_citations"],1):
         row = item["detail"]
-        if "fact" in row:
+        if row.get("mode") == "calculation" and row.get("validation_status") == "validated":
+            units = row.get('output_unit', '')
+            unit_labels = {'CNY': '人民币元', 'ratio': '比例（正文以百分比表示）', 'shares': '股', 'times': '倍'}
+            if isinstance(units, dict):
+                units = '、'.join(dict.fromkeys(unit_labels.get(unit, unit) for unit in units.values()))
+            else:
+                units = unit_labels.get(units, units)
+            detail = (f"经验证的探索计算：{row.get('definition', row.get('purpose', '自定义方法')).rstrip('。；;')}；"
+                      f"适用条件与限制：{row.get('applicability', '').rstrip('。；;')}；"
+                      f"结果单位：{units}；结果期间：{row.get('output_period', '')}。"
+                      "代码、只读输入、独立复算、边界用例及验证记录保存在同版JSON；未晋升为标准指标。")
+        elif "fact" in row:
             detail = f"{row.get('label',row.get('metric_id'))}，实际数据期 {row['fact'].get('period_end') or row.get('period')}；标准值与来源见同版事实索引。"
         elif "locator" in row:
             locator=row.get('locator','')
@@ -181,11 +297,26 @@ def render_agent_markdown(report):
             title=row.get('title') or '公司披露原文'
             for key,label in {"channel_inventory":"渠道库存","platform_transactions":"线上交易","product_mix":"产品结构"}.items():
                 title=title.replace(key,label)
-            detail = f"[{title}]({row.get('source_url','')})，{row.get('period')}，{locator}。"
+            period = str(row.get('period') or '')
+            location = '，'.join(part for part in (period, locator) if part)
+            detail = f"[{title}]({row.get('source_url','')})" + (f"，{location}" if location else '') + '。'
         else:
-            label={'financial_summary':'历史增速与合并口径杜邦计算','pe_scenarios':'盈利情景、每股价值与敏感性计算'}.get(row.get('method'),row.get('method'))
+            labels = {'financial_summary':'历史增速与合并口径杜邦计算','pe_scenarios':'盈利情景、每股价值与敏感性计算',
+                      'inventory_composition':'存货构成计算','inventory_allowance_ratio':'存货减值准备率计算',
+                      'price_change':'同一产品销售合同价累计调整幅度','payout_ratio':'年度现金分红率计算',
+                      'dividend_yield':'历史分红按参考价格折算的股息率','forecast_dividend_yield':'未来十二个月股息率情景计算'}
+            label=labels.get(row.get('method'),row.get('method') or row.get('title') or '补充证据')
             detail = f"{label}；公式、输入、假设及版本见同版计算记录。"
         text += f"{i}. {detail}\n\n"
+    for chart in meta.get("agent_charts", []):
+        if chart.get("template") == "custom_python":
+            text += (f"定制图《{chart['title']}》：当前快照数据，经模型查看图片并核对绘图数据；"
+                     "代码、绘图底表、来源与检查记录见同版JSON。\n\n")
+            for source in chart.get("validated_exploration_sources", []):
+                if any(item["reference"] == source.get("artifact_id") for item in meta["agent_citations"]):
+                    continue
+                text += (f"该图使用经验证的探索计算：{source.get('definition', '')}；"
+                         f"适用条件与限制：{source.get('applicability', '')}。\n\n")
     return text
 
 
@@ -215,18 +346,20 @@ class Reports:
         formats = formats or ["md","html","xlsx","pdf"]
         if not formats or set(formats)-{"md","html","xlsx","pdf"}:
             raise ResearchError("invalid_export_format")
-        charts = []
-        for chart in self.w.artifacts(research_id,"chart"):
+        charts, explorations = referenced_custom_artifacts(self.w, research_id, draft)
+        rendered_charts = []
+        for chart in charts:
             image = Path(chart["image_path"])
             if sha(image) != chart["image_sha256"]:
                 raise ResearchError("chart_integrity_failed")
-            charts.append({**chart,"image_base64":base64.b64encode(image.read_bytes()).decode()})
+            rendered_charts.append({**chart,"image_base64":base64.b64encode(image.read_bytes()).decode()})
         request = build_report_request(path)
         request.claims = []
         request.report_notes = "宿主模型自主研究；数据/公式/假设分别记录；人读验收未完成。"
         request.input_metadata["agent_research"] = {"snapshot_id":state["snapshot_id"],"draft":draft,
             "evidence":payload["evidence"] + payload.get("supplemental_evidence", []) + [dict(x,evidence_id=x["artifact_id"]) for x in self.w.artifacts(research_id,"evidence_read")],
-            "charts":charts,"calculations":self.w.artifacts(research_id,"calculation")}
+            "charts":rendered_charts,"calculations":self.w.artifacts(research_id,"calculation"),
+            "explorations":explorations}
         request.input_metadata["processing_audit"] = payload.get("processing_audit")
         request.input_metadata["organized_disclosures"] = payload.get("organized_disclosures", [])
         request.input_metadata["processing_attachments"] = payload.get("processing_attachments", [])

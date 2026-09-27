@@ -54,6 +54,23 @@ def test_real_frozen_pack_to_existing_report_and_exports(tmp_path):
     assert w.get_task(rid)["stages"]["rendering"] == "rendered_pending_review"
     repeated = Reports(w).build_report(rid, ["md"])
     assert repeated["report_version"] == report["report_version"] + 1
+    from analysis.research.authoring import Authoring
+    a = Authoring(w)
+    ratio = Calculations(w).calculate(rid,"ratio",{"numerator":"F199","denominator":"F199"})
+    for n in range(1,9):
+        a.save_section(rid,sid,n,"经营变化的研究解释。{{cite:F199}}比例{{value:"+ratio['artifact_id']+".value}}","测试判断",["F199",ratio['artifact_id']])
+    a.save_conclusion(rid,sid,"中性观察","测试观点",["测试依据"],"盈利连续下降时下调评级。",calc["artifact_id"])
+    v2 = Reports(w).build_report(rid,["md","html"])
+    body = Path(v2['outputs']['md']['path']).read_text('utf8')
+    assert body.count('下行风险与评级失效触发条件') == 1
+    assert body.count('盈利连续下降时下调评级。') == 1
+    assert body.count('100.00%') == 8
+    assert '{{value:' not in body
+    assert body.index('## 6.') < body.index('下行风险与评级失效触发条件') < body.index('## 7.')
+    assert len(Drafts(w).get_draft(rid)['sections']) == 8
+    a.save_section(rid,sid,1,"比例{{value:"+ratio['artifact_id']+".missing}}","测试判断",[ratio['artifact_id']])
+    with pytest.raises(ResearchError,match="unknown_calculation_value"):
+        Reports(w).build_report(rid,["md"])
     drafts.save_section(rid,sid,1,"未知引用 {{cite:missing}}", "测试", ["F199"], ["测试"])
-    with pytest.raises(ResearchError, match="unknown_citation"):
+    with pytest.raises(ResearchError, match="mixed_writing_contract|unknown_citation"):
         Reports(w).build_report(rid, ["md"])

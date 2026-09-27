@@ -37,11 +37,33 @@ class MaterialJobs:
 
     def request_materials(self, research_id: str, question: str, impact: str,
                           requirement_ids: list[str] | None = None, topic: str = "financials",
-                          execute: bool = False):
-        """Request specific missing requirements. Reuse readable evidence before network acquisition."""
+                          execute: bool | None = None, material_types: list[str] | None = None, refresh: bool = False):
+        """Request materials. material_types supports sw_industry, audit_opinion, regulatory_records,
+        customers_peer, guarantee, litigation, seo, allotment, bond_issuance, pledge, unlock_peer.
+        These complete fetch/verify/register automatically (execute defaults to true for this path).
+        get_task reads progress; resume_task continues checkpoints. Empty API is not proof of no event.
+        Legacy requirement_ids retains planned/execute behavior. refresh forces one bounded new attempt chain."""
         if not question.strip() or not impact.strip():
             raise ResearchError("research_question_and_material_impact_required")
         state, path, payload = self.w.pack(research_id)
+        if material_types:
+            if requirement_ids:raise ResearchError('choose_material_types_or_requirement_ids')
+            from .supplements import MATERIAL_TYPES, existing
+            kinds=sorted(set(material_types))
+            if set(kinds)-set(MATERIAL_TYPES):
+                return {'status':'capability_gap','supported_material_types':list(MATERIAL_TYPES)}
+            if self.w.config.get('offline',False):
+                # Offline reuse may register nothing new; it never starts a network worker.
+                return {'status':'offline','materials':{k:existing(self.w,research_id,k) for k in kinds}}
+            ident='j_'+digest({'research_id':research_id,'snapshot_id':state['snapshot_id'],
+                              'material_types':kinds,'refresh':refresh})[:24]
+            try:job=self.get(ident)
+            except ResearchError:
+                job={'task_id':ident,'research_id':research_id,'snapshot_id':state['snapshot_id'],
+                     'topic':'supplements','question':question,'impact':impact,'material_types':kinds,
+                     'refresh':refresh,'state':'planned','attempts':0,'run_ids':{},'result':None}
+                self.save(job)
+            return job if execute is False else self.resume_task(ident)
         if topic not in TOPICS and topic != "catalog":
             raise ResearchError("unsupported_material_topic")
         work = read_json(path / "next-work.json")["items"]
@@ -95,19 +117,21 @@ class MaterialJobs:
                 job.update(state="interrupted", reason="worker_lease_expired", failures=job.get("failures", 0)+1)
             if job["state"] in {"running", "completed", "exhausted"}:
                 return job
-            if job.get("failures", 0) >= int(self.w.config["max_attempts"]):
+            if job.get("failures", 0) >= int(self.w.config.get("max_attempts",3)):
                 job.update(state="exhausted", reason="same_request_attempt_limit; new_evidence_required")
                 con.execute("UPDATE material_jobs SET payload=? WHERE id=?", (encode(job), task_id))
                 return job
             job.update(state="running", attempts=job["attempts"]+1,
-                lease_until=(now + timedelta(seconds=int(self.w.config["max_tool_seconds"])+30)).isoformat())
+                lease_until=(now + timedelta(seconds=int(self.w.config.get("max_tool_seconds",120))+30)).isoformat())
             con.execute("UPDATE material_jobs SET payload=? WHERE id=?", (encode(job), task_id))
         folder = self.w.state / "jobs" / task_id
         folder.mkdir(parents=True, exist_ok=True)
+        from .supplement_transport import dump
+        dump(folder/'workspace-config.json',self.w.config)
         env = dict(os.environ, PYTHONPATH=str(self.w.root / "src"), PYTHONIOENCODING="utf-8")
         try:
             with (folder / "worker.log").open("ab") as log:
-                process = subprocess.Popen([sys.executable, "-m", __name__, "supervise", str(self.w.root), task_id, str(job["attempts"])],
+                process = subprocess.Popen([sys.executable, "-m", "analysis.research.jobs", "supervise", str(self.w.root), task_id, str(job["attempts"]),str(folder/'workspace-config.json')],
                     stdout=log, stderr=log, stdin=subprocess.DEVNULL, env=env,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             return {"task_id": task_id, "state": "running", "poll_after_seconds": 5, "pid": process.pid}
@@ -116,6 +140,11 @@ class MaterialJobs:
             return job
 
     def execute_round(self, task_id):
+        job=self.get(task_id)
+        if job['topic']=='supplements':
+            from .supplements import execute
+            execute(self,job)
+            return
         from analysis.acquisition.runtime import AcquisitionRuntime
         from analysis.structured.runtime import StructuredDataRuntime
         from analysis.structured.research import materialize_cache
@@ -197,8 +226,8 @@ class MaterialJobs:
 
 
 def main():
-    action, root, task_id, attempt_text = sys.argv[1:]
-    w = ResearchWorkspace(Path(root)); jobs = MaterialJobs(w)
+    action, root, task_id, attempt_text, *config_paths = sys.argv[1:]
+    w = ResearchWorkspace(Path(root),read_json(Path(config_paths[0])) if config_paths else None); jobs = MaterialJobs(w)
     attempt = int(attempt_text)
     if jobs.get(task_id)["attempts"] != attempt:
         raise ResearchError("stale_material_worker")
@@ -206,8 +235,8 @@ def main():
         jobs.execute_round(task_id)
         return
     try:
-        subprocess.run([sys.executable, "-m", __name__, "operate", root, task_id, attempt_text],
-                       check=True, timeout=int(w.config["max_tool_seconds"]),
+        subprocess.run([sys.executable, "-m", "analysis.research.jobs", "operate", root, task_id, attempt_text, *config_paths],
+                       check=True, timeout=int(w.config.get("max_tool_seconds",120)),
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
         job = jobs.get(task_id)

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import html
 import json
+import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -404,16 +406,24 @@ def _write_xlsx(report: ReportVersion, path: Path) -> None:
         scenarios=[]; derived=[]
         for calc in report.request_metadata.get("agent_calculations",[]):
             if calc["method"] == "pe_scenarios":
-                scenarios += [[x["name"],float(x["growth"]),float(x["multiple"]),float(x["eps"]),float(x["fair_value"]),float(x["upside"]),x["reason"],calc["artifact_id"]] for x in calc["result"]["scenarios"]]
+                labels = {"bear": "悲观", "base": "基准", "bull": "乐观"}
+                scenarios += [[labels.get(x["name"], x["name"]),float(x["growth"]),float(x["multiple"]),float(x["eps"]),float(x["fair_value"]),float(x["upside"]),x["reason"],calc["artifact_id"]] for x in calc["result"]["scenarios"]]
             for row in calc["result"].get("rows",[]):
                 derived.append([row.get("metric"),row.get("period") or str(row.get("start"))+"至"+str(row.get("end")),_stringify(row),calc["artifact_id"]])
-        _append_table(workbook.create_sheet("模型估值结果"),["情景","盈利增长","预测PE","EPS","每股价值","相对现价","依据","计算ID"],scenarios,[12,14,12,16,16,16,70,42])
+        result_sheet = workbook.create_sheet("模型估值结果")
+        _append_table(result_sheet,["情景","盈利增长","预测PE","EPS（元）","每股价值（元）","相对现价","依据","计算ID"],scenarios,[12,14,12,16,16,16,70,42])
+        for row in result_sheet.iter_rows(min_row=2):
+            for index, fmt in ((1, "0.0%"), (2, '0.0"倍"'), (3, "0.00"), (4, "0.00"), (5, "+0.0%;-0.0%;0.0%")):
+                row[index].number_format = fmt
+            result_sheet.row_dimensions[row[0].row].height = 84
         _append_table(workbook.create_sheet("派生指标计算"),["指标","期间","结果及输入","计算ID"],derived,[30,28,80,42])
         _append_table(workbook.create_sheet("补充披露整理"),["类别","期间","值与边界","证据"],
                       [[x["type"],x["period"],_stringify(x),x["evidence_id"]] for x in report.request_metadata.get("organized_disclosures",[])],[30,20,80,42])
         _append_table(workbook.create_sheet("正文引用追溯"),["注号","引用ID","来源或公式","期间","定位","原件哈希"],
             [[i,x['reference'],x['detail'].get('source_url') or x['detail'].get('formula_version') or _stringify(x['detail'].get('fact',{}).get('source_ids')),x['detail'].get('period'),x['detail'].get('locator'),x['detail'].get('original_sha256')]
              for i,x in enumerate(report.request_metadata.get('agent_citations',[]),1)],[12,44,80,18,70,68])
+        if report.request_metadata.get("agent_charts"):
+            _write_agent_charts(workbook.create_sheet("研究图表", 2), report)
     for sheet in workbook.worksheets:
         sheet.sheet_view.showGridLines = False
         sheet.sheet_properties.pageSetUpPr.fitToPage = True
@@ -442,6 +452,9 @@ def _write_summary(sheet, report: ReportVersion) -> None:
         ("八步覆盖快照", report.research_coverage_snapshot_id or "该版本未评估"),
         ("八步数据状态", report.research_coverage.get("overall_status", "未评估")),
     ]
+    if report.request_metadata.get("agent_body_markdown"):
+        metadata[3] = ("行情日期", c.price_as_of.date().isoformat() if c.price_as_of else "缺失")
+        metadata[5] = ("研究截止", report.as_of.date().isoformat())
     for index, (label, value) in enumerate(metadata):
         row = 4 + index // 2
         col = 1 + (index % 2) * 4
@@ -465,14 +478,20 @@ def _write_summary(sheet, report: ReportVersion) -> None:
         sheet.cell(10, col).font = Font(size=15, bold=True, color=TEXT)
         sheet.cell(10, col).fill = PatternFill("solid", fgColor=LIGHT_BLUE)
     row = 13
-    for title, items in (("核心逻辑", c.core_theses), ("主要风险", c.major_risks), ("失效条件", c.invalidation_conditions)):
+    sections = [("核心逻辑", c.core_theses), ("主要风险", c.major_risks), ("失效条件", c.invalidation_conditions)]
+    if report.request_metadata.get("agent_research", {}).get("draft", {}).get("conclusion", {}).get("contract_version") == "buy-side-v2":
+        # The unified contract keeps risks and rating triggers in chapter 6 once.
+        sections = [("研究结论", [report.request_metadata["agent_summary"]]), ("核心逻辑", c.core_theses)]
+    for title, items in sections:
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
         sheet.cell(row, 1, title)
         _style_section_header(sheet.cell(row, 1))
         row += 1
         for item in items or ["暂无该数据"]:
             sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
-            sheet.cell(row, 1, f"• {item}").alignment = Alignment(wrap_text=True, vertical="top")
+            sheet.cell(row, 1, item if title == "研究结论" else f"• {item}").alignment = Alignment(wrap_text=True, vertical="top")
+            if report.request_metadata.get("agent_body_markdown"):
+                sheet.row_dimensions[row].height = 18 * math.ceil(len(item) / 60) + 8
             row += 1
         row += 1
     sheet.merge_cells(start_row=row, start_column=1, end_row=row + 1, end_column=8)
@@ -484,6 +503,33 @@ def _write_summary(sheet, report: ReportVersion) -> None:
 
 
 def _write_sections(sheet, report: ReportVersion) -> None:
+    if report.request_metadata.get("agent_body_markdown"):
+        rows = []
+        headings = []
+        conclusion = report.request_metadata.get("agent_research", {}).get("draft", {}).get("conclusion", {})
+        for section in report.sections:
+            headings.append(len(rows) + 2)
+            rows.append([section.number, section.title])
+            text = section.summary
+            if section.number == 6 and conclusion.get("contract_version") == "buy-side-v2":
+                text += "\n\n下行风险与评级失效触发条件\n\n" + conclusion["risk_summary"]
+            for paragraph in text.splitlines():
+                paragraph = paragraph.strip()
+                if not paragraph or re.fullmatch(r"[|:\-\s]+", paragraph):
+                    continue
+                paragraph = re.sub(r"^#{1,6}\s+", "", paragraph).replace("**", "")
+                # Split unusually long prose so Excel's maximum row height cannot hide it.
+                for start in range(0, len(paragraph), 500):
+                    rows.append([None, paragraph[start:start + 500]])
+        _append_table(sheet, ["章节", "完整正文（图见研究图表，数值情景见模型估值结果）"], rows, [9, 80])
+        for row in sheet.iter_rows(min_row=2):
+            text = str(row[1].value or "")
+            width = sum(2 if ord(c) > 127 else 1 for c in text)
+            sheet.row_dimensions[row[0].row].height = 18 * math.ceil(width / 72) + 12
+        for row in headings:
+            for cell in sheet[row]:
+                _style_section_header(cell)
+        return
     if report.request_metadata.get("display_metrics"):
         rows=[]
         for section in report.sections:
@@ -493,7 +539,6 @@ def _write_sections(sheet, report: ReportVersion) -> None:
             if not section.claims:
                 rows.append([section.number,section.title,section.summary,"","；".join(section.warnings)])
         _append_table(sheet,["步骤","标题","研究观察","事实与来源","原文定位、反证和边界"],rows,[8,26,80,60,70])
-        import math
         for row_index,row in enumerate(rows,2):
             lines=max(math.ceil(sum(2 if ord(c)>127 else 1 for c in str(v))/width) for v,width in zip(row,[8,26,80,60,70]))
             sheet.row_dimensions[row_index].height=min(409,18*lines+12)
@@ -507,6 +552,33 @@ def _write_sections(sheet, report: ReportVersion) -> None:
         )
         rows.append([section.number, section.title, section.summary, claims or "暂无经证据支持的结论", "\n".join(section.method_refs), "\n".join(section.warnings)])
     _append_table(sheet, headers, rows, [9, 25, 42, 64, 34, 48])
+
+
+def _write_agent_charts(sheet, report: ReportVersion) -> None:
+    import base64
+    from io import BytesIO
+    from openpyxl.drawing.image import Image
+
+    body = report.request_metadata["agent_body_markdown"]
+    charts = sorted(report.request_metadata["agent_charts"], key=lambda c: body.find(f"![{c['title']}]"))
+    _set_widths(sheet, [17] * 8)
+    row = 1
+    print_areas = []
+    for chart in charts:
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+        sheet.cell(row, 1, chart["title"])
+        _style_section_header(sheet.cell(row, 1))
+        sheet.row_dimensions[row].height = 28
+        image = Image(BytesIO(base64.b64decode(chart["image_base64"])))
+        image.height = image.height * 860 / image.width
+        image.width = 860
+        sheet.add_image(image, f"A{row + 1}")
+        next_row = row + math.ceil(image.height / 24) + 3
+        for image_row in range(row + 1, next_row):
+            sheet.row_dimensions[image_row].height = 18
+        print_areas.append(f"A{row}:H{next_row - 1}")
+        row = next_row
+    sheet.print_area = print_areas
 
 
 def _write_facts(sheet, report: ReportVersion) -> None:

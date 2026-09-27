@@ -104,7 +104,7 @@ def audit_metrics(pack: dict) -> dict:
                     errors.append("quarter_sum_mismatch:"+str((metric,end,kind)))
                 checks["quarter_aggregations"] += 1
     gaps = [{k:x.get(k) for k in ("metric_id","period","period_type","required","reason")}
-            for x in seen.values() if x["state"] != "ready"]
+            for x in seen.values() if x["state"] not in {"ready","disclosed_blank"}]
     return {"status":"failed" if errors else "checked_with_explicit_gaps" if gaps else "passed",
             "errors":errors,"checks":dict(checks),"gaps":gaps,
             "annual_periods":annual,"quarter_periods":quarters,

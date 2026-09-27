@@ -70,3 +70,20 @@ def test_pe_does_not_silently_annualize_interim_profit():
     w.rows[0]["period"] = "2026-06-30"
     with pytest.raises(ResearchError, match="partial_year"):
         Calculations(w).calculate("r", "pe_scenarios", {"earnings":"E", "shares":"S", "price":"P"}, assumptions())
+
+
+def test_supported_hypothesis_outside_historical_range_is_not_clipped():
+    """Historical reference levels guide the analyst, not a hidden numeric ceiling."""
+    a=assumptions()
+    a['scenarios']['value'][1].update(growth=2,multiple=80,reason='测试：超出常见历史区间但有显式情景依据')
+    result=Calculations(FrozenInputs()).calculate('r','pe_scenarios',{'earnings':'E','shares':'S','price':'P'},a)
+    base=next(s for s in result['result']['scenarios'] if s['name']=='base')
+    assert Decimal(base['fair_value'])==Decimal('2400')
+    assert base['growth']==2 and base['multiple']==80
+
+
+@pytest.mark.parametrize('growth,multiple',[(-1,20),(-2,20),(0,0),(0,-1),('Infinity',20)])
+def test_research_rationale_cannot_override_invalid_financial_inputs(growth,multiple):
+    a=assumptions();a['scenarios']['value'][1].update(growth=growth,multiple=multiple,reason='有假设理由也不能绕过硬约束')
+    with pytest.raises(ResearchError):
+        Calculations(FrozenInputs()).calculate('r','pe_scenarios',{'earnings':'E','shares':'S','price':'P'},a)

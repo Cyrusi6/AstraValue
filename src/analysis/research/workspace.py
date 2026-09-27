@@ -7,15 +7,18 @@ import uuid
 from collections import Counter
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
+from difflib import get_close_matches
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
 
 from analysis.structured.identity import CompanyResolver, SecurityIdentity
 from analysis.structured.research_lite import build_lite_pack, read_evidence
 from analysis.structured.scope import load_research_profile
 
 ROOT = Path(__file__).resolve().parents[3]
-POLICY = "模型自主研读、提出假设、估值、评级和写作；代码执行计算。事实、假设与判断分开，缺口明确说明影响；知识按需读取。旧输入包的禁止评级提示不适用于本研究。"
+POLICY = "先读取get_research_prompt统一买方研究规则，以get_research_brief取得写作材料。模型自主分析、假设、估值、评级和写作，允许有依据的情景推演；代码计算。风险与失效条件集中一次，不要求逐章反证；技术质检留在任务记录，知识按需读取。"
 TOPICS = {
     "financials": {"B"}, "cash_flow_quality": {"B", "C"},
     "business": {"A"}, "governance": {"C", "D"},
@@ -42,6 +45,13 @@ def sha(path: Path) -> str:
 
 class ResearchError(ValueError):
     pass
+
+
+def validate_integer_parameter(value, field: str, code: str, maximum: int | None = None):
+    """Keep direct Python/CLI calls as bounded as the published MCP schema."""
+    if type(value) is not int or value < 1 or (maximum is not None and value > maximum):
+        allowed = f"1..{maximum}" if maximum is not None else ">=1"
+        raise ResearchError(f"{code}:{field} must be an integer {allowed}; received {value!r}; follow next_page for continuation")
 
 
 class ResearchWorkspace:
@@ -246,15 +256,26 @@ class ResearchWorkspace:
                 result["token_count_scope"] = "frozen_core_only; policy overlay and envelope additional"
         return result
 
-    def query_research(self, research_id: str, topic: str = "financials", period_type: str = "cumulative",
-                       metric_ids: list[str] | None = None, question: str = "", page: int = 1, page_size: int = 20):
+    def query_research(self, research_id: str, topic: str = "financials",
+                       period_type: Literal["cumulative", "single_quarter", "instant", "current", "ttm", "ratio", "all"] = "cumulative",
+                       metric_ids: list[str] | None = None, question: str = "",
+                       page: Annotated[int, Field(ge=1)] = 1,
+                       page_size: Annotated[int, Field(ge=1, le=40)] = 20):
+        """Query registered metric IDs; page_size is 1..40. Values are in rows[].fact.value.
+
+        period_type filters the reading view without changing it. Current market rows use
+        current, not instant; their actual observation date is fact.period_end, not row.period.
+        Follow next_page with the same filters and page_size.
+        """
         if topic not in TOPICS and topic not in {"peers", "evidence", "gaps"}:
             return {"status": "capability_gap", "supported_topics": [*TOPICS, "peers", "evidence", "gaps"]}
-        if page < 1 or not 1 <= page_size <= 40:
-            raise ResearchError("invalid_pagination")
+        validate_integer_parameter(page, "page", "invalid_pagination")
+        validate_integer_parameter(page_size, "page_size", "invalid_pagination", 40)
         state, path, payload = self.pack(research_id)
+        guidance = {}
         if topic == "peers":
-            rows = payload["peers"]
+            from .briefing import aligned_peers
+            rows, _ = aligned_peers(payload["peers"])
         elif topic == "gaps":
             work = read_json(path / "next-work.json")["items"]
             grouped = {}
@@ -271,29 +292,54 @@ class ResearchWorkspace:
                     for i in payload["evidence"] + payload.get("supplemental_evidence", []) if topic == "evidence" or i.get("group") in TOPICS[topic]]
         else:
             if period_type not in {"cumulative", "single_quarter", "instant", "current", "ttm", "ratio", "all"}:
-                raise ResearchError("unknown_period_type")
+                raise ResearchError("unknown_period_type:period_type must be cumulative, single_quarter, instant, current, ttm, ratio or all")
+            topic_rows = [i for i in payload["metrics"] if i.get("group") in TOPICS[topic]]
+            available_ids = sorted({i["metric_id"] for i in topic_rows})
             unknown = set(metric_ids or []) - {i["metric_id"] for i in payload["metrics"]}
             if unknown:
                 return {"status": "capability_gap", "research_id": research_id, "snapshot_id": state["snapshot_id"],
-                        "unknown_metric_ids": sorted(unknown), "next_action": "request_materials"}
-            rows = [i for i in payload["metrics"] if i.get("group") in TOPICS[topic]
-                    and (period_type == "all" or i.get("period_type") == period_type)
-                    and (not metric_ids or i["metric_id"] in metric_ids)]
+                        "unknown_metric_ids": sorted(unknown), "available_metric_ids": available_ids,
+                        "similar_metric_ids": {name: get_close_matches(name, available_ids, n=3, cutoff=.45)
+                                               for name in sorted(unknown)},
+                        "reason": "metric_id_not_registered; choose a registered ID before assessing a data gap",
+                        "next_action": "list_materials",
+                        "read_entry": {"tool": "list_materials", "research_id": research_id,
+                                       "category": "valuation" if topic == "valuation" else "metrics"}}
+            matched = [i for i in topic_rows if not metric_ids or i["metric_id"] in metric_ids]
+            rows = [i for i in matched if period_type == "all" or i.get("period_type") == period_type]
+            if matched and not rows:
+                examples = []
+                for item in matched:
+                    fact_period = (item.get("fact") or {}).get("period_end")
+                    if fact_period:
+                        examples.append({"metric_id": item["metric_id"], "period_type": item["period_type"],
+                                         "period": item["period"], "fact_period_end": fact_period})
+                    if len(examples) == 3:
+                        break
+                guidance = {"query_hint": {"reason": "period_type_filter_has_no_matches",
+                    "requested_period_type": period_type,
+                    "available_period_types": sorted({i["period_type"] for i in matched}),
+                    "next_action": "query_research",
+                    "note": "查询未自动改写；选择可用period_type重试。current行情的period是读取视图日期，实际行情日期读取fact.period_end。",
+                    "fact_date_examples": examples}}
         start = (page - 1) * page_size
         return {"research_id": research_id, "snapshot_id": state["snapshot_id"], "topic": topic,
                 "question": question, "total": len(rows), "rows": rows[start:start+page_size],
-                "next_page": page + 1 if start + page_size < len(rows) else None}
+                "next_page": page + 1 if start + page_size < len(rows) else None, **guidance}
 
-    def read_evidence(self, research_id: str, evidence_id: str, page: int = 1, max_tokens: int = 2000):
-        if not 1 <= max_tokens <= 4000:
-            raise ResearchError("evidence_budget_out_of_range")
+    def read_evidence(self, research_id: str, evidence_id: str,
+                      page: Annotated[int, Field(ge=1)] = 1,
+                      max_tokens: Annotated[int, Field(ge=1, le=4000)] = 2000):
+        """Read bounded evidence text; keep max_tokens unchanged while following next_page."""
+        validate_integer_parameter(page, "page", "text_page_out_of_range")
+        validate_integer_parameter(max_tokens, "max_tokens", "evidence_budget_out_of_range", 4000)
         state, path, payload = self.pack(research_id)
         item = next((x for x in payload.get("supplemental_evidence", []) if x["evidence_id"] == evidence_id), None)
         if item:
             from analysis.structured.research_lite import _split_utf8
             chunks = _split_utf8(item["content"], max_tokens * 2)
             if not 1 <= page <= len(chunks):
-                raise ResearchError("text_page_out_of_range")
+                raise ResearchError(f"text_page_out_of_range:page must be 1..{len(chunks)} for max_tokens={max_tokens}; received {page}")
             return {**{k:v for k,v in item.items() if k not in {"content", "selection"}},
                     "content":chunks[page-1], "page":page,"next_page":page+1 if page<len(chunks) else None,
                     "original_hash_verified":True,"research_id":research_id,"snapshot_id":state["snapshot_id"]}
@@ -319,23 +365,26 @@ class ResearchWorkspace:
                         (ident, research_id, kind, state["snapshot_id"], encode(value)))
         return {"artifact_id": ident, **value}
 
-    def read_document_page(self, research_id: str, evidence_id: str, document_page: int,
-                           page: int = 1, max_tokens: int = 2000):
+    def read_document_page(self, research_id: str, evidence_id: str,
+                           document_page: Annotated[int, Field(ge=1)],
+                           page: Annotated[int, Field(ge=1)] = 1,
+                           max_tokens: Annotated[int, Field(ge=1, le=4000)] = 2000):
         """Read an adjacent physical PDF page from a verified evidence source, with bounded continuation."""
         import fitz
         from analysis.structured.research_lite import _split_utf8
-        if not 1 <= max_tokens <= 4000 or document_page < 1 or page < 1:
-            raise ResearchError("invalid_document_page_or_budget")
+        validate_integer_parameter(document_page, "document_page", "invalid_document_page_or_budget")
+        validate_integer_parameter(page, "page", "invalid_document_page_or_budget")
+        validate_integer_parameter(max_tokens, "max_tokens", "invalid_document_page_or_budget", 4000)
         source = self.read_evidence(research_id, evidence_id, max_tokens=2000)
         with fitz.open(source["original_path"]) as document:
             if document_page > len(document):
-                raise ResearchError("document_page_out_of_range")
+                raise ResearchError(f"document_page_out_of_range:document_page must be 1..{len(document)}; received {document_page}")
             body = document[document_page-1].get_text()
         if not body.strip():
             return {"status": "processing_gap", "reason": "page_requires_ocr", "document_page": document_page}
         chunks = _split_utf8(body, max_tokens * 2)
         if page > len(chunks):
-            raise ResearchError("text_page_out_of_range")
+            raise ResearchError(f"text_page_out_of_range:page must be 1..{len(chunks)} for max_tokens={max_tokens}; received {page}")
         proof = self.artifact(research_id, "evidence_read", {
             "parent_evidence_id": evidence_id, "locator": f"page:{document_page}",
             "source_url": source["source_url"], "original_path": source["original_path"],

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 from pathlib import Path
 
 from .workspace import ResearchWorkspace, ResearchError, digest, sha, read_json
@@ -22,7 +21,10 @@ class Charts:
         return {"items": [{"template": k, "title": title, "status": "available" if set(metrics) <= available else "input_gap"}
                          for k,(title,metrics,_) in self.TEMPLATES.items()],
                 "conditional": ["valuation_sensitivity requires PE calculation_id", "dupont requires financial_summary calculation_id",
-                                "history_pe/peer_pe require adopted verified valuation history", "现金流瀑布尚未接入，不能以趋势图冒充"]}
+                                "history_pe/peer_pe require adopted verified valuation history", "现金流瀑布尚未接入，不能以趋势图冒充"],
+                "custom": {"tool": "run_python_analysis", "mode": "chart",
+                           "review": "view_chart → review_custom_chart → {{chart:chart_id}}",
+                           "inputs": "当前快照的只读数据、正式计算或经验证的探索计算"}}
 
     def create_chart(self, research_id: str, template: str, calculation_id: str | None = None):
         """Create a deterministic chart from the active snapshot; missing values are gaps, never zero."""
@@ -43,13 +45,14 @@ class Charts:
             multiples = sorted({float(x["multiple"]) for x in data})
             values = {(float(x["growth"]), float(x["multiple"])): float(x["fair_value"]) for x in data}
             matrix = [[values[g,m] for m in multiples] for g in growths]
-            ax.imshow(matrix, cmap="Blues", aspect="auto")
+            heatmap = ax.imshow(matrix, cmap="Blues", aspect="auto")
             ax.set_xticks(range(len(multiples)), [f"{x:g}倍" for x in multiples])
             ax.set_yticks(range(len(growths)), [f"{x:.0%}" for x in growths])
-            ax.set_xlabel("预测市盈率"); ax.set_ylabel("一年盈利增长假设")
+            ax.set_xlabel("预测市盈率"); ax.set_ylabel("相对基期的盈利增长假设")
             for i,g in enumerate(growths):
                 for j,m in enumerate(multiples):
-                    ax.text(j,i,f"{values[g,m]:.0f}",ha="center",va="center",color="#121e29")
+                    color = "white" if heatmap.norm(values[g,m]) > .55 else "#121e29"
+                    ax.text(j,i,f"{values[g,m]:.0f}",ha="center",va="center",color=color)
         elif template in {"history_pe", "peer_pe"}:
             bound = [x for x in pack.get("supplemental_evidence",[]) if x.get("source_role")=="verified_deterministic_calculation"]
             if len(bound)!=1:
@@ -110,17 +113,92 @@ class Charts:
             raise ResearchError("unknown_chart_template")
         if template != "dupont":ax.set_title(title,loc="left",pad=18,fontweight="bold")
         fig.tight_layout()
-        ident = "chart_" + digest([state["snapshot_id"], template, data])[:24]
+        version = "research-charts-v3" if template == "valuation_sensitivity" else "research-charts-v1"
+        identity = [state["snapshot_id"], template, data]
+        if version != "research-charts-v1":
+            identity.append(version)
+        ident = "chart_" + digest(identity)[:24]
         path = self.w.state / "charts" / (ident + ".png")
         path.parent.mkdir(parents=True,exist_ok=True)
         fig.savefig(path,dpi=160,bbox_inches="tight");plt.close(fig)
         return self.w.artifact(research_id, "chart", {"template": template, "title": title, "data": data,
-            "image_path": str(path), "image_sha256": sha(path), "template_version": "research-charts-v1",
+            "image_path": str(path), "image_sha256": sha(path), "template_version": version,
             "calculation_id": calculation_id, "validation": "data_bound; visual_review_required"})
 
     def view_chart(self, research_id: str, chart_id: str):
         """Return a verified chart image; MCP exposes it as an image content block."""
-        chart = next((x for x in self.w.artifacts(research_id,"chart") if x["artifact_id"] == chart_id),None)
-        if not chart or sha(Path(chart["image_path"])) != chart["image_sha256"]:
-            raise ResearchError("chart_missing_or_modified")
+        chart, binding, _ = self._verified_chart(research_id, chart_id)
+        if binding:
+            self.w.artifact(research_id, "chart_view", binding)
         return {"path": chart["image_path"], "sha256": chart["image_sha256"], "mime_type": "image/png"}
+
+    def _verified_chart(self, research_id: str, chart_id: str):
+        chart = next((x for x in self.w.artifacts(research_id, "chart") if x["artifact_id"] == chart_id), None)
+        if not chart:
+            raise ResearchError("chart_not_in_active_snapshot:" + chart_id)
+        payload = {k: v for k, v in chart.items() if k != "artifact_id"}
+        if chart_id != "chart_" + digest(payload)[:24]:
+            raise ResearchError("chart_record_modified")
+        try:
+            if sha(Path(chart["image_path"])) != chart["image_sha256"]:
+                raise ResearchError("chart_integrity_failed")
+        except (OSError, KeyError) as exc:
+            raise ResearchError("chart_missing_or_modified") from exc
+        if chart.get("template") != "custom_python":
+            return chart, None, None
+        from .custom_python import get_exploration
+        run = get_exploration(self.w, research_id, chart["exploration_id"])
+        image = run.get("files", {}).get("figure.png", {})
+        if (run.get("mode") != "chart" or image.get("sha256") != chart["image_sha256"]
+                or Path(image.get("path", "")).resolve() != Path(chart["image_path"]).resolve()
+                or digest(chart.get("data")) != digest(run.get("result"))):
+            raise ResearchError("custom_chart_execution_mismatch")
+        binding = {"chart_id": chart_id, "exploration_id": run["artifact_id"],
+                   "image_sha256": chart["image_sha256"], "code_sha256": run["code_sha256"],
+                   "input_sha256": run["input_sha256"], "files_sha256": digest(run["files"]),
+                   "result_sha256": digest(run["result"]), "provenance_sha256": digest(run["provenance"])}
+        return chart, binding, run
+
+    def review_custom_chart(self, research_id: str, chart_id: str, visual_review: str,
+                            data_review: str, approved: bool = True):
+        """Record the model's visual and data review after view_chart; no human confirmation is required."""
+        _, binding, _ = self._verified_chart(research_id, chart_id)
+        if binding is None:
+            raise ResearchError("custom_chart_required")
+        if (not isinstance(visual_review, str) or not isinstance(data_review, str)
+                or not visual_review.strip() or not data_review.strip()
+                or len(visual_review) > 3000 or len(data_review) > 3000):
+            raise ResearchError("custom_chart_visual_and_data_review_required")
+        if not isinstance(approved, bool):
+            raise ResearchError("custom_chart_approval_must_be_boolean")
+        views = self.w.artifacts(research_id, "chart_view")
+        if not any(all(row.get(k) == v for k, v in binding.items()) for row in views):
+            raise ResearchError("custom_chart_must_be_viewed_before_review")
+        # A revision makes a later rejection authoritative, even if an earlier approval is identical.
+        reviews = self.w.artifacts(research_id, "chart_review")
+        return self.w.artifact(research_id, "chart_review", {
+            **binding, "approved": bool(approved), "visual_review": visual_review.strip(),
+            "data_review": data_review.strip(), "reviewer_role": "host_model",
+            "revision": len(reviews) + 1,
+        })
+
+    def report_chart(self, research_id: str, chart_id: str):
+        """Verify one referenced image and retain its custom execution and review with the report."""
+        chart, binding, run = self._verified_chart(research_id, chart_id)
+        if binding is None:
+            return chart
+        reviews = [x for x in self.w.artifacts(research_id, "chart_review") if x.get("chart_id") == chart_id]
+        if not reviews or not reviews[-1].get("approved"):
+            raise ResearchError("custom_chart_review_required:" + chart_id)
+        review = reviews[-1]
+        if not all(review.get(k) == v for k, v in binding.items()):
+            raise ResearchError("custom_chart_review_stale:" + chart_id)
+        views = self.w.artifacts(research_id, "chart_view")
+        if not any(all(row.get(k) == v for k, v in binding.items()) for row in views):
+            raise ResearchError("custom_chart_view_receipt_missing")
+        from .custom_python import get_validated_exploration
+        from .custom_archive import archive_exploration
+        sources = [archive_exploration(self.w, research_id, get_validated_exploration(self.w, research_id, key))
+                   for key in run.get("provenance", {}).get("exploration_ids", [])]
+        return {**chart, "custom_execution": archive_exploration(self.w, research_id, run), "custom_review": review,
+                "validated_exploration_sources": sources}
