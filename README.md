@@ -36,7 +36,6 @@ API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先�
 
 公开大附件从 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）起支持，当前默认 1.9 沿用：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。旧配置和旧计划保留，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
 
-兼容 `/api/companies/{ticker}/sync` 不接受把 `business_model` 与旧财务 scope 混在同一次请求中：两类工作必须分别发起。这样旧 adapter 不会在 business-model 来源审核失败时绕过注册表门禁，结构化 attempts 也不会与 legacy 自由文本结果混成同一权威摘要。
 
 ```powershell
 # 创建计划并执行；加 --plan-only 可只冻结 run/coverage，不联网
@@ -109,95 +108,27 @@ python -m analysis.cli smoke-sources --ticker 600519 `
 
 该脚本委托给注册表驱动的 `smoke-sources` 命令，创建带 lease 的独立 smoke run，并报告规范 attempt 状态；它不会推进 production checkpoint。需要把材料缺口反映到退出码时加 `--strict`。
 
-Tushare Pro 不在默认同步列表中。需要时安装可选依赖并仅通过环境变量提供令牌：
+
+启动 API 后，常规数据只通过结构化计划和运行接口获取；计划不会隐式联网，执行或恢复运行后才会写入带来源和快照定位的事实：
 
 ```powershell
-python -m pip install -e ".[tushare]"
-$env:TUSHARE_TOKEN="你的令牌"
-# Tushare 仍只通过既有 financial/market sync 显式 opt-in；
-# 不属于 business_model v1，也不会由 smoke-sources 枚举。
+$plan = @{ ticker = "600519"; mode = "baseline"; company_scope = "company-only"; datasets = @() } | ConvertTo-Json
+$planned = Invoke-RestMethod -Method Post -ContentType "application/json" `
+  -Uri "http://127.0.0.1:8000/api/structured/plans" -Body $plan
+
+foreach ($runId in $planned.run_ids) {
+  Invoke-RestMethod -Method Post `
+    -Uri "http://127.0.0.1:8000/api/structured/runs/$runId/execute"
+}
 ```
 
-Wind 需要本机 Wind 终端、`WindPy` 与有效商业授权，当前免费默认环境不伪装为可用数据源；其后可按同一适配器接口接入。
+研究工作区冻结资料包后，由 reporting bridge 调用 `POST /api/structured/reports` 生成 `ReportVersion`。报告读取、变化查询和 Markdown/HTML/XLSX/PDF 导出保持只读；不再提供直接 `POST /api/reports`、假设修改或重算入口。
 
-启动 API 后，可以先同步真实数据，再让报告自动使用该同步批次：
+### 按需报告原文与事件资料
 
-```powershell
-$sync = @{
-  providers = @("official", "akshare", "sina", "baostock")
-  annual_years = 5
-  single_quarters = 12
-  download_official_documents = $true
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -ContentType "application/json" `
-  -Uri "http://127.0.0.1:8000/api/companies/600519/sync" -Body $sync
+报告原文不再随结构化数据全量下载或归档。研究工作区只针对当前问题请求公告、事件或重要报告正文；采集结果保留来源身份、快照、页码或文本定位，并可在内容变化时生成新版本。公告目录、事件分类和文档解析属于 acquisition 链，不能绕过研究问题触发全量正文抓取。
 
-$report = @{
-  ticker = "600519"
-  company_name = "贵州茅台"
-  industry = "消费"
-  use_synced_facts = $true
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -ContentType "application/json" `
-  -Uri "http://127.0.0.1:8000/api/reports" -Body $report
-```
-
-### 全公告与事件同步
-
-公告同步可以独立于财务同步执行；独立公告批次不会替换报告生成时所需的最新财务批次。下面的示例索引近两年全部公告，但只下载并解析分红、回购和增减持三类事件附件：
-
-```powershell
-$events = @{
-  providers = @("official")
-  scopes = @("announcements")
-  as_of = "2026-09-03T00:00:00Z"
-  announcement_years = 2
-  max_announcements = 1000
-  max_event_documents = 200
-  event_types = @("dividend", "repurchase", "holding_change")
-  download_official_documents = $true
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -ContentType "application/json" `
-  -Uri "http://127.0.0.1:8000/api/companies/600519/sync" -Body $events
-```
-
-- `scopes` 可使用 `announcements / governance / capital_actions / risks` 控制公告研究范围；使用 `announcements` 时覆盖所有已识别事件类别。
-- `event_types` 为空时不做类别过滤；可选类别以 [`config/event_taxonomy.json`](config/event_taxonomy.json) 为准。
-- `max_event_documents = 0` 或 `download_official_documents = $false` 时只建立公告索引，不下载附件。
-- 公告、事件和解析版本均按快照追加；同一 PDF 的交易所/巨潮镜像共享上游哈希，不能冒充两个独立来源。
-
-查询与证据链接口：
-
-- `GET /api/companies/{ticker}/announcements`：默认返回每个 canonical 公告的最新已存版本，可按 `event_type`、`as_of` 和 `data_snapshot_id` 过滤。
-- `GET /api/companies/{ticker}/events`：默认返回每个 canonical 事件的最新已存版本，可按 `event_type`、`root_event_id`、`as_of` 和 `data_snapshot_id` 过滤。
-- `GET /api/announcements/{announcement_record_id}/lineage`：公告、附件和关联事件血缘。
-- `GET /api/events/{event_id}/lineage`：事件、正式来源、附件、前序事件及根事项血缘。
-- 创建报告时可以传入 `event_sync_result_id` 显式锁定事件批次；未指定且 `use_synced_facts = true` 时，系统会自动选择截止时点内最新的非空事件批次，不会被更晚的公告索引空批次遮蔽。
-- 选中的事件批次 ID 会写入报告元数据；重算、重新分析和人工复核均继续携带该批次及事件记录，历史报告不会因后续同步而漂移。
-- 事件会按 [`config/event_taxonomy.json`](config/event_taxonomy.json) 的 `report_steps` 路由到第三、第四和第六步。正文只陈列披露事实、状态链与证据定位，不自动判定利好、利空或治理质量。
-
-### 财报附注经营维度同步
-
-经营维度可独立同步。该范围只选择最近指定年数的年度报告，不下载季度报告；解析结果包括分业务、分产品、分地区、分销售渠道的收入/成本/毛利率，以及产销存、产能和前五名客户/供应商汇总。
-
-```powershell
-$dimensions = @{
-  providers = @("official")
-  scopes = @("dimensions")
-  as_of = "2026-09-03T00:00:00Z"
-  annual_years = 5
-  download_official_documents = $true
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -ContentType "application/json" `
-  -Uri "http://127.0.0.1:8000/api/companies/600519/sync" -Body $dimensions
-```
-
-- `GET /api/companies/{ticker}/dimensions` 可按 `metric_id`、`dimension_type`、`as_of`、`data_snapshot_id` 和 `verification_status` 精确查询；`limit` 默认 500，范围 1—5000。
-- `GET /api/companies/{ticker}/dimensions/review-queue` 只返回状态为“待核验”的经营维度事实，可用 `data_snapshot_id` 锁定批次，并用 `limit` 控制返回量。
-- `GET /api/dimensional-facts/{dimensional_fact_id}/lineage` 返回来源、正式文档及页码/表名/行列/字符偏移证据。
-- 分产品、地区和渠道合计会与主营业务合计勾稽，披露毛利率会按收入和成本复算；冲突统一降为“待核验”，不取平均。
-- 报告未指定批次时，系统分别锁定最新财务批次和最新经营维度批次，并把两个批次 ID 写入报告元数据；第一步直接展示可追溯维度事实。
-- 经营维度事实的 `verification_status` 与财务事实使用同一状态枚举；当前自动审核队列只收集“待核验”，不会把“权威单源”误判为冲突。
+可用 `python -m analysis.cli acquire ...` 创建、执行、增量更新或 reconcile 采集运行；结构化字段使用上文 `/api/structured/*` 接口。资料包完成后只能通过 `POST /api/structured/reports` 进入 reporting bridge，生成的 `ReportVersion` 通过只读报告接口和导出接口读取。
 
 ## 已有模块与历史兼容能力（不等于端到端验收）
 
@@ -206,14 +137,12 @@ Invoke-RestMethod -Method Post -ContentType "application/json" `
 - 相对估值、FCFF/FCFE DCF、DDM、剩余收益、SOTP、NAV、Reverse DCF和周期标准化；
 - A股行业估值路由及方法停止条件；
 - 双源/权威单源/冲突/估算/未披露/暂无/不适用状态；
-- 巨潮、上交所、深交所定期报告检索，正式 PDF 自动归档、哈希与结构化解析；
-- 巨潮与交易所全公告索引、确定性事件分类、定向 PDF 下载、字段提取和事项状态链；
-- 年报分业务/产品/地区/渠道、产销存、产能及客户供应商集中度解析，含表内勾稽、证据定位和报告第一步接入；
-- AKShare 东方财富与新浪财经五年年报/十二个单季度三表同步，新浪历史收盘价后备，以及 BaoStock 行情和季度净利润复核；
-- 仅在价格、TTM归母净利润、归母净资产和股本均完成双源核验后，确定性复算 PE TTM/PB，再用 BaoStock 比率交叉验证；
-- 可选 Tushare Pro 第二行情源（`python -m pip install -e ".[tushare]"` 并通过 `TUSHARE_TOKEN` 环境变量传入凭证）；
+- 结构化字段注册表、来源版本、快照、checkpoint、增量与 reconcile 恢复；
+- 研究问题触发的公告目录、事件筛选和报告正文解析，保留来源、页码/定位与内容版本；
+- 年报分业务/产品/地区/渠道、产销存、产能及客户供应商集中度的按需解析，含表内勾稽、证据定位和报告第一步接入；
+- 结构化事实物化、确定性指标计算和跨来源核验，缺口与冲突明确保留；
 - 最新正式重述优先、旧版本保留、关键字段“正式披露 + 独立来源”双重核验；
-- 报告版本冻结、重算、重新分析和版本差异；
+- `ReportVersion` 冻结、版本差异查询和审计血缘；
 - Markdown、HTML、Excel、PDF导出；
 - PDF、HTML、TXT和Markdown正式披露文件人工归档入口。
 

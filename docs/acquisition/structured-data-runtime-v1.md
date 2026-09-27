@@ -83,7 +83,7 @@ EM-F 的报告日期目录只表示供应商声明的可查询期间，不保证
 - `POST /api/structured/runs/{run_id}/execute` 与 `/resume`；
 - `GET /api/structured/runs/{run_id}`、`/records`、`/reading-tasks`、`/research-coverage/{snapshot_id}`。
 
-新策略 `/api/companies/{ticker}/sync` 在持久入队后返回 202；明确 `source_strategy=legacy-v1` 的旧同步保留 200。校验错误、冻结身份冲突、租约/存储忙和完整性错误分别返回 422、409、503 和 500。响应会过滤凭据、原始正文和不必要的本机绝对路径。
+结构化计划 `POST /api/structured/plans` 只冻结计划并返回 `run_ids`，不会隐式联网；随后对每个运行调用 `/api/structured/runs/{run_id}/execute`，中断后调用 `/resume`。校验错误、冻结身份冲突、租约/存储忙和完整性错误分别返回 422、409、503 和 500。响应会过滤凭据、原始正文和不必要的本机绝对路径。
 
 ## 隔离真实样本
 
@@ -159,7 +159,7 @@ BaoStock repair 会先做一次匿名登录探针，再为本轮多个 job 复�
 
 repair 代码本身没有数据库迁移。回滚时停止 repair 进程并切回原 revision；已经追加的 attempt、snapshot、page、record 和 coverage 是合法不可变历史，不删除。自动测试、隔离真实样本、生产 repair 与独立人工抽样分别记录，任何一项都不自动将 `manual_acceptance` 改为通过。
 
-需要暂时回到旧业务入口时，明确传 `source_strategy=legacy-v1` 和旧 providers；这只切换新请求策略，不倒改已有结构化记录。若必须回退隔离数据库文件，应先停止对应 worker、核对 database/data-root/namespace 与备份清单，再使用已验证备份恢复；不要在生产库上删除结构化表模拟回滚。
+旧业务同步入口已删除，不提供旧来源参数回退路径。若必须回退隔离数据库文件，应先停止对应 worker、核对 database/data-root/namespace 与备份清单，再使用已验证备份恢复；不要在生产库上删除结构化表模拟回滚。
 
 ## 七家公司生产执行与终验方案（尚未运行）
 

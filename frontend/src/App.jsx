@@ -52,7 +52,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
 
   async function loadAll() {
     setLoading(true); setError("");
@@ -87,18 +86,17 @@ function App() {
     <main className="workspace">
       <header className="topbar">
         <div><p className="eyebrow">LOCAL RESEARCH WORKSPACE</p><h1>{titleFor(view, activeReport)}</h1></div>
-        <div className="top-actions"><button className="ghost" onClick={loadAll}><Icon name="refresh" />刷新</button><button className="primary" onClick={() => setShowCreate(true)}><Icon name="plus" />新建草稿</button></div>
+        <div className="top-actions"><button className="ghost" onClick={loadAll}><Icon name="refresh" />刷新</button></div>
       </header>
       {error && <div className="error-banner"><strong>无法完成请求</strong><span>{error}</span><button onClick={() => setError("")}>×</button></div>}
       {loading ? <Loading /> : <>
-        {view === "dashboard" && <Dashboard reports={reports} methods={methods} onOpen={openReport} onCreate={() => setShowCreate(true)} />}
+        {view === "dashboard" && <Dashboard reports={reports} methods={methods} onOpen={openReport} />}
         {view === "reports" && <ReportArchive reports={reports} onOpen={openReport} />}
-        {view === "report" && activeReport && <ReportView report={activeReport} onUpdated={(item) => { setSelected(item); loadAll(); }} notify={setToast} />}
+        {view === "report" && activeReport && <ReportView report={activeReport} />}
         {view === "methods" && <MethodLibrary methods={methods} />}
         {view === "data" && <DataDesk notify={setToast} onError={(message) => setError(message)} />}
       </>}
     </main>
-    {showCreate && <CreateReport onClose={() => setShowCreate(false)} onCreated={(report) => { setReports((items) => [report, ...items]); setSelected(report); setView("report"); setShowCreate(false); setToast("草稿已创建"); }} />}
     {toast && <div className="toast">{toast}</div>}
   </div>;
 }
@@ -107,7 +105,7 @@ function NavButton({ icon, label, active, onClick }) {
   return <button className={active ? "active" : ""} onClick={onClick}><Icon name={icon} /><span>{label}</span></button>;
 }
 
-function Dashboard({ reports, methods, onOpen, onCreate }) {
+function Dashboard({ reports, methods, onOpen }) {
   const latest = reports.slice(0, 4);
   const reviewed = reports.filter((item) => item.status === "已复核").length;
   const conflicts = reports.filter((item) => item.audit?.conflicts?.length).length;
@@ -120,7 +118,7 @@ function Dashboard({ reports, methods, onOpen, onCreate }) {
       <Metric label="导出格式" value="4" note="网页 / Markdown / Excel / PDF" />
     </section>
     <section className="panel"><PanelTitle title="最近报告" meta="按创建时间倒序" />
-      {latest.length ? <div className="report-list">{latest.map((report) => <ReportRow key={report.report_id} report={report} onClick={() => onOpen(report)} />)}</div> : <Empty title="尚无报告" text="创建第一份草稿，或运行 python scripts/run_demo.py 生成虚构验算样例。" action="新建草稿" onAction={onCreate} />}
+      {latest.length ? <div className="report-list">{latest.map((report) => <ReportRow key={report.report_id} report={report} onClick={() => onOpen(report)} />)}</div> : <Empty title="尚无报告" text="先在数据与公告中完成结构化采集，再由研究工作区生成 ReportVersion。" />}
     </section>
     <EightStepStrip />
   </div>;
@@ -140,42 +138,20 @@ function ReportRow({ report, onClick }) {
   return <button className="report-row" onClick={onClick}><div className="ticker-box">{report.ticker.slice(0, 6)}</div><div className="report-main"><strong>{report.company_name}</strong><span>{report.industry} · v{report.version} · 数据截止 {new Date(report.as_of).toLocaleDateString("zh-CN")}</span></div><div className="report-rating"><StatusBadge value={report.status} /><strong>{report.conclusion.rating}</strong></div><div className="report-value"><span>基准价值</span><strong>{fmt(report.conclusion.fair_value_base)}</strong></div><Icon name="arrow" /></button>;
 }
 
-function ReportView({ report, onUpdated, notify }) {
+function ReportView({ report }) {
   const [openStep, setOpenStep] = useState(1);
   const [tab, setTab] = useState("report");
-  const [busy, setBusy] = useState(false);
-  const [assumptions, setAssumptions] = useState(report.assumptions || []);
-  useEffect(() => setAssumptions(report.assumptions || []), [report.report_id]);
   const c = report.conclusion;
 
-  async function action(path, body) {
-    setBusy(true);
-    try {
-      const result = await api(`/reports/${report.report_id}/${path}`, { method: "POST", body: body ? JSON.stringify(body) : undefined });
-      onUpdated(result); notify("已生成新的不可覆盖报告版本");
-    } catch (err) { notify(err.message); }
-    finally { setBusy(false); }
-  }
-
-  async function saveAssumptions() {
-    setBusy(true);
-    try {
-      const result = await api(`/reports/${report.report_id}/assumptions`, { method: "PATCH", body: JSON.stringify({ assumptions, recalculate: true }) });
-      onUpdated(result); notify("假设已保存并确定性重算");
-    } catch (err) { notify(err.message); }
-    finally { setBusy(false); }
-  }
-
   return <div className="page-stack report-page">
-    <section className="report-hero"><div><div className="report-kicker"><StatusBadge value={report.status} /><span>v{report.version}</span><span>{report.industry}</span></div><h2>{report.company_name}<small>{report.ticker}</small></h2><p>数据截止 {new Date(report.as_of).toLocaleString("zh-CN")} · 快照 {report.data_snapshot_id}</p></div><div className="report-actions"><button disabled={busy} onClick={() => action("recalculate")}><Icon name="refresh" />冻结方法重算</button><button disabled={busy} onClick={() => action("reanalyze")}>用当前方法重析</button></div></section>
+    <section className="report-hero"><div><div className="report-kicker"><StatusBadge value={report.status} /><span>v{report.version}</span><span>{report.industry}</span></div><h2>{report.company_name}<small>{report.ticker}</small></h2><p>数据截止 {new Date(report.as_of).toLocaleString("zh-CN")} · 快照 {report.data_snapshot_id}</p></div></section>
     <section className="conclusion-card"><div className="conclusion-title"><div><p className="eyebrow">PINNED CONCLUSION</p><h3>置顶结论</h3></div><div className="rating"><span>研究评级</span><strong>{c.rating}</strong><small>{c.rating_confirmed ? "用户已确认" : "待用户确认"}</small></div></div>
       <div className="kpi-row"><Kpi label="当前价格" value={fmt(c.current_price)} /><Kpi label="合理价值区间" value={`${fmt(c.fair_value_low)} — ${fmt(c.fair_value_high)}`} note={`基准 ${fmt(c.fair_value_base)}`} /><Kpi label="安全边际" value={pct(c.margin_of_safety)} /><Kpi label="证据完整度" value={pct(c.evidence_completeness)} note={`可信度 ${pct(c.evidence_confidence)}`} /></div>
       <div className="thesis-grid"><TextList title="核心逻辑" items={c.core_theses} /><TextList title="主要风险" items={c.major_risks} tone="risk" /><TextList title="失效条件" items={c.invalidation_conditions} /></div>
     </section>
-    <div className="tabs"><button className={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>八步正文</button><button className={tab === "coverage" ? "active" : ""} onClick={() => setTab("coverage")}>八步数据覆盖</button><button className={tab === "assumptions" ? "active" : ""} onClick={() => setTab("assumptions")}>情景假设</button><button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}>审计附录</button><button className={tab === "export" ? "active" : ""} onClick={() => setTab("export")}>导出</button></div>
+    <div className="tabs"><button className={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>八步正文</button><button className={tab === "coverage" ? "active" : ""} onClick={() => setTab("coverage")}>八步数据覆盖</button><button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}>审计附录</button><button className={tab === "export" ? "active" : ""} onClick={() => setTab("export")}>导出</button></div>
     {tab === "report" && <section className="steps-panel">{report.sections.map((section) => <Step key={section.number} section={section} open={openStep === section.number} onClick={() => setOpenStep(openStep === section.number ? 0 : section.number)} />)}</section>}
     {tab === "coverage" && <ResearchCoverage report={report} />}
-    {tab === "assumptions" && <AssumptionEditor assumptions={assumptions} setAssumptions={setAssumptions} onSave={saveAssumptions} busy={busy} />}
     {tab === "audit" && <Audit report={report} />}
     {tab === "export" && <ExportPanel report={report} />}
   </div>;
@@ -199,11 +175,6 @@ function DataTable({ title, rows }) {
   if (!normalized.length) return <div className="data-block"><h4>{title}</h4><p className="muted">暂无该数据</p></div>;
   const columns = [...new Set(normalized.flatMap((row) => Object.keys(row || {})))].slice(0, 8);
   return <div className="data-block"><h4>{title}</h4><div className="table-wrap"><table><thead><tr>{columns.map((col) => <th key={col}>{col}</th>)}</tr></thead><tbody>{normalized.slice(0, 50).map((row, i) => <tr key={i}>{columns.map((col) => <td key={col}>{typeof row[col] === "object" ? JSON.stringify(row[col], null, 0) : fmt(row[col], 4)}</td>)}</tr>)}</tbody></table></div>{normalized.length > 50 && <small>仅在页面展示前 50 行，完整内容见导出与审计对象。</small>}</div>;
-}
-
-function AssumptionEditor({ assumptions, setAssumptions, onSave, busy }) {
-  const update = (index, value) => setAssumptions(assumptions.map((item, i) => i === index ? { ...item, value: Number(value), confirmed: false } : item));
-  return <section className="panel assumption-panel"><PanelTitle title="三情景假设" meta="蓝色数值为可编辑输入；保存后生成新版本" /><div className="table-wrap"><table><thead><tr><th>情景</th><th>变量</th><th>数值</th><th>单位</th><th>理由</th><th>状态</th></tr></thead><tbody>{assumptions.map((item, index) => <tr key={item.assumption_id}><td><StatusBadge value={item.scenario} /></td><td>{item.name}</td><td><input type="number" step="any" value={item.value} onChange={(e) => update(index, e.target.value)} /></td><td>{item.unit}</td><td>{item.reason}</td><td>{item.confirmed ? "已确认" : "待确认"}</td></tr>)}</tbody></table></div><div className="form-actions"><button className="primary" disabled={busy || !assumptions.length} onClick={onSave}>保存并重算</button></div></section>;
 }
 
 function Audit({ report }) {
@@ -257,7 +228,6 @@ function MethodLibrary({ methods }) {
 
 function DataDesk({ notify, onError }) {
   const [ticker, setTicker] = useState("");
-  const [providers, setProviders] = useState(["akshare", "baostock"]);
   const [result, setResult] = useState(null);
   const [sourceDefinitions, setSourceDefinitions] = useState([]);
   const [acquisitionRuns, setAcquisitionRuns] = useState([]);
@@ -266,6 +236,7 @@ function DataDesk({ notify, onError }) {
   const [structuredMode, setStructuredMode] = useState("incremental");
   const [companyScope, setCompanyScope] = useState("company-only");
   const [datasetIds, setDatasetIds] = useState("");
+  const [structuredRunIds, setStructuredRunIds] = useState([]);
   const [structuredBusy, setStructuredBusy] = useState(false);
   const [document, setDocument] = useState({ ticker: "", path: "", title: "", source_name: "巨潮/交易所正式文件" });
   useEffect(() => {
@@ -306,33 +277,35 @@ function DataDesk({ notify, onError }) {
     finally { setAcquisitionBusy(false); }
   }
 
-  async function structuredSync() {
+  async function structuredPlan() {
     setStructuredBusy(true);
     try {
       const datasets = datasetIds.split(",").map((item) => item.trim()).filter(Boolean);
-      setResult(await api(`/companies/${ticker}/sync`, {
+      const plan = await api("/structured/plans", {
         method: "POST",
-        body: JSON.stringify({ source_strategy: "structured-first-v1", structured_mode: structuredMode, company_scope: companyScope, datasets }),
-      }));
-      notify("结构化任务已持久入队；排队不代表同步完成");
+        body: JSON.stringify({ ticker, mode: structuredMode, company_scope: companyScope, datasets, research_profile_id: "eight-step-lite-v1.0.0" }),
+      });
+      setResult(plan);
+      setStructuredRunIds(plan.run_ids || []);
+      notify("结构化计划已冻结；请显式执行或恢复运行");
     } catch (err) { onError(err.message); }
     finally { setStructuredBusy(false); }
   }
-  async function sync() { try { setResult(await api(`/companies/${ticker}/sync`, { method: "POST", body: JSON.stringify({ source_strategy: "legacy-v1", providers }) })); notify("Legacy 同步完成；请检查各适配器状态"); } catch (err) { onError(err.message); } }
+  async function executeStructuredRun(runId, resume = false) {
+    setStructuredBusy(true);
+    try {
+      const path = `/structured/runs/${runId}/${resume ? "resume" : "execute"}`;
+      const run = await api(path, { method: "POST" });
+      setResult(run);
+      notify(resume ? "结构化运行已恢复" : "结构化运行已执行");
+    } catch (err) { onError(err.message); }
+    finally { setStructuredBusy(false); }
+  }
   async function ingest() { try { const res = await api("/documents", { method: "POST", body: JSON.stringify(document) }); setResult(res); notify("公告已按哈希归档并建立全文索引"); } catch (err) { onError(err.message); } }
-  return <div className="data-grid"><section className="panel"><PanelTitle title="结构化字段优先同步" meta="唯一主路由 · 缺口才补源 · 持久任务 202 入队" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="例如 600519" /></label><label>运行模式<select value={structuredMode} onChange={(e) => setStructuredMode(e.target.value)}><option value="baseline">baseline · 可得全历史</option><option value="incremental">incremental · 新期间与重叠窗口</option><option value="due">due · 仅本轮到期任务</option></select></label><label>公司范围<select value={companyScope} onChange={(e) => setCompanyScope(e.target.value)}><option value="company-only">仅目标公司</option><option value="company-with-peers">目标与有界同行</option><option value="peer-set">首批七家公司集合</option></select></label><label>数据集子集（留空为全部适用）<input value={datasetIds} onChange={(e) => setDatasetIds(e.target.value)} placeholder="例如 F01,B01；留空不受五年/十二季度展示窗截断" /></label><button className="primary" disabled={!ticker || structuredBusy} onClick={structuredSync}>{structuredBusy ? "正在入队…" : "创建结构化同步任务"}</button><p className="muted">供应商直采状态表示字段已绑定来源、版本、快照和行/字段定位；不等于双源一致或人工验收。</p></section><section className="panel acquisition-panel"><PanelTitle title="公司业务与商业模式资料采集" meta="固定注册表计划 · 来源与问题不可省略" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} onBlur={() => refreshAcquisitionRuns()} placeholder="例如 600519" /></label><label>运行模式<select value={acquisitionMode} onChange={(e) => setAcquisitionMode(e.target.value)}><option value="baseline">baseline · 首次完整历史回溯</option><option value="incremental">incremental · 水位线增量更新</option><option value="reconcile">reconcile · 缺口与历史修订对账</option></select></label><div className="source-plan"><strong>版本化来源计划</strong>{sourceDefinitions.length ? sourceDefinitions.map((source) => <div key={`${source.source_definition_id}@${source.version}`}><span>{source.display_name}</span><StatusBadge value={source.policy_status || source.status} /><small>{source.applicability_summary || "适用性在计划阶段确定"}</small></div>) : <p className="muted">正在读取来源注册表；没有来源时不能把运行称为完整。</p>}</div><button className="primary" disabled={!ticker || acquisitionBusy || !sourceDefinitions.length} onClick={createAcquisitionRun}>只规划并冻结 coverage</button>{acquisitionRuns.length > 0 && <div className="acquisition-runs"><strong>最近采集运行</strong>{acquisitionRuns.slice(0, 5).map((run) => <div key={run.run_id}><div><code>{run.run_id}</code><span>{run.mode} · {run.status}</span><small>coverage_accounted={String(Boolean(run.coverage_accounted))} · gaps={run.material_gap_count ?? "待计算"}</small></div><button disabled={acquisitionBusy || ["succeeded", "partial", "failed"].includes(run.status)} onClick={() => executeAcquisitionRun(run.run_id)}>执行/恢复</button></div>)}</div>}</section>
-    <section className="panel"><PanelTitle title="Legacy 财务同步" meta="非 business_model v1；保留既有财务兼容范围" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="例如 600519" /></label><div className="check-row">{["akshare", "baostock"].map((name) => <label key={name}><input type="checkbox" checked={providers.includes(name)} onChange={() => setProviders(providers.includes(name) ? providers.filter((item) => item !== name) : [...providers, name])} />{name}</label>)}</div><button className="primary" disabled={!ticker || !providers.length} onClick={sync}>同步并交叉核验</button></section>
+  return <div className="data-grid"><section className="panel"><PanelTitle title="结构化字段采集" meta="唯一常规入口 · 计划、执行、恢复均可审计" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="例如 600519" /></label><label>运行模式<select value={structuredMode} onChange={(e) => setStructuredMode(e.target.value)}><option value="baseline">baseline · 适用数据基线</option><option value="incremental">incremental · 新期间与重叠窗口</option><option value="due">due · 仅本轮到期任务</option></select></label><label>公司范围<select value={companyScope} onChange={(e) => setCompanyScope(e.target.value)}><option value="company-only">仅目标公司</option><option value="company-with-peers">目标与有界同行</option><option value="peer-set">首批七家公司集合</option></select></label><label>数据集子集（可选）<input value={datasetIds} onChange={(e) => setDatasetIds(e.target.value)} placeholder="例如 F01,B01；留空使用适用字段" /></label><button className="primary" disabled={!ticker || structuredBusy} onClick={structuredPlan}>{structuredBusy ? "处理中…" : "创建结构化计划"}</button>{structuredRunIds.length > 0 && <div className="acquisition-runs"><strong>结构化运行</strong>{structuredRunIds.map((runId) => <div key={runId}><code>{runId}</code><button disabled={structuredBusy} onClick={() => executeStructuredRun(runId)}>执行</button><button disabled={structuredBusy} onClick={() => executeStructuredRun(runId, true)}>恢复</button></div>)}</div>}<p className="muted">计划不会隐式联网；执行后才会创建带来源、期间和快照定位的结构化事实。</p></section><section className="panel acquisition-panel"><PanelTitle title="公告与研究资料" meta="按研究问题按需采集，不做全量报告归档" /><label>股票代码<input value={ticker} onChange={(e) => setTicker(e.target.value)} onBlur={() => refreshAcquisitionRuns()} placeholder="例如 600519" /></label><label>运行模式<select value={acquisitionMode} onChange={(e) => setAcquisitionMode(e.target.value)}><option value="baseline">baseline · 首次完整历史回溯</option><option value="incremental">incremental · 水位线增量更新</option><option value="reconcile">reconcile · 缺口与历史修订对账</option></select></label><div className="source-plan"><strong>版本化来源计划</strong>{sourceDefinitions.length ? sourceDefinitions.map((source) => <div key={`${source.source_definition_id}@${source.version}`}><span>{source.display_name}</span><StatusBadge value={source.policy_status || source.status} /><small>{source.applicability_summary || "适用性在计划阶段确定"}</small></div>) : <p className="muted">正在读取来源注册表；没有来源时不能把运行称为完整。</p>}</div><button className="primary" disabled={!ticker || acquisitionBusy || !sourceDefinitions.length} onClick={createAcquisitionRun}>只规划并冻结 coverage</button>{acquisitionRuns.length > 0 && <div className="acquisition-runs"><strong>最近采集运行</strong>{acquisitionRuns.slice(0, 5).map((run) => <div key={run.run_id}><div><code>{run.run_id}</code><span>{run.mode} · {run.status}</span><small>coverage_accounted={String(Boolean(run.coverage_accounted))} · gaps={run.material_gap_count ?? "待计算"}</small></div><button disabled={acquisitionBusy || ["succeeded", "partial", "failed"].includes(run.status)} onClick={() => executeAcquisitionRun(run.run_id)}>执行/恢复</button></div>)}</div>}</section>
     <section className="panel"><PanelTitle title="正式公告归档" meta="PDF/HTML/TXT/Markdown · SHA-256 · FTS5" />{Object.entries(document).map(([key, value]) => <label key={key}>{({ ticker: "股票代码", path: "本地文件绝对路径", title: "公告标题", source_name: "来源名称" })[key]}<input value={value} onChange={(e) => setDocument({ ...document, [key]: e.target.value })} /></label>)}<button className="primary" disabled={!document.ticker || !document.path || !document.title} onClick={ingest}>归档并索引</button></section>
     {result && <section className="panel data-result"><PanelTitle title="本次结果" meta="所有失败显式降级" /><pre>{JSON.stringify(result, null, 2)}</pre></section>}
   </div>;
-}
-
-function CreateReport({ onClose, onCreated }) {
-  const [form, setForm] = useState({ ticker: "", company_name: "", industry: "普通工商", current_price: "" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit(e) { e.preventDefault(); setBusy(true); setError(""); try { const now = new Date().toISOString(); const currentPrice = form.current_price ? Number(form.current_price) : null; const payload = { ...form, current_price: currentPrice, price_as_of: currentPrice ? now : null, as_of: now, sources: [], facts: [], claims: [], assumptions: [], model_inputs: {}, report_notes: "空白研究草稿；尚未录入事实、证据和假设。" }; onCreated(await api("/reports", { method: "POST", body: JSON.stringify(payload) })); } catch (err) { setError(err.message); } finally { setBusy(false); } }
-  return <div className="modal-backdrop" onMouseDown={onClose}><form className="modal" onMouseDown={(e) => e.stopPropagation()} onSubmit={submit}><button type="button" className="close" onClick={onClose}>×</button><p className="eyebrow">NEW RESEARCH DRAFT</p><h2>新建八步分析草稿</h2><p>空白草稿不会补造数据，缺失内容将明确显示“暂无该数据”。</p>{[["ticker", "股票代码", "600519"], ["company_name", "公司名称", "贵州茅台"], ["industry", "行业路由", "消费"], ["current_price", "当前价格（可空）", ""]].map(([key, label, placeholder]) => <label key={key}>{label}<input required={key !== "current_price"} value={form[key]} placeholder={placeholder} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}{error && <p className="form-error">{error}</p>}<div className="form-actions"><button type="button" onClick={onClose}>取消</button><button className="primary" disabled={busy}>{busy ? "创建中…" : "创建草稿"}</button></div></form></div>;
 }
 
 function PanelTitle({ title, meta }) { return <div className="panel-title"><h2>{title}</h2><span>{meta}</span></div>; }
