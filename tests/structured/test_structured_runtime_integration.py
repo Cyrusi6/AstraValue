@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import httpx
@@ -599,7 +599,6 @@ def test_failed_http_has_one_attempt_per_round_and_stops_after_two(tmp_path):
 
 
 def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_path):
-    from datetime import timedelta
     calls=[]
     dates=['2025-12-31','2025-09-30','2025-06-30','2025-03-31']
     def handler(request):
@@ -614,14 +613,117 @@ def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_pat
         service=StructuredDataService.from_runtime(runtime)
         first=service.plan('600519',mode='baseline',company_scope='company-only',datasets=('balance_fields',),as_of=NOW)['run_ids'][0]
         _run_all_rounds(service,first)
-        second=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=NOW+timedelta(minutes=1))['run_ids'][0]
+        first_incremental_as_of = NOW + timedelta(days=1)
+        second=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=first_incremental_as_of)['run_ids'][0]
         incremental_jobs = service.storage.list_jobs(second, limit=None)
         catalog_job = next(item for item in incremental_jobs if item["purpose"] == "report_catalog")
         assert datetime.fromisoformat(catalog_job["time_start"]) >= NOW.replace(hour=0, minute=0, second=0, microsecond=0)
         _run_all_rounds(service,second)
         assert calls==[dates,dates[:2]]
+        second_incremental_as_of = NOW + timedelta(days=2)
+        third=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=second_incremental_as_of)['run_ids'][0]
+        third_jobs = service.storage.list_jobs(third, limit=None)
+        third_catalog = next(item for item in third_jobs if item["purpose"] == "report_catalog")
+        assert datetime.fromisoformat(third_catalog["time_start"]).date() >= first_incremental_as_of.date()
+        _run_all_rounds(service,third)
+        assert calls==[dates,dates[:2],dates[:2]]
         _run_all_rounds(service,second)
-        assert len(calls)==2
+        assert len(calls)==3
         assert service.storage.committed_report_periods(service.storage.get_run_context(second).company_id,'balance_fields',second)==set(dates)
     finally:
         runtime.close();client.close()
+
+
+def test_incremental_cursor_advances_and_event_overlap_stays_bounded(tmp_path):
+    from datetime import date
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "code": 0,
+                "result": {
+                    "data": [
+                        {
+                            "SECUCODE": "600519.SH",
+                            "NOTICE_DATE": "2026-09-01",
+                            "ORG_CODE": "1000",
+                            "CASE_NAME": "case",
+                            "DEFENCE": "defence",
+                            "CASE_PROFILE": "profile",
+                        }
+                    ],
+                    "count": 1,
+                    "pages": 1,
+                },
+            },
+        )
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        baseline = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("litigation",),
+            as_of=NOW,
+        )["run_ids"][0]
+        _run_all_rounds(service, baseline)
+
+        first_as_of = NOW + timedelta(days=1)
+        first = service.plan(
+            "600519",
+            mode="incremental",
+            company_scope="company-only",
+            datasets=("litigation",),
+            as_of=first_as_of,
+        )["run_ids"][0]
+        first_job = service.storage.list_jobs(first, limit=None)[0]
+        assert date.fromisoformat(first_job["time_start"][:10]) == NOW.date() - timedelta(days=30)
+        _run_all_rounds(service, first)
+
+        second_as_of = NOW + timedelta(days=2)
+        second = service.plan(
+            "600519",
+            mode="incremental",
+            company_scope="company-only",
+            datasets=("litigation",),
+            as_of=second_as_of,
+        )["run_ids"][0]
+        second_job = service.storage.list_jobs(second, limit=None)[0]
+        assert date.fromisoformat(second_job["time_start"][:10]) == first_as_of.date() - timedelta(days=30)
+        assert second_job["time_start"] > first_job["time_start"]
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_incremental_rejects_a_failed_coverage_window(tmp_path):
+    def handler(_request):
+        return httpx.Response(503, json={"error": "temporary"})
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        baseline = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("company_basic",),
+            as_of=NOW,
+        )["run_ids"][0]
+        service.run(baseline)
+        service.resume(baseline)
+        with pytest.raises(ValueError, match="incremental需要每个适用数据集都有安全coverage"):
+            service.plan(
+                "600519",
+                mode="incremental",
+                company_scope="company-only",
+                datasets=("company_basic",),
+                as_of=NOW + timedelta(days=1),
+            )
+    finally:
+        runtime.close()
+        client.close()

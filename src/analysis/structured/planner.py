@@ -402,6 +402,12 @@ class StructuredDatasetPlanner:
                     "company_id": context.company_id,
                     "dataset_id": work.dataset_id,
                     "scope_key": work.scope_key,
+                    # Report-period jobs are materialized from each catalog
+                    # refresh.  Keep ordinary historical jobs globally
+                    # idempotent, while allowing a later run to refresh the
+                    # same latest periods without colliding with the prior
+                    # run's UNIQUE(dedupe_key) row.
+                    "run_id": run_id if work.purpose == "report_period" else None,
                     "dataset_registry_hash": context.dataset_registry_hash,
                     "field_registry_hash": context.field_registry_hash,
                     "query_pack_hash": context.query_pack_hash,

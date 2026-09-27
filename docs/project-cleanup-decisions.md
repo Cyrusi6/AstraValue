@@ -1,6 +1,6 @@
 # 项目精简决策记录
 
-更新时间：2026-09-27  
+更新时间：2026-09-28
 记录范围：本轮项目精简、分支整合和结构化报告入口决策。
 
 ## 已确认决策
@@ -38,6 +38,8 @@
 - 当前生效来源注册表、manifest、快照和报告的引用检查；确认删除历史文件不会破坏可复核证据。
 - 真实联网状态、人工验收状态和已知缺口写入贵州茅台验收文档；离线测试通过不能替代业务验收。
 
-## 不应误读为已完成
+## 当前状态与边界
 
-本记录不表示上述删除、移植、合并或分支清理已经执行。当前 fact worktree 仍有未提交文件，main 仍保留旧 adapters、legacy 同步和 `/api/reports`。只有实现、验证、人工验收和 review 完成后，才能把决策转为代码和 Git 操作。
+候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，structured incremental 的长期窗口和独立 reconcile 入口仍需复核，全量测试和人工报告验收仍未完成。
+
+因此在实现、验证、人工验收和 review 完成前，不能删除承载材料的 worktree、分支或远程引用。

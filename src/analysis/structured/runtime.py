@@ -615,8 +615,14 @@ class StructuredDataRuntime:
             # overlap so late corrections cannot be lost.  Ordinary report
             # periods start at the safe upper bound and never re-fetch the
             # historical range.
+            # The coverage rows include the original baseline partitions as
+            # well as every later incremental window.  Use the latest safe
+            # upper bound as the next cursor; taking the minimum would keep
+            # every future run anchored to the oldest baseline window and
+            # make the overlap grow without bound.  Failed/latest rows were
+            # rejected above, so this cursor cannot jump past a known gap.
             starts[dataset_id] = max(
-                min(floor_dates) - timedelta(days=overlap_days),
+                max(floor_dates) - timedelta(days=overlap_days),
                 _SUPPLIER_QUERY_FLOORS.get(str(getattr(item, "provider", "")), date(1990, 1, 1)),
             )
         if missing:
