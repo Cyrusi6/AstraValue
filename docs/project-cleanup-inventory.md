@@ -2,7 +2,7 @@
 
 更新时间：2026-09-28
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
-当前分支：`codex/fact-materialization-ultra`，HEAD `25b7a1f`（`Complete Moutai processing validation and authored research report`）
+当前分支：`codex/fact-materialization-ultra`，HEAD `d10c6f9`（结构化增量窗口修复与回采证据记录）
 
 这份清单把代码事实、已确认的产品决策和后续验收分开记录。表中的“动作”是目标处置，不表示已经完成删除或合并；在验收门通过前，不得用 `git branch -D`、工作树删除或批量删除替代迁移。
 
@@ -23,7 +23,7 @@
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、`AnalysisService.create_report` 的直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告入口**；保留 `ReportVersion`、导出和审计对象作为研究工作区链路的结果模型。 | 只能从研究工作区冻结包经 reporting bridge 生成报告；旧直接输入测试、前端入口、文档和 CLI 同步移除。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v*.json` 等已被新版本替代的注册表副本，以及只支持旧入口的来源定义。 | **删除旧历史版本**，只保留当前生效注册表、必要 schema 和可追溯发布证据。 | 删除前检查 manifest、快照和报告引用；历史证据保存哈希/版本定位，不能把旧文件继续当作当前可采集来源。 |
 | P13 | 重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。二者仅转发到 `analysis.cli demo`/`smoke-sources`；`e9f553e` 已在知识/事实分支删除。 | **删除**，调用方改用 `python -m analysis.cli ...` 或安装后的 `ashare-analysis ...`。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。 |
-| P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`，相对 main 为 76 个提交；fact worktree 有 22 个已修改、63 个未跟踪文件；knowledge-base worktree 有 2 个未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以 knowledge-base 为候选基线，先纳入 fact worktree 的 4 组未提交内容和两份茅台文档，再 fast-forward/整理到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
+| P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`；fact worktree 已将清理、增量修复和回采记录提交到 `d10c6f9`，仅保留 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 三个未跟踪临时文件；knowledge-base worktree 有未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以 knowledge-base 为候选基线，先纳入 fact worktree 已提交内容和两份茅台文档，再 fast-forward/整理到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
 ## 决策与验收边界
 
@@ -47,7 +47,7 @@
 
 - 主线：`main` / `181a4cb`。
 - 候选整合分支：`codex/knowledge-base-v1` / `027ac38`，包含 `fact-materialization-ultra` 及三个 knowledge 分支的已提交等价补丁。
-- 当前事实工作树：`codex/fact-materialization-ultra` / `25b7a1f`，有未提交 research、文档、配置和验收材料。
+- 当前事实工作树：`codex/fact-materialization-ultra` / `d10c6f9`，清理与结构化增量修复已提交；仍有三个未跟踪临时文件待确认。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。
