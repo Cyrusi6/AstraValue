@@ -33,10 +33,12 @@
 - `POST /api/documents` 是否继续作为受限的按需原文入口。
 - `SyncRequest/SyncResult`、同步表和旧回放字段是否作为只读历史兼容保留；生产不得创建新的 legacy 同步批次。
 - 当前代码审计确认：`SyncRequest` 已无生产调用；`SyncResult` 的物理表和迁移仍支撑旧数据库恢复，唯一运行时回填点是 `AnalysisService._with_synced_facts`。若选择保留兼容，建议切断新报告的自动回填，只保留只读 getter、迁移和历史报告读取。
+- v1.11 注册表仍保存 5 个 `legacy_definitions` 身份，但新 planner/orchestrator 不遍历它们；删除这些字段会改变默认 registry hash 并使已有 snapshot/DB 无法按原身份复核，因此是否只读保留与 Sync 兼容一起决定。
 - `AnalysisService.patch_assumptions/recalculate/reanalyze/review` 当前没有公开 API 路由，只被旧测试和内部兼容代码调用；`ReportVersion` 查询、变化查看和导出仍是公开只读能力。是否连这些内部旧版本编辑方法一起删除，随历史兼容取舍处理。
 - 知识候选在独立工作树的 `tests/knowledge` 仍有 1 项发布门失败：缺少当前工作树可验证的 `KNOWLEDGE_ACCEPTANCE`、agent sample 和 human review；历史 `candidate-54-v2` JSON 不能直接当作当前主线验收。另有旧 `src/analysis/research/knowledge.py` 与新 `analysis.knowledge` 两套知识入口，迁移新服务后需决定适配或删除旧入口。
 - `business_model_sources.v1.0–v1.10` 是否保留为只读历史注册表。
 - 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
+- 旧 `src/analysis/research/knowledge.py`（research-cards）是否迁移为新 `analysis.knowledge.KnowledgeService` 的适配层后删除；当前研究工作区的 `Catalog` 和工具注册仍在调用它。
 
 ## 仍需通过的验收
 
@@ -46,6 +48,7 @@
 - 抽查旧输出与新结构化输出的关键指标、期间、单位、来源和数量；差异必须能解释并记录。
 - 研究工作区资料、计算、图表、补充资料、知识读取、治理输入和报告桥接的端到端测试。
 - `/api/reports` 删除后，结构化 API、前端其他数据流程和导出仍可用；直接报告测试和文档引用全部清理。
+- `/api/documents` 审计确认它当前是受注册来源约束的本地原文按需入口，不执行网络全量下载；但前端“正式公告归档”面板仍缺少 `source_url`，提交后会失败，需在保留该入口时改成来源 URL/注册定义/研究任务绑定表单。
 - 当前生效来源注册表、manifest、快照和报告的引用检查；确认删除历史文件不会破坏可复核证据。
 - 真实联网状态、人工验收状态和已知缺口写入贵州茅台验收文档；离线测试通过不能替代业务验收。
 

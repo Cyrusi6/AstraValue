@@ -1,0 +1,111 @@
+{
+  "review_id": "wuliangye-independent-calculation-review-20260922",
+  "reviewed_at": "2026-09-22T00:00:00+08:00",
+  "reviewer_kind": "codex_independent_manual_review",
+  "reviewer": "Codex（独立证据复核）",
+  "company": {
+    "ticker": "000858",
+    "name": "五粮液",
+    "industry": "消费"
+  },
+  "scope": "独立验收五粮液 2025 年报期的基本 EPS 事件重建、核心范围净债务、已知营运资本和 FCFF 阻断行为；不把贵州茅台结论继承给五粮液。",
+  "outcome": "passed_with_boundaries",
+  "evidence": {
+    "materialization_directory": "tmp/wuliangye-live-20260922-annual/000858",
+    "run_id": "structured-run-5ca75f323a79ccdce3ca1939",
+    "requested_periods": ["2024-12-31", "2025-12-31"],
+    "period_basis": {
+      "flow": "cumulative",
+      "stock": "instant",
+      "note": "年度流量使用累计口径；期末营运资本和债务组成使用 instant。"
+    },
+    "real_requests": 7,
+    "selected_fact_count": 66,
+    "supplemental_fact_file": "docs/acquisition/wuliangye-supplemental-facts-20260922.json",
+    "supplemental_fact_count": 11,
+    "source_route": "Eastmoney structured financial statements",
+    "source_boundary": "结构化物化来源仍是供应商快照；sources.jsonl 标记为未进行人工验收。另对正式年报相关表页做了定向核对，不能把定向核对扩展为全报告人工验收。",
+    "official_filing": {
+      "title": "五粮液 2025 年年度报告",
+      "url": "https://static.cninfo.com.cn/finalpage/2026-04-30/1225273091.PDF",
+      "sha256": "09133e1f44b3bb4b2cebe211529ad68f5b04b6be10b43870f2a78c947d5910a4",
+      "local_text_snapshot": "tmp/wuliangye-annual-2025.txt",
+      "checked_locators": [
+        "合并资产负债表：年报页码 p51-52；文本行 2474-2582",
+        "合并利润表：年报页码 p56；文本行 2742-2786",
+        "合并现金流量表：年报页码 p59；文本行 2925-2927",
+        "股本变动：年报页码 p42；文本行 2060-2078、附注31 文本行 5287-5293",
+        "股份回购/发行及利润分配：文本行 1627-1630、2107-2109、2306-2310"
+      ],
+      "confirmed": [
+        "2025 年度归母净利润 8954257202.51 CNY，基本 EPS 2.3068 CNY/股",
+        "2025 年末合同资产、短期借款、长期借款、应付债券和长期应付款列示为空；租赁负债 44381182.44 CNY；一年内到期租赁负债 364149470.84 CNY 已按有息附注物化为 current_portion_interest_bearing_debt",
+        "2025 年度购建固定资产、无形资产和其他长期资产支付现金 1967407316.36 CNY，仅作为资本开支代理",
+        "期初期末股本均为 3881608005 股，报告期无发行、回购、送股或转增记录；已按完整事件区间重建加权平均普通股 3881608005 股"
+      ]
+    },
+    "calculation_outputs": [
+      "tmp/wuliangye-live-20260922-annual/000858-basic-eps-supplemental.json",
+      "tmp/wuliangye-live-20260922-annual/000858-wc.json",
+      "tmp/wuliangye-live-20260922-annual/000858-fcff-supplemental.json",
+      "tmp/wuliangye-live-20260922-annual/000858-net-debt-supplemental.json"
+    ]
+  },
+  "manually_checked": [
+    {
+      "chain": "financial.basic_eps",
+      "status": "accepted_independent_recalculation",
+      "reported_basic_eps": "2.3068 CNY/股",
+      "period_type": "cumulative",
+      "weighted_average_shares": "3881608005 shares",
+      "calculated_basic_eps_exact": "2.306842213581533460383514435 CNY/股",
+      "reported_vs_calculated_difference_exact": "0.000042213581533460383514435 CNY/股",
+      "check": "以年报股本变动、发行、回购、送股和转增证据重建全年恒定股数；独立重算与披露 EPS 在四位小数内一致，没有用四舍五入 EPS 反推分母。"
+    },
+    {
+      "chain": "financial.operating_working_capital",
+      "status": "accepted",
+      "period_type": "instant",
+      "components": ["accounts_receivable", "inventory", "accounts_payable"],
+      "current": "11568261301.43 CNY",
+      "prior": "9194453500.82 CNY",
+      "change": "2373807800.61 CNY",
+      "check": "应收账款、存货、应付账款的期间、单位和合并范围一致；结果与独立 CLI 输出一致。"
+    },
+    {
+      "chain": "financial.fcff",
+      "status": "accepted_as_blocked",
+      "missing": ["financial.capital_expenditure_full"],
+      "period_type": "cumulative",
+      "available": ["financial.operating_profit_candidate", "financial.tax_rate_derived", "financial.depreciation", "financial.amortization"],
+      "semantic_boundary": "营业利润尚未确认等同项目 EBIT；派生税率尚未确认是经营适用税率；折旧/摊销字段不保证完整。",
+      "check": "合同资产以年报空列的权威单源零值补充并通过期间、单位和范围校验；长期资产购建现金支出仍未被改称完整资本开支。"
+    },
+    {
+      "chain": "financial.net_debt",
+      "status": "accepted_core_scope_only",
+      "interest_bearing_debt": "408530653.28 CNY",
+      "cash": "127014443016.86 CNY",
+      "net_debt": "-126605912363.58 CNY",
+      "missing_components": [],
+      "available_components": ["short_term_loans=0", "long_term_loans=0", "bonds_payable=0", "lease_liabilities=44381182.44", "current_portion_interest_bearing_debt=364149470.84", "cash"],
+      "period_type": "instant",
+      "debt_scope": {
+        "scope_id": "enterprise_interest_bearing_debt.core.v1",
+        "completeness_status": "core_scope_only",
+        "components": ["short_term_loans", "long_term_loans", "bonds_payable", "lease_liabilities", "current_portion_interest_bearing_debt"]
+      },
+      "complete_interest_bearing_debt": false,
+      "check": "以年报资产负债表和附注核对三项空列为权威零值、租赁负债及一年内到期租赁负债；五项核心组成均通过同期间、单位、范围和去重校验，但短期融资券、有息应付票据、永续债和有息长期应付款仍是附注条件项，因此不宣称全口径完整债务。"
+    }
+  ],
+  "negative_checks": [
+    "缺失输入不补零",
+    "错期间返回 period_not_available 或 non_adjacent_periods",
+    "错单位返回 incompatible_fact",
+    "银行行业 FCFF 返回 not_applicable",
+    "加权平均股数缺失时 EPS 保持 reported_only；事件证据完整时才允许重建",
+    "年度流量错用 ttm 时不作为本次验收证据"
+  ],
+  "acceptance_boundary": "本记录通过五粮液 2025 年报相关表页和当前计算链的独立人工复核：基本 EPS 已完成事件重建后的独立复算，核心范围净债务已完成数值复算；FCFF 仍因完整资本开支缺失而阻断，净债务仍是 core_scope_only，不是全口径债务。该记录不表示全报告人工验收完成，也不代表贵州茅台黄金样本已扩展为第二家完整黄金样本。"
+}

@@ -1,0 +1,121 @@
+{
+  "review_id": "golden-sample-review-20260921",
+  "bundle_id": "candidate-54-v2",
+  "candidate_content_sha256": "4ca66072bf57113290c819358b7fbe27992ce8c15766f6ee5717e9ee419bd66f",
+  "reviewed_at": "2026-09-21T11:55:48+08:00",
+  "reviewer_kind": "independent_agent",
+  "reviewer": "Codex root agent",
+  "outcome": "passed",
+  "evaluation_design": "逐题重新读取冻结候选的详细方法、来源和案例，并以八步各一题的开放合成案例检查步骤可执行性、来源支持、正常边界、关键反例、缺失处理和禁止越界判断；不是盲测，不冒充人工签字。",
+  "criteria": [
+    "方法正文能支持样例中的有限判断，不把合成事实写成公司事实。",
+    "正常例、反例和缺失例的边界与方法正文一致。",
+    "来源定位支持方法方向，且正文区分来源直接陈述与项目综合规则。",
+    "关键反例不会被收入结构、审批、回购计划、行业标签或风险提示等表面信号覆盖。",
+    "缺失输入保留未知，不填零、不自动换用相近口径。"
+  ],
+  "samples": [
+    {
+      "step_id": "ES01",
+      "question_id": "ES01.Q02",
+      "method_ids": ["knowledge.segment_economics"],
+      "outcome": "passed",
+      "reasons": [
+        "收入60/40只能支持收入结构；毛利12/20显示B毛利占比更高，但没有共同费用和归属桥接，不能推出净利润贡献。",
+        "方法的反例和缺失例分别阻止把收入占比当利润占比、把未知成本分摊填为零。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES02",
+      "question_id": "ES02.Q08",
+      "method_ids": ["knowledge.working_capital"],
+      "outcome": "passed",
+      "reasons": [
+        "应收变动-5、存货变动-10、应付变动-5得到经营营运资本变化-10，完整桥接FCFF为80；缺组成不能填零。",
+        "逾期应付造成的现金释放被识别为短期现金增加而非经营效率改善；银行上下文返回普通路径不适用。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES03",
+      "question_id": "ES03.Q05",
+      "method_ids": ["knowledge.es03_q05"],
+      "outcome": "passed",
+      "reasons": [
+        "审批、合同、到期和付款被分开；到期款100按期收到支持该项履行，只有审批而到期未收则该项未履行。",
+        "缺履行凭证时保留未知，不把关联关系或审批单独推成利益输送或交易公平。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES04",
+      "question_id": "ES04.Q02",
+      "method_ids": ["knowledge.es04_q02"],
+      "outcome": "passed",
+      "reasons": [
+        "实际买入10股并支付100可记录为已执行回购，但注销为0且用于员工计划时不能减少总股本10。",
+        "只有额度100、成交0的情况被保留为计划，缺成交、用途或注销状态时不以公告额度替代事实。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES05",
+      "question_id": "ES05.Q03",
+      "method_ids": ["knowledge.es05_q03"],
+      "outcome": "passed",
+      "reasons": [
+        "增长5%、资本成本10%且现金转化相近只能构成条件化可比候选；同业增长2%/20%和资本成本8%/15%时不能仅按行业或倍数认定低估。",
+        "缺增长与风险信息时只保留原始倍数差异，不输出相对低估幅度。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES06",
+      "question_id": "ES06.Q03",
+      "method_ids": ["knowledge.occurred_risks"],
+      "outcome": "passed",
+      "reasons": [
+        "停产10天、受影响产线20%属于已有事件和暴露范围，但损失金额仍未知。",
+        "风险章节中“原料可能涨价”只构成潜在风险，不能登记为已经发生的价格冲击。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES07",
+      "question_id": "ES07.Q04",
+      "method_ids": ["knowledge.market_share_concentration"],
+      "outcome": "passed",
+      "reasons": [
+        "公司100/完整市场1000得到10%；三家上市同行合计300只是可见样本，不能作为全市场分母。",
+        "方法保留市场边界、完整排名和替代约束，不能由份额本身推出定价权。"
+      ],
+      "unresolved_issues": []
+    },
+    {
+      "step_id": "ES08",
+      "question_id": "ES08.Q03",
+      "method_ids": ["knowledge.es08_q03"],
+      "outcome": "passed",
+      "reasons": [
+        "NOPAT=120×(1-25%)=90，FCFF=90-(30-10)-5=65；归属相容且恒定股数30时示例EPS=60/30=2。",
+        "方法明确不能把FCFF/30当EPS，缺股数时只保留非每股结果，并保留稀释和金融企业规则缺口。"
+      ],
+      "unresolved_issues": []
+    }
+  ],
+  "summary": {
+    "sampled_steps": ["ES01", "ES02", "ES03", "ES04", "ES05", "ES06", "ES07", "ES08"],
+    "passed_samples": 8,
+    "important_issues": [],
+    "content_review_ready": true,
+    "user_confirmation_required": false
+  },
+  "human_review": {
+    "bundle_id": "candidate-54-v2",
+    "status": "confirmed",
+    "reviewer": "用户确认（Codex 对话，2026-09-21）",
+    "confirmation_text": "确认通过 candidate-54-v2，发布默认包。",
+    "confirmed_at": "2026-09-21T12:01:09+08:00"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "review_id": "golden-sample-calculation-review-20260922",
+  "bundle_id": "candidate-54-v2",
+  "company": {
+    "ticker": "600519",
+    "name": "贵州茅台",
+    "industry": "消费"
+  },
+  "reviewed_at": "2026-09-22T00:00:00+08:00",
+  "reviewer_kind": "user_confirmed_via_codex",
+  "reviewer": "用户确认（Codex 对话）",
+  "outcome": "confirmed",
+  "calculation": {
+    "calculation_id": "financial.operating_working_capital",
+    "formula_version": "financial-working-capital-v1.0.0",
+    "formula": "应收账款 + 存货 - 应付账款",
+    "comparison": "2025-12-31 vs 2024-12-31",
+    "status": "ready",
+    "result": {
+      "current_operating_working_capital": "57422721794.80 CNY",
+      "prior_operating_working_capital": "50847290119.91 CNY",
+      "change_in_operating_working_capital": "6575431674.89 CNY"
+    },
+    "interpretation": "已知三项贸易营运资本占用增加。",
+    "complete_fcff": false,
+    "boundary": "不代表完整FCFF；经营性预付款、合同资产/负债的完整范围、NOPAT、折旧摊销和资本开支桥接仍需单独验收。"
+  },
+  "evidence": {
+    "result_file": "docs/acquisition/moutai-working-capital-2025-vs-2024-20260922.json",
+    "result_sha256": "84a00537d8f8ed1bdad0a53ba5e04d37eac8412fd0ff9ed29b3eeda560f8d164",
+    "input_fact_ids": {
+      "current": [
+        "structured-fact-2b18bbbdc5dbdfcdf82015a9e6368c4c",
+        "structured-fact-9da5185317c28fadb1b6b5cee47edf9b",
+        "structured-fact-50c94429ca0e7c2bf5537c1ba6c057b7"
+      ],
+      "prior": [
+        "structured-fact-a5cf0aae04f4170764cc83c77ab15989",
+        "structured-fact-f6c7f12c421f95ffd17fce62d9124a60",
+        "structured-fact-b86308bd29e78b44a2815c4d48830224"
+      ]
+    },
+    "validation": [
+      "真实物化快照CLI重跑结果一致",
+      "缺少分项不补零",
+      "错期间返回缺口",
+      "错单位拒绝计算",
+      "银行行业返回not_applicable"
+    ]
+  },
+  "confirmation_text": "用户确认当前营运资本结果，并同意将其冻结为贵州茅台黄金样本的一部分。"
+}

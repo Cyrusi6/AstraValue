@@ -1,0 +1,705 @@
+{
+  "review_id": "pilot-agent-review-20260919",
+  "reviewer_type": "agent",
+  "reviewer": "knowledge_rules_review",
+  "prompt_version": "pilot-agent-application-v1",
+  "completed_at": "2026-09-19T08:37:26.301090+00:00",
+  "scope": "真实KnowledgeService读取冻结pilot-v1；应用10个合成案例并审阅3个故意错误的自然语言变体。",
+  "evaluation_design": "开放案例应用评测，目录中的预期结论可见；非盲测、非多人一致率实验。各判断由审阅Agent应用方法后独立说明并核算。",
+  "outcome": "passed_for_pilot_application",
+  "expansion_recommendation": "可以继续54题内容扩展；本结果不构成54题默认发布、完整FCFF验证或人工验收。",
+  "bundle": {
+    "bundle_id": "pilot-v1",
+    "created_at": "2026-09-19T08:30:46.553882+00:00",
+    "content_sha256": "d33fec45d5524e0dc5a03bb96c5738dced15c53fba900967dfa2890f4946326e"
+  },
+  "catalog_version": "1.0.0-pilot",
+  "mapping_version": "1.0.0-pilot",
+  "question_set_version": "1.0.0",
+  "data_boundary": "KnowledgeService只接收问题、版本和定性选择context。合成事实保留在案例文件并由本Agent在读取后分析，未作为知识库输入。",
+  "read_trace": [
+    {
+      "input": {
+        "question_id": "ES01.Q10",
+        "bundle_id": "pilot-v1",
+        "context": {
+          "industry": "industrial",
+          "business_type": "ordinary goods manufacturing"
+        }
+      },
+      "status": "available",
+      "complete": true,
+      "question_complete": false,
+      "question_gaps": [
+        {
+          "method_id": "knowledge.competitive_advantage_remaining",
+          "content_status": "skeleton",
+          "reason": "Required generic path not currently available"
+        }
+      ],
+      "methods": [
+        {
+          "method_id": "knowledge.pricing_power",
+          "version": "1.0.0",
+          "content_sha256": "43d9ea5cb7eaaa4b557660afc08823141c9e525a572d5516a14c778bee6c2e5c",
+          "applicability": {
+            "conditions": [
+              "有可比交易价格、销量与客户选择的业务；特殊定价模式需确认"
+            ],
+            "exclude_industries": [],
+            "include_industries": [],
+            "requires_context": [
+              "industry",
+              "business_type"
+            ],
+            "status": "applicable",
+            "missing_context": []
+          },
+          "expanded_body_chars": 2074,
+          "input_binding_statuses": {
+            "pricing.comparable_price": "pending",
+            "pricing.quantity_mix": "pending",
+            "pricing.incremental_cost": "pending",
+            "pricing.customer_channel": "text_evidence"
+          },
+          "source_refs": [
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-DOJ-MERGER-2023",
+              "source_version": "2023-12-18"
+            },
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-IMF-PPI-CH1",
+              "source_version": "sha256-fe1adbd6"
+            },
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-SEC-MDNA-2020",
+              "source_version": "33-10890"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "question_id": "ES02.Q04",
+        "bundle_id": "pilot-v1",
+        "context": {
+          "industry": "industrial",
+          "business_type": "ordinary goods manufacturing"
+        }
+      },
+      "status": "available",
+      "complete": true,
+      "question_complete": false,
+      "question_gaps": [
+        {
+          "method_id": "knowledge.roe_dupont_remaining",
+          "content_status": "skeleton",
+          "reason": "Required generic path not currently available"
+        }
+      ],
+      "methods": [
+        {
+          "method_id": "knowledge.roic",
+          "version": "1.0.0",
+          "content_sha256": "5e1f5b588efaa02589ecafa1e93d63184593927608c3c2fbd422c26b920bf41b",
+          "applicability": {
+            "conditions": [
+              "先确认普通非金融企业适用性"
+            ],
+            "exclude_industries": [
+              "bank",
+              "banking",
+              "银行"
+            ],
+            "include_industries": [],
+            "requires_context": [
+              "industry",
+              "business_type"
+            ],
+            "status": "applicable",
+            "missing_context": []
+          },
+          "expanded_body_chars": 1735,
+          "input_binding_statuses": {
+            "roic.ebit": "pending",
+            "roic.tax": "pending",
+            "roic.invested_capital": "pending",
+            "roic.adjustments": "text_evidence"
+          },
+          "source_refs": [
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-NYU-RETURN-2007",
+              "source_version": "2007-07"
+            },
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-NYU-FINANCIAL-FIRMS",
+              "source_version": "sha256-f880d1a0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "question_id": "ES02.Q08",
+        "bundle_id": "pilot-v1",
+        "context": {
+          "industry": "industrial",
+          "business_type": "ordinary goods manufacturing"
+        }
+      },
+      "status": "available",
+      "complete": true,
+      "question_complete": true,
+      "question_gaps": [],
+      "methods": [
+        {
+          "method_id": "knowledge.working_capital",
+          "version": "1.0.0",
+          "content_sha256": "4bf140eeddde64643b2c1392acb9f56721714d9eac061d699fae9cebb5e659b5",
+          "applicability": {
+            "conditions": [
+              "先确认普通非金融企业适用性"
+            ],
+            "exclude_industries": [
+              "bank",
+              "banking",
+              "银行"
+            ],
+            "include_industries": [],
+            "requires_context": [
+              "industry",
+              "business_type"
+            ],
+            "status": "applicable",
+            "missing_context": []
+          },
+          "expanded_body_chars": 1720,
+          "input_binding_statuses": {
+            "wc.components": "pending",
+            "wc.nopat_capex": "pending",
+            "wc.scope_terms": "text_evidence"
+          },
+          "source_refs": [
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-NYU-WC-CH10",
+              "source_version": "sha256-104701b8"
+            },
+            {
+              "kind": "source",
+              "bundle_id": "pilot-v1",
+              "source_id": "SRC-NYU-FINANCIAL-FIRMS",
+              "source_version": "sha256-f880d1a0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "bank_read_trace": [
+    {
+      "question_id": "ES02.Q04",
+      "context": {
+        "industry": "bank"
+      },
+      "status": "available",
+      "question_complete": false,
+      "methods": [
+        {
+          "method_id": "knowledge.roic",
+          "available": true,
+          "applicability": {
+            "conditions": [
+              "先确认普通非金融企业适用性"
+            ],
+            "exclude_industries": [
+              "bank",
+              "banking",
+              "银行"
+            ],
+            "include_industries": [],
+            "requires_context": [
+              "industry",
+              "business_type"
+            ],
+            "status": "not_applicable",
+            "reason": "Industry outside this method's documented conditions",
+            "missing_context": []
+          }
+        }
+      ]
+    },
+    {
+      "question_id": "ES02.Q08",
+      "context": {
+        "industry": "bank"
+      },
+      "status": "available",
+      "question_complete": true,
+      "methods": [
+        {
+          "method_id": "knowledge.working_capital",
+          "available": true,
+          "applicability": {
+            "conditions": [
+              "先确认普通非金融企业适用性"
+            ],
+            "exclude_industries": [
+              "bank",
+              "banking",
+              "银行"
+            ],
+            "include_industries": [],
+            "requires_context": [
+              "industry",
+              "business_type"
+            ],
+            "status": "not_applicable",
+            "reason": "Industry outside this method's documented conditions",
+            "missing_context": []
+          }
+        }
+      ]
+    }
+  ],
+  "source_checks": [
+    {
+      "source_id": "SRC-IMF-PPI-CH1",
+      "mode": "fresh_remote_pdf_read_in_memory",
+      "pages": [
+        33
+      ],
+      "sha256": "fe1adbd6c338ee63c31f1107649798b03ec7472d6034bc6ea5b70db07b81d60c",
+      "hash_matches_frozen_source": true,
+      "observation": "§1.154 explicitly defines quantity-weighted unit value and its dependence on quantity mix and prices; no bank ROIC support."
+    },
+    {
+      "source_id": "SRC-NYU-RETURN-2007",
+      "mode": "fresh_remote_pdf_read_in_memory",
+      "pages": [
+        8,
+        10,
+        11
+      ],
+      "sha256": "aa3bd7206936ef4f6219c97dcc5bfe358363a6f14c08572731f2a6d37c612af6",
+      "hash_matches_frozen_source": true,
+      "observation": "p8 footnotes give 60 versus 84 tax-shield example; pp10-11 and footnote6 distinguish beginning from average capital."
+    },
+    {
+      "source_id": "SRC-DOJ-MERGER-2023",
+      "mode": "fresh_remote_pdf_read_in_memory",
+      "pages": [
+        44
+      ],
+      "sha256": "0d89678904df169d0795fbc34af37845caa0070041a511876bde6cea06c27fcf",
+      "hash_matches_frozen_source": true,
+      "observation": "§4.3.C describes profitability despite lost sales in a hypothetical-monopolist framework; project company-level application remains a qualified synthesis."
+    },
+    {
+      "source_id": "SRC-NYU-FINANCIAL-FIRMS",
+      "mode": "local_page_text_read_and_pdf_hash_check",
+      "pages": [
+        6,
+        7
+      ],
+      "sha256": "f880d1a0887e5632ff39d776e151bcff416b3ae10b3ad6f7df192b42d1595160",
+      "hash_matches_frozen_source": true,
+      "observation": "Bank working-capital changes may not measure growth reinvestment; ordinary cash-flow and debt distinctions need adapted approaches."
+    },
+    {
+      "source_id": "SRC-NYU-WC-CH10",
+      "mode": "local_page_text_read_and_pdf_hash_check",
+      "pages": [
+        21,
+        22
+      ],
+      "sha256": "104701b8507f5c02e46a70c1934eca6a5ea636b7cd42a6224445191b58927f9d",
+      "hash_matches_frozen_source": true,
+      "observation": "Working-capital increases use cash and decreases release it; valuation definition normally excludes cash and interest-bearing debt."
+    }
+  ],
+  "case_results": [
+    {
+      "case_id": "pricing.profitable_increase",
+      "method_ids": [
+        "knowledge.pricing_power"
+      ],
+      "input": {
+        "channel_inventory": "正常",
+        "competitor_response": "有记录，未出现共同成本冲击",
+        "customer_substitution": "已观察，流失有限",
+        "price_after": 110,
+        "price_before": 100,
+        "quantity_after": 96,
+        "quantity_before": 100,
+        "same_product_and_terms": true,
+        "synthetic": true,
+        "unit_incremental_cost": 60
+      },
+      "outcome": "passed",
+      "application_verdict": "supported_with_limits",
+      "calculations": {
+        "contribution_before": 4000,
+        "contribution_after": 4800,
+        "contribution_change": 800
+      },
+      "observation_and_reason": "同规格实际净价提高10%，销量下降4%，按给定且不变的单位增量成本计算，贡献增加800；客户流失有限且渠道正常，支持观察期间的有利提价。不能由一期推出持久定价权，贡献不是完整会计利润。",
+      "rejected_conclusions": [
+        "永久护城河",
+        "销量下降即否定提价能力"
+      ],
+      "pair_id": "pricing.evidence_pair"
+    },
+    {
+      "case_id": "pricing.mix_only",
+      "method_ids": [
+        "knowledge.pricing_power"
+      ],
+      "input": {
+        "prices_after": [
+          100,
+          200
+        ],
+        "prices_before": [
+          100,
+          200
+        ],
+        "quantities_after": [
+          20,
+          80
+        ],
+        "quantities_before": [
+          80,
+          20
+        ],
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "reject_pricing_power_inference",
+      "calculations": {
+        "unit_revenue_before": 120,
+        "unit_revenue_after": 180
+      },
+      "observation_and_reason": "两档各自价格仍为100/200，总销量不变，仅数量权重改变。单位收入上涨50%完全可由结构解释，没有同品涨价证据。",
+      "rejected_conclusions": [
+        "同品提价",
+        "单位收入上涨证明定价权"
+      ],
+      "pair_id": null
+    },
+    {
+      "case_id": "pricing.missing_channel",
+      "method_ids": [
+        "knowledge.pricing_power"
+      ],
+      "input": {
+        "actual_net_price": null,
+        "announced_price_after": 110,
+        "channel_inventory": null,
+        "customer_substitution": null,
+        "price_before": 100,
+        "quantity_before": 100,
+        "reported_quantity_after": 96,
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "insufficient",
+      "calculations": {},
+      "observation_and_reason": "观察到的110是公告价格，缺实际净成交、客户替代与渠道库存。只能记录提价计划及销量报告；不能套用充分案例的4000至4800计算或确认有利提价。",
+      "rejected_conclusions": [
+        "已实现有利提价",
+        "持久定价权"
+      ],
+      "pair_id": "pricing.evidence_pair"
+    },
+    {
+      "case_id": "roic.consistent",
+      "method_ids": [
+        "knowledge.roic"
+      ],
+      "input": {
+        "begin_capital": 1000,
+        "ebit": 160,
+        "end_capital": 1400,
+        "same_scope": true,
+        "synthetic": true,
+        "tax_rate": 0.25
+      },
+      "outcome": "passed",
+      "application_verdict": "supported_with_limits",
+      "calculations": {
+        "nopat": 120,
+        "beginning_capital_roic": 0.12,
+        "average_capital": 1200,
+        "average_capital_roic": 0.1
+      },
+      "observation_and_reason": "EBIT160按25%税率得NOPAT120；期初分母1000得12%，两端平均1200得10%。必须分别注明时间约定；两者差别由分母造成，不能解释成经营改善。",
+      "rejected_conclusions": [
+        "无口径标签的单一ROIC",
+        "选择较高值证明改善"
+      ],
+      "pair_id": "roic.evidence_pair"
+    },
+    {
+      "case_id": "roic.tax_shield_mismatch",
+      "method_ids": [
+        "knowledge.roic"
+      ],
+      "input": {
+        "actual_tax": 16,
+        "ebit": 100,
+        "interest": 60,
+        "net_income": 24,
+        "synthetic": true,
+        "tax_rate": 0.4
+      },
+      "outcome": "passed",
+      "application_verdict": "reject_tax_shield_double_count",
+      "calculations": {
+        "nopat": 60,
+        "actual_tax": 16,
+        "incorrect_ebit_minus_actual_tax": 84,
+        "overstatement": 24
+      },
+      "observation_and_reason": "利息前经营收益应按40%计税得60；实际税16建立在扣除利息60之后。EBIT减实际税得到84，多计24利息税盾。净利润24加回税后利息36同样得60。资本未提供，不能另外输出ROIC百分比。",
+      "rejected_conclusions": [
+        "以84或净利润24直接代表NOPAT"
+      ],
+      "pair_id": null
+    },
+    {
+      "case_id": "roic.missing_opening",
+      "method_ids": [
+        "knowledge.roic"
+      ],
+      "input": {
+        "begin_capital": null,
+        "ebit": 160,
+        "end_capital": 1400,
+        "synthetic": true,
+        "tax_rate": 0.25
+      },
+      "outcome": "passed",
+      "application_verdict": "insufficient",
+      "calculations": {
+        "nopat": 120
+      },
+      "observation_and_reason": "期初投入资本未知，期初与两端平均分母都不完整。可保留NOPAT120与期末资本1400；不能把120/1400的8.57%冒充这两种ROIC。",
+      "rejected_conclusions": [
+        "期末代替期初或平均分母"
+      ],
+      "pair_id": "roic.evidence_pair"
+    },
+    {
+      "case_id": "working_capital.operating_release",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "input": {
+        "all_components_complete": true,
+        "industry": "industrial",
+        "inventory_change": -10,
+        "payables_change": -5,
+        "payment_terms": "正常",
+        "receivables_change": -5,
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "supported_with_limits",
+      "calculations": {
+        "working_capital_change": -10,
+        "cash_release": 10
+      },
+      "observation_and_reason": "组成明确完整时，-5-10-(-5)=-10，观察期释放占款10。付款正常支持有限的占款释放判断；没有NOPAT、折旧和资本开支，不能计算完整FCFF，也不能推定利润提升或每期重复释放。",
+      "rejected_conclusions": [
+        "永续释放10",
+        "利润必然改善",
+        "完整FCFF"
+      ],
+      "pair_id": "wc.release_pair"
+    },
+    {
+      "case_id": "working_capital.overdue_payables",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "input": {
+        "all_components_complete": true,
+        "industry": "industrial",
+        "inventory_change": 0,
+        "payables_change": 10,
+        "payment_terms": "超过合同期限，逾期应付增加10",
+        "receivables_change": 0,
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "reject_efficiency_inference",
+      "calculations": {
+        "working_capital_change": -10,
+        "cash_release": 10
+      },
+      "observation_and_reason": "0+0-10=-10，同样释放10，但全部来自已明确逾期的应付增加。短期现金增加不构成经营效率改善，需核对偿付安排和供应关系。不能泛化为所有应付增长都坏。",
+      "rejected_conclusions": [
+        "延期应付即经营改善",
+        "现金释放证明利润提升"
+      ],
+      "pair_id": "wc.release_pair"
+    },
+    {
+      "case_id": "working_capital.bank",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "input": {
+        "deposits_change": 100,
+        "industry": "bank",
+        "loans_change": 110,
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "not_applicable",
+      "calculations": {},
+      "observation_and_reason": "银行存款与贷款属于其经营和融资模型核心，不能把110-100=10直接称普通企业经营营运资本增加。应停止普通WC/FCFF路径并返回行业资本或权益估值方法缺口。",
+      "rejected_conclusions": [
+        "存贷差额变化直接计算普通FCFF"
+      ],
+      "pair_id": null
+    },
+    {
+      "case_id": "working_capital.missing_components",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "input": {
+        "industry": "industrial",
+        "inventory_change": -10,
+        "other_operating_items": null,
+        "payables_change": null,
+        "receivables_change": -5,
+        "synthetic": true
+      },
+      "outcome": "passed",
+      "application_verdict": "insufficient",
+      "calculations": {
+        "known_receivable_inventory_change": -15
+      },
+      "observation_and_reason": "只能说明已知应收与存货合计减少15；应付及其他经营组成未知，完整WC变化不可确定。缺失不能当零，不能把15报告为总释放或给出完整FCFF。",
+      "rejected_conclusions": [
+        "缺失填零",
+        "完整WC或FCFF"
+      ],
+      "pair_id": null
+    }
+  ],
+  "paired_observations": [
+    {
+      "pair": "pricing.evidence_pair",
+      "sufficient": "真实净价、成本及客户/渠道反应齐全可支持观察期间有利提价。",
+      "insufficient": "去掉实际净价和客户/渠道证据后只能记录意图和缺口。"
+    },
+    {
+      "pair": "roic.evidence_pair",
+      "sufficient": "期初期末资本齐全，两个明确时间口径分别为12%和10%。",
+      "insufficient": "缺期初资本时两个分母都不能完成，只有NOPAT可保留。"
+    },
+    {
+      "pair": "wc.release_pair",
+      "same_numeric_result": "两例均释放10。",
+      "different_judgments": "正常组成变动支持观察期释放占款；逾期应付导致释放不支持效率改善。"
+    }
+  ],
+  "adversarial_reviews": [
+    {
+      "variant_id": "false_pricing_rule",
+      "mutation": "保留原结构，在规则和正文中引入结构变化即可证明同品定价权的断言。",
+      "agent_verdict": "rejected",
+      "reason": "100/200各自价格不变但权重80/20变20/80就是直接反例；IMF单位价值定义同时依赖价格和权重。该断言混淆结构效应与同品价格，且与原文规则矛盾。",
+      "program_validation": {
+        "valid": false,
+        "errors": [
+          "knowledge.pricing_power: missing passed case review for current content identity",
+          "knowledge.pricing_power: missing passed source review for current content identity"
+        ],
+        "warnings": [
+          "knowledge.competitive_advantage_remaining: skeleton, not available coverage",
+          "knowledge.roe_dupont_remaining: skeleton, not available coverage"
+        ]
+      }
+    },
+    {
+      "variant_id": "irrelevant_bank_roic_source",
+      "mutation": "把银行ROIC适用性规则的来源改为IMF单位价值段，保留来源字段结构。",
+      "agent_verdict": "rejected",
+      "reason": "直接读取IMF PDF p33表明本段讨论数量加权单位价值及质量/交易条件，不讨论NOPAT、资本、银行或ROIC，不能支持该命题。有效URL、正文可得与来源哈希正确不等于命题支持关系成立。",
+      "program_validation": {
+        "valid": false,
+        "errors": [
+          "knowledge.roic: missing passed case review for current content identity",
+          "knowledge.roic: missing passed source review for current content identity"
+        ],
+        "warnings": [
+          "knowledge.competitive_advantage_remaining: skeleton, not available coverage",
+          "knowledge.roe_dupont_remaining: skeleton, not available coverage"
+        ]
+      }
+    },
+    {
+      "variant_id": "deleted_wc_counterexample_prose",
+      "mutation": "删除正文中逾期应付配对反例和含银行案例的边界段；保留字段、其他正文、结构化摘要和外部案例，模拟完整展开内容退化。",
+      "agent_verdict": "rejected_for_publication",
+      "reason": "正文失去同样现金释放但原因相反的实际应用展示，以及银行存贷差额误用的明确案例，和仍存在的结构化反例/案例目录不一致；不能把仅有正常释放展示的正文维持为同等已审阅版本。保留的规则与外部案例仍能指导谨慎Agent，故此变体不是证明全部安全边界已从系统消失。",
+      "removed_paragraph_count": 2,
+      "program_validation": {
+        "valid": false,
+        "errors": [
+          "knowledge.working_capital: missing passed case review for current content identity",
+          "knowledge.working_capital: missing passed source review for current content identity"
+        ],
+        "warnings": [
+          "knowledge.competitive_advantage_remaining: skeleton, not available coverage",
+          "knowledge.roe_dupont_remaining: skeleton, not available coverage"
+        ]
+      }
+    }
+  ],
+  "validation_interpretation": "三个变体的程序拒绝来自当前内容身份缺少有效source/case审阅绑定，证明旧审阅不能沿用；程序没有自动理解错误金融规则。语义拒绝理由来自本Agent审阅。",
+  "issues": [
+    {
+      "issue_id": "top_level_availability_ignores_context",
+      "severity": "medium",
+      "blocking_for_pilot_content": false,
+      "observation": "银行context的ES02.Q08顶层status=available且question_complete=true、方法available=true，但applicability=not_applicable。ES02.Q04同样顶层available。",
+      "impact": "只读取顶层标志的消费者可能错误套用行业方法。",
+      "recommendation": "明确区分库内内容可用/通用题覆盖和本context适用性，或增加question_applicability。调用方须先检查方法applicability。"
+    },
+    {
+      "issue_id": "positive_fcff_not_exercised",
+      "severity": "scope_limit",
+      "blocking_for_pilot_content": false,
+      "observation": "10个案例覆盖WC释放、组成缺失和银行边界，没有完整NOPAT+折旧+资本开支+WC的正向FCFF算例。",
+      "impact": "本评测不能证明ES02.Q08的完整FCFF应用已验收。",
+      "recommendation": "后续该题整体验收补一个完整FCFF案例及代理口径区别案例。"
+    },
+    {
+      "issue_id": "input_bindings_pending",
+      "severity": "declared_limit",
+      "blocking_for_pilot_content": false,
+      "observation": "三个方法定量概念输入均返回pending；原文证据为text_evidence。",
+      "impact": "适合方法指导，尚不能证明从现有公司数据自动取得匹配输入。"
+    }
+  ],
+  "file_mutations": "只写本review JSON；未改代码、catalog、方法正文、审阅数组或冻结bundle。"
+}

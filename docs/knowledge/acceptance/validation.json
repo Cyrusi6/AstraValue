@@ -1,0 +1,27 @@
+{
+  "focused_regression": {
+    "command": "python -X utf8 -m pytest tests/knowledge/regression tests/test_method_registry.py -q -rA",
+    "passed": 80,
+    "failed": 0
+  },
+  "method_library": "METHOD_LIBRARY_OK",
+  "openspec_strict": "passed",
+  "compileall": "passed",
+  "git_diff_check": "passed",
+  "full_release": {
+    "passed": true,
+    "failed_checks": [],
+    "available_questions": 54,
+    "total_questions": 54
+  },
+  "full_repository_regression": {
+    "status": "passed_with_two_existing_skips",
+    "command": "PYTHONUTF8=1 PYTHONIOENCODING=utf-8 python -X utf8 -m pytest --ignore=tests/knowledge/release -q -rA",
+    "log": "var/research/knowledge-store/full-regression.log",
+    "passed": 1432,
+    "failed": 0,
+    "skipped": 2,
+    "failure": null,
+    "focused_utf8_rerun": "full suite rerun with PYTHONUTF8=1 and PYTHONIOENCODING=utf-8; passed"
+  }
+}

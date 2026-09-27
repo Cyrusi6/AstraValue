@@ -1,0 +1,483 @@
+{
+  "passed": true,
+  "bundle_id": "candidate-54-v2",
+  "ready": 54,
+  "total": 54,
+  "missing_question_ids": [],
+  "unexpected_question_ids": [],
+  "checks": {
+    "bundle_identity": true,
+    "question_coverage": true,
+    "method_identities": true,
+    "source_checks": true,
+    "case_checks": true,
+    "agent_samples": true,
+    "human_review": true
+  },
+  "failed_checks": [],
+  "candidate_content_sha256": "4ca66072bf57113290c819358b7fbe27992ce8c15766f6ee5717e9ee419bd66f",
+  "coverage": {
+    "bundle_id": "candidate-54-v2",
+    "bundle_kind": "candidate",
+    "total": 54,
+    "mapped_count": 54,
+    "available_count": 54,
+    "historical_published_count": 54,
+    "available_question_ids": [
+      "ES01.Q01",
+      "ES01.Q02",
+      "ES01.Q03",
+      "ES01.Q04",
+      "ES01.Q05",
+      "ES01.Q06",
+      "ES01.Q07",
+      "ES01.Q08",
+      "ES01.Q09",
+      "ES01.Q10",
+      "ES02.Q01",
+      "ES02.Q02",
+      "ES02.Q03",
+      "ES02.Q04",
+      "ES02.Q05",
+      "ES02.Q06",
+      "ES02.Q07",
+      "ES02.Q08",
+      "ES02.Q09",
+      "ES02.Q10",
+      "ES03.Q01",
+      "ES03.Q02",
+      "ES03.Q03",
+      "ES03.Q04",
+      "ES03.Q05",
+      "ES03.Q06",
+      "ES04.Q01",
+      "ES04.Q02",
+      "ES04.Q03",
+      "ES04.Q04",
+      "ES04.Q05",
+      "ES04.Q06",
+      "ES05.Q01",
+      "ES05.Q02",
+      "ES05.Q03",
+      "ES05.Q04",
+      "ES05.Q05",
+      "ES05.Q06",
+      "ES06.Q01",
+      "ES06.Q02",
+      "ES06.Q03",
+      "ES06.Q04",
+      "ES06.Q05",
+      "ES07.Q01",
+      "ES07.Q02",
+      "ES07.Q03",
+      "ES07.Q04",
+      "ES07.Q05",
+      "ES07.Q06",
+      "ES08.Q01",
+      "ES08.Q02",
+      "ES08.Q03",
+      "ES08.Q04",
+      "ES08.Q05"
+    ],
+    "pending_question_ids": [],
+    "industry_gaps": {
+      "ES07.Q03": [
+        "行业需求代理、库存天数、产能良率和时滞定义后续建设。"
+      ],
+      "ES02.Q02": [
+        "各行业周期正常利润与特有一次性项目口径待补。"
+      ],
+      "ES08.Q04": [
+        "行业事件风险及具体投资者约束不由此通用方法代替。"
+      ],
+      "ES03.Q06": [
+        "地区强制程序与审计标准、意见法律效果和监管程序依地区核对；不能从一个事项推断全部内控有效。"
+      ],
+      "ES02.Q09": [
+        "反稀释判定、股份支付工具和多类别权益特殊口径待准则全文及手册。"
+      ],
+      "ES05.Q05": [
+        "银行/保险、资源储量、REIT和其他行业专用估值仍需行业定义与案例。"
+      ],
+      "ES06.Q05": [
+        "各行业许可证、交付、库存价格领先链条和阈值手册待补。"
+      ],
+      "ES07.Q01": [
+        "行业分类与经济市场的专门映射、金融细分和跨境规则待补。"
+      ],
+      "ES05.Q06": [
+        "周期、金融和资源企业的相关参数范围需行业证据补充。"
+      ],
+      "ES03.Q04": [
+        "地区强制程序与具体股份支付计量遵从适用准则及披露，期权反稀释规则需单独核对；本路径不替代计算引擎。"
+      ],
+      "ES03.Q01": [
+        "地区强制程序与少数持股、共同控制、金字塔结构和特殊表决权需解释具体协议；不能套统一控股比例。"
+      ],
+      "ES06.Q04": [
+        "衍生品细则、灾害模型和监管资本风险权重待行业资料。"
+      ],
+      "ES03.Q02": [
+        "地区强制程序与股份类别、当地担保法和司法程序需要具体文件；OECD未规定质押强平阈值。"
+      ],
+      "ES01.Q08": [
+        "多边平台、资源权益、特许经营和纵向一体化内部定价待补。"
+      ],
+      "ES02.Q06": [
+        "银行负债、保险久期、项目融资及可转债条款待行业细化。"
+      ],
+      "ES01.Q10": [
+        "专利有效性、工艺良率、渠道特许及品牌调查的行业证据标准待补。",
+        "受监管定价、银行利差、平台多边定价等行业专用口径待补。"
+      ],
+      "ES02.Q03": [
+        "金融企业净息差、保险服务利润和资源税等专用指标待补。"
+      ],
+      "ES05.Q04": [
+        "银行、保险、地产项目及未盈利企业的专门模型选择和输入手册尚待补充。"
+      ],
+      "ES03.Q03": [
+        "地区强制程序与国企任命、合伙制及跨国薪酬口径需行业/制度补充；不设统一任期或薪酬阈值。"
+      ],
+      "ES05.Q03": [
+        "行业专属风险指标和跨市场会计调整需进一步定义。"
+      ],
+      "ES01.Q01": [
+        "金融、平台净额确认和复杂合同履约的专用手册待补。"
+      ],
+      "ES01.Q02": [
+        "银行分部收益、保险服务和平台净额口径待行业补充。"
+      ],
+      "ES07.Q06": [
+        "行业监管细则、技术路线指标和竞争数据手册待补。"
+      ],
+      "ES05.Q01": [
+        "多类别股份、金融企业索偿和稀释工具的专门定义需行业/会计手册补充。"
+      ],
+      "ES02.Q05": [
+        "金融资产预期信用损失、保险资产和行业库存计量待手册。"
+      ],
+      "ES07.Q04": [
+        "非上市产能、跨境分母、平台多边市场和行业集中度专用定义待补。"
+      ],
+      "ES07.Q05": [
+        "资源品品质升贴水、运费、配方/良率与行业定价机制待补。"
+      ],
+      "ES01.Q05": [
+        "不同行业产能设计、负荷、良率和产销存单位待手册。"
+      ],
+      "ES04.Q06": [
+        "地区强制程序与银行资本债、永续债、复杂嵌入期权及监管资本资格需要专用行业方法；不在此入口重复估值公式。"
+      ],
+      "ES05.Q02": [
+        "周期企业正常化盈利、金融PB与资源净值历史口径尚需行业手册。"
+      ],
+      "ES04.Q04": [
+        "地区强制程序与募集专户、用途变更程序和各市场融资安排按具体规则补充；会计差额需要考虑外币及跨期。"
+      ],
+      "ES07.Q02": [
+        "专用数量单位、非正规市场覆盖和行业统计修订制度待补。"
+      ],
+      "ES08.Q02": [
+        "行业特定驱动相关性、监管约束和尾部情景需进一步证据。"
+      ],
+      "ES04.Q01": [
+        "地区强制程序与特定地区可分配利润规则、银行监管资本限制及税负需要另行取证，不预设统一分红比例。"
+      ],
+      "ES02.Q04": [
+        "金融企业资本回报、租赁/研发等特殊资本调整的行业手册待补。",
+        "金融资本监管、资产负债特殊结构及权益调整的行业路径待补。"
+      ],
+      "ES02.Q07": [
+        "金融现金流分类、保理和供应链融资的行业解释待补。"
+      ],
+      "ES01.Q04": [
+        "联产品、订阅席位、产出质量换算与套装业务待行业定义。"
+      ],
+      "ES08.Q05": [
+        "行业高频驱动阈值及事件影响路径待行业手册补充。"
+      ],
+      "ES02.Q01": [
+        "各行业会计科目及IFRS/中国准则差异需专用映射。"
+      ],
+      "ES01.Q07": [
+        "药物临床、半导体良率、软件开发成本等专用产出标准待补。"
+      ],
+      "ES06.Q02": [
+        "银行资本约束、资源周期与平台边际成本曲线待行业模型。"
+      ],
+      "ES03.Q05": [
+        "地区强制程序与关联方定义、豁免与审批门槛依适用制度核对；跨境和金融关联交易需要行业补充。"
+      ],
+      "ES04.Q02": [
+        "地区强制程序与股份注销程序、库存股及EPS处理按适用会计和法律核验；本页不提供统一回购估值结论。"
+      ],
+      "ES02.Q08": [
+        "银行监管资本与权益估值、保险准备金及特殊合同资产处理待行业手册。"
+      ],
+      "ES08.Q01": [
+        "行业业务量与监管资本基线的具体口径待行业手册补充。"
+      ],
+      "ES08.Q03": [
+        "金融企业现金流、复杂资本工具和稀释EPS完整会计规则仍待专用方法。"
+      ],
+      "ES02.Q10": [
+        "金融担保、特许经营、重组及地区准则全文判断后续补充。"
+      ],
+      "ES06.Q03": [
+        "事故、召回、信用违约和行业监管处置的专门事件口径待补。"
+      ],
+      "ES04.Q05": [
+        "地区强制程序与同一控制、分步收购、跨境税务和特定行业资产估值需专用规则，IFRS概览不等于A股会计全文。"
+      ],
+      "ES04.Q03": [
+        "地区强制程序与当地交易窗口、豁免和锁定规则需核对最新正式文件，不从治理原则推定具体期限。"
+      ],
+      "ES01.Q09": [
+        "不同行业投产认证和监管准入里程碑待专用标准。"
+      ],
+      "ES01.Q03": [
+        "行业经销层级、客户集团合并及采购计价规则后续。"
+      ],
+      "ES01.Q06": [
+        "矿山剥采、研发资本化、租赁和特许经营投资需专门口径。"
+      ],
+      "ES06.Q01": [
+        "不同行业收费单位、渗透率和供需领先量定义待补。"
+      ]
+    },
+    "default_published": true,
+    "methods": [
+      {
+        "method_id": "knowledge.accounting_obligations",
+        "content_sha256": "8bb76aef761836f8889110b408b24c7088e59f78f58959a97dc08dc4058c4a22"
+      },
+      {
+        "method_id": "knowledge.asset_quality",
+        "content_sha256": "8bedea6f6f0af83c0f01b61ed82b4b6226b02e47c5ae08128d837c2fc57c7f60"
+      },
+      {
+        "method_id": "knowledge.business_identity",
+        "content_sha256": "24d9221e8c9eb9aecc8bd28e46f6e0e585274a7389d10a6bf30aff0abc3472c5"
+      },
+      {
+        "method_id": "knowledge.capacity_inventory",
+        "content_sha256": "10385748f5c5a2f5cbca069ffdd0b39deaef86d57da5d3d7593e9772d67a90a2"
+      },
+      {
+        "method_id": "knowledge.capex_stage",
+        "content_sha256": "e35cfe4ca679b231c801752ebd4c48ebc5ac269fae7e180f9bc1b11880876362"
+      },
+      {
+        "method_id": "knowledge.catalyst_monitoring",
+        "content_sha256": "67d2d8c9e1f5423a795afe6d162ff3361f28c7887f3d39b7d4d450a97af25288"
+      },
+      {
+        "method_id": "knowledge.competitive_advantage",
+        "content_sha256": "ed0144af5432376baccd4276f9f0882d9cb735c022266a776f9110998cb42d44"
+      },
+      {
+        "method_id": "knowledge.counterparty_channels",
+        "content_sha256": "6442a7860a6e4871dd50495f351a429305cf11816edfb6f5256c887f78a94163"
+      },
+      {
+        "method_id": "knowledge.debt_liquidity",
+        "content_sha256": "7568a3ee98cfc5ac743f9bedbe6536daef5a1181a244ec5c4dfced9cb9b7b4e0"
+      },
+      {
+        "method_id": "knowledge.driver_transmission",
+        "content_sha256": "80624eabdbf952bce93c6fcc5059f8bfeb4b29b0c0f668d74e164cc27617be12"
+      },
+      {
+        "method_id": "knowledge.earnings_cash_quality",
+        "content_sha256": "b5aa2b9543f711fa27cb178e433fb86d84e4466070d438a050aee55f52bca71a"
+      },
+      {
+        "method_id": "knowledge.eps_dilution",
+        "content_sha256": "bec9cc19c7486a8afc25dafcc2438899c5b3e7dbe0848e3e7146aab3421cc6cf"
+      },
+      {
+        "method_id": "knowledge.es03_q01",
+        "content_sha256": "8ba660c134f5d8f468e83a9d3a11cf6002da8752303a60f9a0a61e81a4eda467"
+      },
+      {
+        "method_id": "knowledge.es03_q02",
+        "content_sha256": "8496e72f14137f19001a9a35cf4d7c05e49545bc08a97f0ba17c06743637e04a"
+      },
+      {
+        "method_id": "knowledge.es03_q03",
+        "content_sha256": "ed93677f825a015ae502bbaf2d135233b614828e2d6c6312ff97fa84a5362491"
+      },
+      {
+        "method_id": "knowledge.es03_q04",
+        "content_sha256": "c2d0a1dd4e46bf61c18fd2e42a6b16cf37946ec934a15456c838385ece9c5c74"
+      },
+      {
+        "method_id": "knowledge.es03_q05",
+        "content_sha256": "cfb0a0449d8d10bd6ad9e47e3eb4c64cda5c86e0eeb00429f544d1e6094eccf0"
+      },
+      {
+        "method_id": "knowledge.es03_q06",
+        "content_sha256": "39f93629086a298604b659eee455856b1ca66be8e8331ca045b54950414c6ccf"
+      },
+      {
+        "method_id": "knowledge.es04_q01",
+        "content_sha256": "03b98d1ecb312063c8620090ee082ef93252c336d7d2401b9f1f35cba7bf49a6"
+      },
+      {
+        "method_id": "knowledge.es04_q02",
+        "content_sha256": "dbba0c9fdbc4f271477cae7ab00c125f48aed292539cec6d7a15975a0ba973ac"
+      },
+      {
+        "method_id": "knowledge.es04_q03",
+        "content_sha256": "d0e0fdf56dcd83134a2bca5fd6b60fce6f8fb3dd8b9a672adc7a1fd4d2241f0e"
+      },
+      {
+        "method_id": "knowledge.es04_q04",
+        "content_sha256": "353d3bf51b0dde3c2d9a12f6b2b7f7b6b298c3df6564f8d77275e590f255ac70"
+      },
+      {
+        "method_id": "knowledge.es04_q05",
+        "content_sha256": "040aa4cf554aaadcaa470c4dc8843df17fa0d624e66084aaa70c50dc031d582c"
+      },
+      {
+        "method_id": "knowledge.es04_q06",
+        "content_sha256": "d2a04556fe3b53ce277d71f62ce817867d37b67148471e71b9ff45022aa80419"
+      },
+      {
+        "method_id": "knowledge.es05_q01",
+        "content_sha256": "7eca693d09e93c57ce97789cd14b472614b566aba10fd292f285e69143a4f395"
+      },
+      {
+        "method_id": "knowledge.es05_q02",
+        "content_sha256": "dd520c1d97592a7d776c00952a82f14542b157662fb770a4e25d45fa15768942"
+      },
+      {
+        "method_id": "knowledge.es05_q03",
+        "content_sha256": "a9a9326190ae6ec1a60aeaf80fa75f60ea95152a650bcd6f0a247e9b5ce85860"
+      },
+      {
+        "method_id": "knowledge.es05_q04",
+        "content_sha256": "809762fea43ac8aa0bc9650fe51842f7017a3284303058f7632498674e899491"
+      },
+      {
+        "method_id": "knowledge.es05_q05",
+        "content_sha256": "e625ebd93d39bfaf1c9b9743ac790692a86e0e8469caf575837bd9be5965cf69"
+      },
+      {
+        "method_id": "knowledge.es05_q06",
+        "content_sha256": "5daca9c5a63dfe9da24aa82cb13257536ad19b5592aea4f626145fdf35ec752f"
+      },
+      {
+        "method_id": "knowledge.es08_q01",
+        "content_sha256": "eb808206af6553d4f84725d928091820433acb8e818b1236caf236d0e099296f"
+      },
+      {
+        "method_id": "knowledge.es08_q02",
+        "content_sha256": "835684bb76b05105b764104677ecb65c28c17a4c0d76635a5ce77e2dedd1c4ff"
+      },
+      {
+        "method_id": "knowledge.es08_q03",
+        "content_sha256": "1a26351f9c4fa8454ac919ff810ed7fd9ca0866eabd31625a45484a5f32cfc0b"
+      },
+      {
+        "method_id": "knowledge.es08_q04",
+        "content_sha256": "77b2809c9271a4fcfb45432e61b0aa2ee34b1edeb36e3aefeee98db6873546f2"
+      },
+      {
+        "method_id": "knowledge.es08_q05",
+        "content_sha256": "5c17395ef0c63a817eba2a2a2a7769da8179651b6a67140b92e1f0793666ea79"
+      },
+      {
+        "method_id": "knowledge.growth_drivers",
+        "content_sha256": "c1ca92489397aee7ad36ccd405cccea06cc16f8d732aa34c1599d10ae23d9576"
+      },
+      {
+        "method_id": "knowledge.growth_normalization",
+        "content_sha256": "85d4e998408e81d8d046be25eccb77ee979f7894eb0063db3706d5e2e52d593a"
+      },
+      {
+        "method_id": "knowledge.industry_bargaining",
+        "content_sha256": "29754042eb1bef5eea3994d0a832aa86d0a9ae59479dfedd7a8f72e1fd9d67ce"
+      },
+      {
+        "method_id": "knowledge.industry_boundary",
+        "content_sha256": "1062bddbae73207abf4f069e30bdaf93d3a93091241064637e797f68466e9d03"
+      },
+      {
+        "method_id": "knowledge.industry_change_peers",
+        "content_sha256": "129a66dc1c66532d04de99d9fd10bbe4ac3f35fced74fabef93fd3945a25295d"
+      },
+      {
+        "method_id": "knowledge.industry_size",
+        "content_sha256": "8fd7cfe5341baa2c4272af9960cb52e2000df84ab82345f98b1bf3dfa3046af5"
+      },
+      {
+        "method_id": "knowledge.margin_expense_tax",
+        "content_sha256": "dc963e33445a4ccc329bca52ac5672c9001dc0a5d789849763235564db00c28d"
+      },
+      {
+        "method_id": "knowledge.market_share_concentration",
+        "content_sha256": "29b4c8bb0bb107f98f827be4571c0478cbef7aa51ef86e690ffa4824d9d4ba1b"
+      },
+      {
+        "method_id": "knowledge.occurred_risks",
+        "content_sha256": "1c3f637806060e65e47cf3d74bf77f2c0afb55e8a0fbaf4d2cc0b2a8a9fc2d1d"
+      },
+      {
+        "method_id": "knowledge.potential_risk_rebuttal",
+        "content_sha256": "c8c4bc8da9db9cd2f61cb702983b2ac5dced8af1982d9195163670feac95490f"
+      },
+      {
+        "method_id": "knowledge.pricing_power",
+        "content_sha256": "044a6198d0d5ead91ed49c6a94818edaf6733ab4ffe99225d9b20ca14cb58169"
+      },
+      {
+        "method_id": "knowledge.rd_people",
+        "content_sha256": "c583d8e809391179763f8295bc511e91e9defc4438206ec5758c8f2aa38f58fa"
+      },
+      {
+        "method_id": "knowledge.roe_dupont",
+        "content_sha256": "6db29ae2e82c402b511c859cff8523077fd1f413397850d3ec927e9b15af62fa"
+      },
+      {
+        "method_id": "knowledge.roic",
+        "content_sha256": "638bfca6c642b3eb46ea4e8c3b6fd1e55540481f00d29db4258699df02035b12"
+      },
+      {
+        "method_id": "knowledge.segment_economics",
+        "content_sha256": "36f0cbbd5e2c0c1d75a5bf9d8ed45df7bfc11645a0926cad26f2321e5c73eb29"
+      },
+      {
+        "method_id": "knowledge.statement_comparability",
+        "content_sha256": "7dd0371a0d3c4fc30d1b3a8fc75467435b2df75efc706d181880ef9b0d349061"
+      },
+      {
+        "method_id": "knowledge.strategy_changes",
+        "content_sha256": "5a3bf3778a93e1631e1b4274184989357a96f8f6a46cb55a4e74aed5c490fe68"
+      },
+      {
+        "method_id": "knowledge.supply_demand_cycle",
+        "content_sha256": "751bdefcc99f2ca04fb7ec77a37fd836d229512b8165fd59de7f868e38d66c80"
+      },
+      {
+        "method_id": "knowledge.unit_economics",
+        "content_sha256": "f71f8bdf482cca39337b726b809d84e97ea353c4af03a6bcc4932a792be03b3e"
+      },
+      {
+        "method_id": "knowledge.value_chain",
+        "content_sha256": "fadaf5249baf3a779cce9ce35c0495a8e19ddc8bd6256d1ecadb67ffedd0b0c3"
+      },
+      {
+        "method_id": "knowledge.working_capital",
+        "content_sha256": "acee31e844a37f8bbe95f2a35f2968240073d257c7eec27554b720ad3f126567"
+      }
+    ]
+  },
+  "evidence_counts": {
+    "source_checks": 56,
+    "case_checks": 56,
+    "agent_samples": 8
+  },
+  "default_changed": true
+}

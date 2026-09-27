@@ -1,0 +1,246 @@
+{
+  "bundle_id": "candidate-54-v2",
+  "candidate_content_sha256": "4ca66072bf57113290c819358b7fbe27992ce8c15766f6ee5717e9ee419bd66f",
+  "evaluated_at": "2026-09-19T09:06:09.837255+00:00",
+  "evaluation_design": "实际API读取后的开放案例应用；非盲测，预期案例可见；公司事实未传入知识查询；不是人工验收。",
+  "agent_samples": [
+    {
+      "step_id": "ES01",
+      "question_id": "ES01.Q02",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.segment_economics"
+      ],
+      "reasons": [
+        "收入60/40与毛利12/20是不同分配：A收入占60%，B毛利20/32=62.5%；无共同费用桥接不能说净利润贡献。删去分部利润后只保留收入结构。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES01.Q02",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.segment_economics": "36f0cbbd5e2c0c1d75a5bf9d8ed45df7bfc11645a0926cad26f2321e5c73eb29"
+      }
+    },
+    {
+      "step_id": "ES02",
+      "question_id": "ES02.Q08",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "reasons": [
+        "正常占款变动-5-10-(-5)=-10，释放10；逾期应付释放不是经营效率改善。完整FCFF=100+20-30-10=80，缺一项不填零；银行路径不适用。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES02.Q08",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.working_capital": "acee31e844a37f8bbe95f2a35f2968240073d257c7eec27554b720ad3f126567"
+      }
+    },
+    {
+      "step_id": "ES03",
+      "question_id": "ES03.Q05",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es03_q05"
+      ],
+      "reasons": [
+        "到期100按期收到100支持这项履行；只有审批而到期未收100说明该项未履行。缺履行凭证则状态未知，不直接推断利益输送。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES03.Q05",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es03_q05": "cfb0a0449d8d10bd6ad9e47e3eb4c64cda5c86e0eeb00429f544d1e6094eccf0"
+      }
+    },
+    {
+      "step_id": "ES04",
+      "question_id": "ES04.Q02",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es04_q02"
+      ],
+      "reasons": [
+        "实际买入10股并支出100可记回购执行；注销0且用于员工计划不能减总股本10。只有上限100、成交0属于计划。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES04.Q02",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es04_q02": "dbba0c9fdbc4f271477cae7ab00c125f48aed292539cec6d7a15975a0ba973ac"
+      }
+    },
+    {
+      "step_id": "ES05",
+      "question_id": "ES05.Q03",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es05_q03"
+      ],
+      "reasons": [
+        "增长5%、资本成本10%、现金转化相近可作为条件可比候选；同业增长2%/20%、资本成本8%/15%不可只比较倍数认定低估。缺增长风险只能列原始倍数。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES05.Q03",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es05_q03": "a9a9326190ae6ec1a60aeaf80fa75f60ea95152a650bcd6f0a247e9b5ce85860"
+      }
+    },
+    {
+      "step_id": "ES06",
+      "question_id": "ES06.Q03",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.occurred_risks"
+      ],
+      "reasons": [
+        "停产10天、产线20%是已披露事件暴露；未知损失保留未知。风险章节说原料可能涨价不证明涨价已发生。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES06.Q03",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.occurred_risks": "1c3f637806060e65e47cf3d74bf77f2c0afb55e8a0fbaf4d2cc0b2a8a9fc2d1d"
+      }
+    },
+    {
+      "step_id": "ES07",
+      "question_id": "ES07.Q04",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.market_share_concentration"
+      ],
+      "reasons": [
+        "公司100/完整市场1000=10%；三家上市同行合计300只是样本，不能将100/300当全市场份额。份额本身不证明定价权。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES07.Q04",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.market_share_concentration": "29b4c8bb0bb107f98f827be4571c0478cbef7aa51ef86e690ffa4824d9d4ba1b"
+      }
+    },
+    {
+      "step_id": "ES08",
+      "question_id": "ES08.Q03",
+      "bundle_id": "candidate-54-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es08_q03"
+      ],
+      "reasons": [
+        "NOPAT=120*(1-25%)=90，FCFF=90-(30-10)-5=65；归属相容、恒定股数下EPS=60/30=2，不能使用FCFF/30替代EPS。缺股数只保留非每股结果。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "eight-step-open-case-application-v1",
+      "input": {
+        "question_id": "ES08.Q03",
+        "bundle_id": "candidate-54-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es08_q03": "1a26351f9c4fa8454ac919ff810ed7fd9ca0866eabd31625a45484a5f32cfc0b"
+      }
+    }
+  ],
+  "human_review": {
+    "bundle_id": "candidate-54-v2",
+    "reviewer_kind": "human",
+    "reviewer": "用户确认（Codex 对话，2026-09-21）",
+    "outcome": "passed",
+    "sampled_steps": [
+      "ES01",
+      "ES02",
+      "ES03",
+      "ES04",
+      "ES05",
+      "ES06",
+      "ES07",
+      "ES08"
+    ],
+    "important_issues": [],
+    "reasons": [
+      "用户已确认通过 candidate-54-v2；此前独立黄金样本审查覆盖八步各一题及关键反例，未发现重要内容问题。"
+    ],
+    "confirmation_text": "确认通过 candidate-54-v2，发布默认包。",
+    "confirmed_at": "2026-09-21T12:01:09+08:00"
+  }
+}
