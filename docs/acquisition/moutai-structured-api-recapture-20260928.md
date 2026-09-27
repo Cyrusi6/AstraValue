@@ -36,7 +36,20 @@ python -m analysis.cli structured plan 600519 --mode baseline `
 
 在真实回采之外，结构化运行时的可重复边界由集成测试覆盖：连续两轮财务增量沿最新安全水位线推进，已提交期间保持可复用，同时刷新最近两个报告期；事件数据每轮只回读冻结 schedule 指定的 30 天 overlap，并从上一轮水位线继续推进；任一适用数据集存在失败 coverage 时，增量计划在联网前拒绝。动态报告期任务的 dedupe 只在同一 run 内保持幂等，后续 run 可以重新请求同一最近期间，以接收修订后的结构化结果。测试文件为 `tests/structured/test_structured_runtime_integration.py`，本工作树的 `tests/structured` 全套测试通过。
 
+## 新增 structured reconcile 真实验收
+
+在同一真实数据库上执行：
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path 'src').Path
+python -m analysis.cli structured plan 600519 --mode reconcile --from-latest `
+  --company-scope company-only --as-of '2026-09-28T00:00:00+08:00' `
+  --db 'tmp/moutai-real-api/analysis.db' --data-root 'tmp/moutai-real-api/data' --json
+```
+
+计划生成 `structured-run-c9beb7959d5b62cc14fd5f8b`，联网前 `performed_network_io=false`，只选 parent 中 12 个不安全窗口。执行及恢复遵守单轮和重试上限：最终 7 个窗口真实 `no_data`、2 个真实 `failed`、2 个仍为 `pending`、1 个 `retryable`；没有把空响应写成成功，也没有修改成功 coverage 或手工推进水位线。`tmp/moutai-real-api/reconcile-last.json` 保存了最后一次状态摘要。
+
 ## 结论
 
-结构化 API 已能在空数据根重新获取贵州茅台当前结构化数据，重复 baseline 可复用既有 snapshot，失败、空响应和物化缺口均可追踪。真实报告正文仍只通过研究任务按需采集；本次 baseline 没有扩大为全量报告归档。真实 acquisition incremental 的安全水位线仍是待验收边界，不能用本次结构化 plan 的幂等结果替代。
+结构化 API 已能在空数据根重新获取贵州茅台当前结构化数据，重复 baseline 可复用既有 snapshot，reconcile 能在不联网的计划阶段定位 parent 并只恢复不安全窗口，失败、空响应和物化缺口均可追踪。真实报告正文仍只通过研究任务按需采集；本次 baseline 和 reconcile 没有扩大为全量报告归档。由于真实来源仍有空响应和失败，真实 incremental 的安全水位线仍未满足，不能把本次 reconcile 写成 incremental 通过。
 
