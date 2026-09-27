@@ -23,9 +23,9 @@ def test_business_model_sources_are_loaded_from_api_not_hardcoded() -> None:
 def test_business_model_plan_cannot_be_reduced_with_source_checkboxes() -> None:
     source = APP.read_text(encoding="utf-8")
     acquisition_section = source.split(
-        'title="公司业务与商业模式资料采集"', 1
-    )[1].split('title="Legacy 财务同步"', 1)[0]
-    assert "来源与问题不可省略" in acquisition_section
+        'title="公告与研究资料"', 1
+    )[1].split('title="正式公告归档"', 1)[0]
+    assert "按研究问题按需采集" in acquisition_section
     assert "sourceDefinitions" in acquisition_section
     assert 'type="checkbox"' not in acquisition_section
     assert "coverage_accounted" in acquisition_section
@@ -34,10 +34,18 @@ def test_business_model_plan_cannot_be_reduced_with_source_checkboxes() -> None:
     assert "/execute" in source
 
 
-def test_legacy_financial_scope_is_visibly_separate() -> None:
+def test_legacy_financial_scope_is_removed_from_frontend() -> None:
     source = APP.read_text(encoding="utf-8")
-    assert 'title="Legacy 财务同步"' in source
-    assert "非 business_model v1" in source
+    assert 'title="Legacy 财务同步"' not in source
+    assert "/companies/${ticker}/sync" not in source
+    assert "providers" not in source
+
+
+def test_structured_frontend_uses_plan_and_recovery_routes() -> None:
+    source = APP.read_text(encoding="utf-8")
+    assert 'api("/structured/plans"' in source
+    assert "/structured/runs/${runId}/" in source
+    assert "研究工作区" in source
 
 
 def test_report_coverage_is_separate_from_legacy_evidence_score() -> None:
