@@ -45,6 +45,8 @@
 
 审计知识候选分支时发现：`codex/knowledge-base-v1` 的合并结果包含知识提交，但同时重新带回了旧 `src/analysis/adapters/`、`src/analysis/structured/research.py`、旧包装脚本和部分旧研究入口。因此它只能作为内容来源逐项迁移，不能直接作为最终 `main` 的整合基线；当前候选工作树的旧链删除结果必须优先保留。
 
+进一步审计确认，knowledge 分支的 `structured/runtime.py` 回退了本轮 incremental 水位线和 reconcile 实现，`acquisition/runtime.py` 还通过 `AdapterManager` 重新连接旧 adapters；这两个文件不得从 knowledge 分支覆盖当前候选版本。可迁移范围限于知识服务、知识目录/正文、发布门和经逐项核对的财务计算链。
+
 主工作树 `D:\估值模型` 另有未跟踪的 `openspec/changes/eight-step-knowledge-base-v1/`；已复制到候选工作树同一路径保存，但尚未纳入当前唯一生产 OpenSpec。最终只保留 `main` 前必须按用户决定归档或合并，不能因分支清理而丢失。
 
 - 候选事实分支 `codex/fact-materialization-ultra` 已删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装脚本和直接报告写入路径，提交 `33b0800`。
