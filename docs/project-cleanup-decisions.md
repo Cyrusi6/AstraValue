@@ -50,6 +50,6 @@
 
 ## 当前状态与边界
 
-候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，真实 API incremental/reconcile 尚未验收，全量测试和人工报告验收仍未完成。
+候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），贵州茅台真实 reconcile 尝试已记录，但仍留下空响应、失败和待执行窗口，不能据此宣称 incremental 通过。详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，全量测试和人工报告验收仍未完成。
 
 因此在实现、验证、人工验收和 review 完成前，不能删除承载材料的 worktree、分支或远程引用。
