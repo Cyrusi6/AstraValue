@@ -40,6 +40,8 @@
 - 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
 - 旧 `src/analysis/research/knowledge.py`（research-cards）是否迁移为新 `analysis.knowledge.KnowledgeService` 的适配层后删除；当前研究工作区的 `Catalog` 和工具注册仍在调用它。
 
+审计给出的默认建议（尚未替用户确认）：保留 56 条方法路径并把双路径标成互补；保留来源级 `locator` 与规则级 `source_refs[].locator/support` 两层定位；用 alias 兼容 IFRS3 重复 source ID；把 `pilot_remaining.md` 移到 acceptance history 并标记 superseded；保留 1/54、pilot、54/54 三段历史时间线；把旧 research-cards 入口迁移到 `KnowledgeService` 适配层后删除。
+
 ## 仍需通过的验收
 
 这些是执行门，不是新的产品取舍：
