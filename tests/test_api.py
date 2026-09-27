@@ -1,5 +1,4 @@
 import json
-from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -7,10 +6,9 @@ from analysis.acquisition.models import LiveAccessReviewCheck
 from analysis.acquisition.registry import INITIAL_REGISTRY_PATH
 from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.api import create_app
-from analysis.models import DocumentRecord, SourceRecord, SyncResult
 
 
-def test_api_report_method_lineage_and_export(service, demo_request):
+def test_api_report_method_lineage_and_export(service, demo_report):
     client = TestClient(create_app(service))
     assert client.get("/api/health").status_code == 200
     methods = client.get("/api/methods").json()
@@ -19,9 +17,7 @@ def test_api_report_method_lineage_and_export(service, demo_request):
     assert method.status_code == 200
     assert "content_status: skeleton" in method.json()["documentation"]
 
-    created = client.post("/api/reports", json=demo_request.model_dump(mode="json"))
-    assert created.status_code == 201, created.text
-    report = created.json()
+    report = demo_report.model_dump(mode="json")
     report_id = report["report_id"]
     assert len(report["sections"]) == 8
     assert client.get(f"/api/reports/{report_id}").status_code == 200
@@ -144,39 +140,3 @@ def test_document_review_required_returns_candidate_and_no_formal_evidence(tmp_p
     assert runtime.blob_store.scan_orphans(()) == ()
 
 
-def test_sync_response_redacts_document_paths_on_every_host(service, monkeypatch):
-    source = SourceRecord(name="fixture source")
-    result = SyncResult(
-        ticker="600519",
-        scopes=["financials"],
-        provider_results={"official": "fixture"},
-        sources=[source],
-        documents=[
-            DocumentRecord(
-                ticker="600519",
-                title="fixture document",
-                archived_path="/home/alice/private/report.pdf",
-                text_path="/tmp/private/report.txt",
-                sha256="a" * 64,
-                source=source,
-            )
-        ],
-    )
-    application = create_app(service)
-    application.state.adapters = SimpleNamespace(
-        sync=lambda _ticker, _options: result
-    )
-    monkeypatch.setattr(service.storage, "save_sync_result", lambda _result: None)
-    client = TestClient(application)
-
-    response = client.post(
-        "/api/companies/600519/sync",
-        json={"scopes": ["financials"], "providers": ["official"]},
-    )
-
-    assert response.status_code == 200, response.text
-    document = response.json()["documents"][0]
-    assert document["archived_path"] == "[REDACTED_LOCAL_PATH]"
-    assert document["text_path"] == "[REDACTED_LOCAL_PATH]"
-    assert "/home/alice" not in response.text
-    assert "/tmp/private" not in response.text

@@ -16,11 +16,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from .documents import SourceReviewRequired, ingest_registered_document
 from .exports import export_report
 from .models import (
-    AssumptionPatchRequest,
     DocumentIngestRequest,
     FactVerificationRequest,
-    ReportCreateRequest,
-    ReviewRequest,
     VerificationStatus,
 )
 from .registry import MethodRegistryError, PROJECT_ROOT
@@ -453,6 +450,10 @@ def create_app(
         )
         return _plan_response(plan)
 
+    @application.post("/api/companies/{ticker}/sync", include_in_schema=False)
+    def removed_legacy_sync_entry(ticker: str) -> None:
+        raise HTTPException(status_code=404, detail="legacy sync入口已移除；请使用结构化采集流程")
+
     @application.post("/api/acquisition-runs/{run_id}/execute")
     async def execute_acquisition_run(
         run_id: str,
@@ -845,33 +846,13 @@ def create_app(
     ) -> list[dict]:
         return [item.model_dump(mode="json") for item in _service(request).storage.list_reports(ticker, limit)]
 
-    @application.post("/api/reports", status_code=201)
-    def create_report(payload: ReportCreateRequest, request: Request) -> dict:
-        return _service(request).create_report(payload).model_dump(mode="json")
+    @application.post("/api/reports", include_in_schema=False)
+    def removed_direct_report_entry() -> None:
+        raise HTTPException(status_code=404, detail="直接报告入口已移除；请使用结构化研究报告流程")
 
     @application.get("/api/reports/{report_id}")
     def get_report(report_id: str, request: Request) -> dict:
         return _service(request).storage.get_report(report_id).model_dump(mode="json")
-
-    @application.patch("/api/reports/{report_id}/assumptions")
-    def patch_assumptions(report_id: str, payload: AssumptionPatchRequest, request: Request) -> dict:
-        return _service(request).patch_assumptions(report_id, payload).model_dump(mode="json")
-
-    @application.post("/api/reports/{report_id}/recalculate")
-    def recalculate(report_id: str, request: Request) -> dict:
-        return _service(request).recalculate(report_id).model_dump(mode="json")
-
-    @application.post("/api/reports/{report_id}/reanalyze")
-    def reanalyze(report_id: str, request: Request) -> dict:
-        return _service(request).reanalyze(report_id).model_dump(mode="json")
-
-    @application.post("/api/reports/{report_id}/review")
-    def review(report_id: str, payload: ReviewRequest, request: Request) -> dict:
-        try:
-            report = _service(request).review(report_id, payload)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return report.model_dump(mode="json")
 
     @application.get("/api/reports/{report_id}/changes")
     def report_changes(report_id: str, request: Request) -> dict:

@@ -409,31 +409,3 @@ def test_expired_reclaim_resume_and_stale_owner_are_visible_through_api(tmp_path
         )
 
 
-def test_business_model_sync_requires_injected_runtime(service):
-    client = TestClient(create_app(service, acquisition_enabled=False))
-    response = client.post(
-        "/api/companies/600519/sync",
-        json={"scopes": ["business_model"], "providers": ["official"]},
-    )
-    assert response.status_code == 503
-
-
-def test_business_model_sync_rejects_mixed_legacy_scope_before_run_or_io(tmp_path):
-    executor = FakeExecutor()
-    runtime, client = _client(tmp_path, executor)
-
-    response = client.post(
-        "/api/companies/600519/sync",
-        json={
-            "scopes": ["business_model", "financials"],
-            "providers": ["official"],
-            "acquisition_mode": "baseline",
-            "as_of": NOW.isoformat(),
-        },
-    )
-
-    assert response.status_code == 422
-    assert response.json()["error"] == "validation"
-    assert "不能与legacy同步范围混合执行" in response.json()["detail"]
-    assert executor.calls == []
-    assert runtime.repository.list_runs(ticker="600519") == []

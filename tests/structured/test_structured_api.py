@@ -3,7 +3,6 @@ from datetime import date
 from fastapi.testclient import TestClient
 
 from analysis.api import create_app
-from analysis.models import SyncResult
 from analysis.structured.exceptions import (
     StructuredBusyError,
     StructuredConflictError,
@@ -89,16 +88,6 @@ class FakeStructuredService:
             "performed_network_io": False,
         }
 
-    def sync(self, ticker, options):
-        return SyncResult(
-            ticker=ticker,
-            provider_results={"structured": "queued"},
-            source_strategy="structured-first-v1",
-            structured_plan_id="plan:1",
-            default_consume_eligible=False,
-        )
-
-
 def test_structured_resources_page_past_500_and_redact_credentials(service):
     client = TestClient(create_app(service, structured_service=FakeStructuredService()))
     registry = client.get("/api/structured/registry?limit=500&offset=120")
@@ -119,31 +108,20 @@ def test_structured_resources_page_past_500_and_redact_credentials(service):
     assert coverage.json()["items"][-1]["readiness"] == "reading_pending"
 
 
-def test_new_sync_returns_202_but_explicit_legacy_keeps_200(service):
-    application = create_app(service, structured_service=FakeStructuredService())
-    client = TestClient(application)
-    queued = client.post(
-        "/api/companies/600519/sync",
-        json={"source_strategy": "structured-first-v1"},
-    )
-    assert queued.status_code == 202
-    assert queued.json()["structured_plan_id"] == "plan:1"
+def test_removed_legacy_sync_and_direct_report_entrypoints_are_not_available(service):
+    client = TestClient(create_app(service, structured_service=FakeStructuredService()))
 
-    class LegacyManager:
-        def sync(self, ticker, options):
-            return SyncResult(
-                ticker=ticker,
-                provider_results={"legacy": "ok"},
-                source_strategy="legacy-v1",
-            )
-
-    application.state.adapters = LegacyManager()
-    legacy = client.post(
+    legacy_sync = client.post(
         "/api/companies/600519/sync",
         json={"source_strategy": "legacy-v1", "providers": ["baostock"]},
     )
-    assert legacy.status_code == 200
-    assert legacy.json()["source_strategy"] == "legacy-v1"
+    assert legacy_sync.status_code == 404
+
+    direct_report = client.post(
+        "/api/reports",
+        json={"ticker": "600519", "company_name": "贵州茅台", "industry": "消费"},
+    )
+    assert direct_report.status_code == 404
 
 
 def test_structured_routes_expose_precise_error_statuses(service):
