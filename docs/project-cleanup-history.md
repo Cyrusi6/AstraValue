@@ -44,6 +44,10 @@
 
 ## 当前证据边界
 
+### 2026-09-28 候选报告材料只读检查
+
+已只读检查当前工作树中暂存的贵州茅台候选材料：`tmp_v4.txt` 为 8 章文本报告，包含评级、目标价、情景假设、37 条证据索引及计算边界；`v4-contact.png` 与 `v4-all-contact.png` 为对应的多页渲染联系图。文本与渲染均可读取，图表和附录页存在。该检查只证明材料可读和渲染完整，不替代来源逐条核验、独立复算或用户人工黄金验收；三份文件在验收完成前继续保留且不加入提交。
+
 审计知识候选分支时发现：`codex/knowledge-base-v1` 的合并结果包含知识提交，但同时重新带回了旧 `src/analysis/adapters/`、`src/analysis/structured/research.py`、旧包装脚本和部分旧研究入口。因此它只能作为内容来源逐项迁移，不能直接作为最终 `main` 的整合基线；当前候选工作树的旧链删除结果必须优先保留。
 
 进一步审计确认，knowledge 分支的 `structured/runtime.py` 回退了本轮 incremental 水位线和 reconcile 实现，`acquisition/runtime.py` 还通过 `AdapterManager` 重新连接旧 adapters；这两个文件不得从 knowledge 分支覆盖当前候选版本。可迁移范围限于知识服务、知识目录/正文、发布门和经逐项核对的财务计算链。
@@ -55,6 +59,7 @@
 - 该回采物化得到 548 facts、300 dimensional facts、8 events、21 sources；物化哈希为 `2bb49e8dc68d49b25d5dabdabf5ce11fae3e6281ff9865d3816c84aa446bacfb`。
 - 相同截止时间重复 baseline 返回 `created=false`、`attempted_job_ids=[]`，说明计划幂等；由于仍有失败/空响应，incremental 安全门禁拒绝本次增量，不能把它写成增量成功。
 - 全量 Python 测试已通过（1680 passed、15 skipped）；`compileall`、前端 build、OpenSpec strict 和 `git diff --check` 也已通过。`tests/structured` 覆盖连续财务增量、事件 overlap、失败 coverage 门禁和动态报告期刷新。真实 API 的长期增量窗口仍待用贵州茅台完成，不能用这些离线/Mock 测试替代联网验收。
+- 2026-09-28 重新运行候选工作树的全量 pytest 得到 1764 passed、15 skipped、1 failed；唯一失败是 `tests/knowledge/release/test_full_release.py`，其 `candidate_content_identity` 和 54/54 coverage 均通过，但当前版本没有重新绑定的 Agent 样例与人工验收（`agent_samples=false`、`human_review=false`）。该失败是发布门真实拒绝，不应通过伪造记录或静默跳过解决；常规回归和完整发布门需在最终报告中分开列示。
 - `reconcile` 的 acquisition 证据存在，但普通 structured run 尚未提供独立 reconcile mode；在实现或补充契约前，不能把 acquisition reconcile 测试当成 structured 链完整验收。
 - 知识产品已按文件选择性迁入当前工作树；知识回归为 79 项通过，发布门新增 `candidate_content_identity` 哈希检查。全量 pytest 的唯一失败仍是当前候选缺少重新绑定的 Agent 样例和人工验收，不是代码回归失败；旧 acceptance 哈希不匹配时会被拒绝。
 - 当前候选已完成一次显式 CLI 试读：构建 `cleanup-candidate-v1` 后，54/54 coverage 和 `ES02.Q08`（industrial/manufacturing 上下文）读取均成功；`default_published=false`，因此这次试读不等于默认包发布。
