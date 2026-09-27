@@ -11,7 +11,7 @@ from analysis.structured.identity import SecurityIdentity
 from analysis.structured.runtime import StructuredDataRuntime
 from analysis.structured.materialization import StructuredFactMaterializer
 from analysis.structured.materialization_replay import _export_result
-from analysis.structured.research import write_json
+from analysis.structured.research_lite import _write_json as write_json
 from analysis.structured.storage import canonical_json
 
 SAMPLES = [('600519','consumer'),('600031','manufacturing'),('688981','technology'),('600036','bank'),

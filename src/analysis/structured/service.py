@@ -11,7 +11,6 @@ from analysis.acquisition.repository import (
     StorageBusyError,
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
-from analysis.models import SyncRequest, SyncResult
 from analysis.exports import export_report
 from analysis.service import AnalysisService
 
@@ -251,45 +250,6 @@ class StructuredDataService:
             "runnable": True,
             "company_resolution": _resolution_mapping(resolution),
         }
-
-    def sync(self, ticker: str, options: SyncRequest) -> SyncResult:
-        selected = tuple(options.datasets) if options.datasets else None
-        planned = self.plan(
-            ticker,
-            mode=options.structured_mode,
-            company_scope=options.company_scope,
-            datasets=selected,
-            as_of=options.as_of,
-        )
-        if not planned.get("runnable") or not planned.get("run_ids"):
-            prerequisites = ",".join(planned.get("identity_prerequisites") or ())
-            raise StructuredConflictError(
-                "结构化同步需要唯一已解析公司身份"
-                + (f"；待完成前置数据集: {prerequisites}" if prerequisites else "")
-            )
-        run_ids = list(planned["run_ids"])
-        return SyncResult(
-            ticker=str(planned["ticker"]),
-            company_name=(
-                planned["company_resolution"].get("identity") or {}
-            ).get("current_name"),
-            provider_results={"structured": "planned"},
-            scopes=list(options.scopes),
-            as_of=options.as_of,
-            acquisition_run_id=run_ids[0],
-            acquisition_status="planned",
-            provider_results_authority="structured_attempts",
-            coverage_accounted=False,
-            default_consume_eligible=False,
-            source_strategy="structured-first-v1",
-            structured_plan_id=str(planned["plan_id"]),
-            structured_dataset_coverage=planned,
-            warnings=(
-                ["计划包含多个独立公司运行；acquisition_run_id 仅指向首个运行"]
-                if len(run_ids) > 1
-                else []
-            ),
-        )
 
     def run(self, run_id: str) -> dict[str, Any]:
         return self._execute(self.runtime.execute, run_id)

@@ -2,11 +2,6 @@ from datetime import datetime, timedelta, timezone
 
 import fitz
 
-from analysis.adapters.official_adapter import (
-    OfficialDisclosureAdapter,
-    _CninfoClient,
-    _SseClient,
-)
 from analysis.announcement_index import (
     AnnouncementCandidate,
     attach_document_and_event,
@@ -16,7 +11,7 @@ from analysis.announcement_index import (
     normalize_announcement_title,
 )
 from analysis.documents import ingest_downloaded_document
-from analysis.models import SyncRequest, VerificationStatus
+from analysis.models import VerificationStatus
 
 
 AS_OF = datetime(2026, 9, 3, tzinfo=timezone.utc)
@@ -132,87 +127,3 @@ def test_downloaded_document_identity_versions_context_but_keeps_upstream(tmp_pa
         == first.source.upstream_source_id
     )
     assert another_publication.archived_path == first.archived_path
-
-
-def test_official_adapter_can_index_metadata_without_downloading(
-    monkeypatch,
-    tmp_path,
-):
-    monkeypatch.setattr(
-        _CninfoClient,
-        "list_announcements",
-        lambda self, ticker, start, end, as_of, maximum: [_candidate("cninfo")],
-    )
-    monkeypatch.setattr(
-        _SseClient,
-        "list_announcements",
-        lambda self, ticker, start, end, as_of, maximum: [_candidate("sse")],
-    )
-    result = OfficialDisclosureAdapter(tmp_path / "raw").sync(
-        "600519",
-        SyncRequest(
-            providers=["official"],
-            scopes=["announcements"],
-            as_of=AS_OF,
-            announcement_years=2,
-            download_official_documents=False,
-        ),
-    )
-
-    assert len(result.announcements) == 1
-    assert result.announcements[0].classified_event_type == "dividend"
-    assert result.events == []
-    assert result.documents == []
-    assert "公告索引1条" in result.provider_results["official_announcements"]
-
-
-def test_official_adapter_downloads_only_classified_event_documents(
-    monkeypatch,
-    tmp_path,
-):
-    candidates = [
-        _candidate("cninfo"),
-        _candidate("cninfo", title="关于召开年度股东大会的通知", announcement_id="other"),
-    ]
-    monkeypatch.setattr(
-        _CninfoClient,
-        "list_announcements",
-        lambda self, ticker, start, end, as_of, maximum: candidates,
-    )
-    monkeypatch.setattr(
-        _SseClient,
-        "list_announcements",
-        lambda self, ticker, start, end, as_of, maximum: [],
-    )
-    monkeypatch.setattr(
-        "analysis.adapters.official_adapter._download_pdf",
-        lambda client, url, referer=None: _pdf_bytes(),
-    )
-    result = OfficialDisclosureAdapter(tmp_path / "raw").sync(
-        "600519",
-        SyncRequest(
-            providers=["official"],
-            scopes=["announcements"],
-            as_of=AS_OF,
-            announcement_years=2,
-            max_event_documents=10,
-            download_official_documents=True,
-        ),
-    )
-
-    assert len(result.announcements) == 2
-    assert len(result.documents) == 1
-    assert len(result.events) == 1
-    event_announcement = next(
-        item for item in result.announcements if item.classified_event_type == "dividend"
-    )
-    other_announcement = next(
-        item for item in result.announcements if item.classified_event_type == "other"
-    )
-    assert event_announcement.document_id is not None
-    assert event_announcement.event_ids == [result.events[0].event_id]
-    assert other_announcement.document_id is None
-    assert "classified_event_type" not in result.documents[0].metadata
-    assert "classified_event_subtype" not in result.documents[0].metadata
-    assert "classified_lifecycle_state" not in result.documents[0].metadata
-    assert "结构化事件1条" in result.provider_results["official_announcements"]

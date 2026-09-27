@@ -12,7 +12,7 @@ from analysis.acquisition.runtime import AcquisitionRuntime
 from analysis.structured.identity import SecurityIdentity
 from analysis.structured.runtime import StructuredDataRuntime
 from analysis.structured.scope import load_scope, selected_datasets
-from analysis.structured.research import write_json
+from analysis.structured.research_lite import _write_json as write_json
 
 
 def main():

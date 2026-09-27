@@ -22,7 +22,7 @@
 证据读取通用命令：
 
 ```powershell
-python -m analysis.structured.research evidence `
+python -m analysis.research evidence `
   --pack '<下表对应包目录>' --evidence-id '<下表 evidence ID>' `
   --page 1 --max-tokens 2000
 ```

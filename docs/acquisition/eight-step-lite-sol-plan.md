@@ -91,14 +91,14 @@ $env:PYTHONIOENCODING='utf-8'
 $env:PYTHONPATH=(Resolve-Path src).Path
 
 # 已实现：默认离线构建；来源投影须显式登记，不自动混入任意目录。
-python -m analysis.structured.research lite `
+python -m analysis.research lite `
   --input tmp/research-data-layer-v1 `
   --supplement tmp/research-data-layer-live-v1/materialized `
   --ticker 600519 --as-of 2026-09-13 `
   --output tmp/eight-step-lite-v1
 
 # 已实现：按核心包中的证据ID取指定页/表/字段，输出有界原文。
-python -m analysis.structured.research evidence `
+python -m analysis.research evidence `
   --pack '<已生成的包目录>' --evidence-id '<包内真实ID>'
 ```
 

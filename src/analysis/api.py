@@ -1220,12 +1220,12 @@ def _plan_response(plan: Any) -> dict[str, Any]:
 
 
 class _LazyDefaultApplication:
-    """Delay the legacy default app until it is actually served.
+    """Delay the default app until it is actually served.
 
     Importing ``create_app`` for an explicitly bound acquisition server must
-    not first initialize the repository-wide default SQLite/DuckDB paths or a
-    second AdapterManager.  The proxy remains an ASGI application, so the
-    documented ``uvicorn analysis.api:app`` entrypoint stays compatible.
+    not first initialize the repository-wide default SQLite/DuckDB paths. The
+    proxy remains an ASGI application, so the documented
+    ``uvicorn analysis.api:app`` entrypoint stays compatible.
     """
 
     def __init__(self) -> None:

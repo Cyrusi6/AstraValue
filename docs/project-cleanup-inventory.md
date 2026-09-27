@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-09-27  
+更新时间：2026-09-28
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`，HEAD `25b7a1f`（`Complete Moutai processing validation and authored research report`）
 
@@ -12,7 +12,7 @@
 |---|---|---|---|
 | P01 | 结构化数据采集与任务运行：`src/analysis/structured/{service,runtime,planner,scheduler,storage,records,protocols,registry,reading,coverage,repair}.py`；`src/analysis/api.py` 的 `/api/structured/*`；`src/analysis/cli.py` 的 `structured` 子命令。 | **保留并作为唯一常规入口**。`/api/structured/*` 和结构化 CLI 承担计划、执行、恢复、记录、阅读任务、覆盖查询。 | 旧全量同步移除后，结构化 API 仍可独立建立、执行、恢复和查询 600519；中断恢复、幂等、来源门禁和持久化测试通过。 |
 | P02 | 结构化事实物化：`src/analysis/structured/materialization.py`、`materialization_contracts.py`、`materialization_audit.py`、`materialization_replay.py`，并由 `structured materialize` 调用。 | **保留为唯一 `StructuredFactMaterializer` 路径**；旧的直接财务/行情拼装不再并行维护。 | 物化结果的事实数量、期间、单位、来源和哈希可回溯到结构化记录；旧数据只作为显式迁移/回放输入，不作为生产入口。 |
-| P03 | 八步轻量研究包与报告桥接：`src/analysis/structured/research_lite.py`、`research.py`、`reporting_bridge.py`、`report_semantics.py`；`/api/structured/reports`；CLI `structured report`。 | **保留**。完整报告链固定为“研究工作区 → reporting bridge → `ReportVersion`”。 | `/api/structured/reports` 只接受已冻结且可校验的研究包；报告生成、导出和审计信息能从包与物化事实复现。 |
+| P03 | 八步轻量研究包与报告桥接：`src/analysis/structured/research_lite.py`、`reporting_bridge.py`、`report_semantics.py`；`/api/structured/reports`；CLI `structured report`。旧 `structured/research.py` 全量编排已删除。 | **保留**。完整报告链固定为“研究工作区 → reporting bridge → `ReportVersion`”。 | `/api/structured/reports` 只接受已冻结且可校验的研究包；报告生成、导出和审计信息能从包与物化事实复现。 |
 | P04 | 研究工作区与资料处理：`src/analysis/research/`（当前 fact worktree 有已修改和未跟踪的资料、计算、图表、补充资料、Python sandbox、报告组装代码），以及 `docs/acquisition/research-workspace-runbook.md`。 | **纳入并作为报告唯一上游**。fact worktree 的 4 组未提交研究内容全部纳入统一主线。 | 资料采集、状态、计算、图表、笔记表和报告组装使用同一研究任务/快照；真实样本和贵州茅台验收文档保留。 |
 | P05 | 知识产品：`codex/knowledge-base-v1` 中的 `src/analysis/knowledge/`、`knowledge_release.py`、`config/methods/knowledge/catalog.v1.json` 及知识发布测试/文档；该分支包含 knowledge-content、knowledge-core、knowledge-verification 的等价提交。 | **以 `codex/knowledge-base-v1` 为候选整合基线，纳入完整知识产品**。同 ID 内容使用 `knowledge-content` 修订，同时保留 KB/core 的严格发布门。 | 知识服务、内容版本、来源定位、缺口和发布门验收通过；知识只按需读取，不复制维护第二套研究问题或指标定义。 |
 | P06 | 治理全链路：`src/analysis/governance/`（当前 main 约 26 个 Python 文件、约 16,695 行），治理测试和 `scripts/validate_governance_*.py`。当前 API/主 CLI 未直接接入。 | **保留并接入统一生产链路**，不再作为孤立测试包。 | 治理采集、抽取、冲突/版本、报告输入和审计状态在结构化运行及研究工作区中有明确入口；接入完成前不得宣称生产可用。 |
@@ -38,8 +38,8 @@
 
 当前尚未等同于完成的事项：
 
-1. 以上多数动作仍是目标处置，当前 worktree 仍保留 legacy API、旧 adapters 和 `/api/reports`。
-2. 600519 结构化回采、恢复、幂等、物化、研究包、报告和人工抽查必须形成可复核证据，之后才能删旧链路。
+1. 旧 adapters、全量编排和直接报告写入口已从当前 worktree 删除；剩余工作是回归验证、研究内容整合和分支收口。
+2. 600519 已在空数据根完成真实结构化 baseline、重复计划幂等、物化和研究包/报告回放；真实 acquisition incremental 仍受 `safe_through=null` 门禁，不能写成已完成。
 3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
 4. 分支删除属于最后一步；未提交内容未保存、测试或人工验收未完成时不得执行。
 
@@ -51,3 +51,4 @@
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。
+- 结构化 API 真实回采：`docs/acquisition/moutai-structured-api-recapture-20260928.md`。

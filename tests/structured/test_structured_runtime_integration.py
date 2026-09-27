@@ -10,7 +10,6 @@ import httpx
 import pytest
 
 from analysis.acquisition.runtime import AcquisitionRuntime
-from analysis.models import SyncRequest
 from analysis.structured.runtime import FrozenSource
 from analysis.structured.service import StructuredDataService
 
@@ -114,15 +113,8 @@ def test_plan_is_durable_idempotent_and_empty_dataset_list_means_all(tmp_path):
     all_runtime, all_client = _acquisition_runtime(tmp_path / "all")
     try:
         all_service = StructuredDataService.from_runtime(all_runtime)
-        result = all_service.sync(
-            "600519",
-            SyncRequest(source_strategy="structured-first-v1", datasets=[], as_of=NOW),
-        )
-        assert result.acquisition_status == "planned"
-        assert result.default_consume_eligible is False
-        from analysis.structured.scope import selected_datasets
-        assert result.structured_dataset_coverage["dataset_count"] == len(selected_datasets())
-        assert set(result.structured_dataset_coverage["dataset_ids"]) == set(selected_datasets())
+        with pytest.raises(ValueError, match="incremental需要每个适用数据集都有安全coverage"):
+            all_service.plan("600519", mode="incremental", as_of=NOW)
     finally:
         all_runtime.close()
         all_client.close()
@@ -623,6 +615,9 @@ def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_pat
         first=service.plan('600519',mode='baseline',company_scope='company-only',datasets=('balance_fields',),as_of=NOW)['run_ids'][0]
         _run_all_rounds(service,first)
         second=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=NOW+timedelta(minutes=1))['run_ids'][0]
+        incremental_jobs = service.storage.list_jobs(second, limit=None)
+        catalog_job = next(item for item in incremental_jobs if item["purpose"] == "report_catalog")
+        assert datetime.fromisoformat(catalog_job["time_start"]) >= NOW.replace(hour=0, minute=0, second=0, microsecond=0)
         _run_all_rounds(service,second)
         assert calls==[dates,dates[:2]]
         _run_all_rounds(service,second)

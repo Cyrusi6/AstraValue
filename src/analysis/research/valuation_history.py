@@ -6,6 +6,7 @@ from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 import hashlib
 import os
+import sqlite3
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,12 +14,19 @@ from analysis.acquisition.bootstrap import ROOT_MARKER_NAME
 from analysis.acquisition.repository import AcquisitionRepository
 from analysis.structured.consumption import is_fact_consumable
 from analysis.structured.materialization import StructuredFactMaterializer
-from analysis.structured.research import readonly, write_json
+from analysis.structured.research_lite import _write_json as write_json
 from analysis.structured.storage import StructuredStorage
 from .workspace import ResearchError, ResearchWorkspace, digest, read_json, sha
 
 VERSION = "valuation-history-v1"
 METRICS = {"eastmoney_pe_ttm": "ratio", "eastmoney_pb_mrq": "ratio", "market_price": "CNY_per_share"}
+
+
+def readonly(db: Path):
+    connection = sqlite3.connect(Path(db).resolve().as_uri() + "?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA query_only=ON")
+    return connection
 
 
 def quantile(values: list[Decimal], q: Decimal) -> Decimal:

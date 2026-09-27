@@ -147,8 +147,11 @@ class MaterialJobs:
             return
         from analysis.acquisition.runtime import AcquisitionRuntime
         from analysis.structured.runtime import StructuredDataRuntime
-        from analysis.structured.research import materialize_cache
-        from analysis.structured.research_lite import refresh_lite_catalog, build_lite_pack
+        from analysis.structured.research_lite import (
+            materialize_cache,
+            refresh_lite_catalog,
+            build_lite_pack,
+        )
         from analysis.structured.scope import load_research_profile
         job = self.get(task_id)
         state, _, _ = self.w.pack(job["research_id"])

@@ -57,9 +57,6 @@ def test_one_composition_root_per_process_is_shared_by_api_consumers(tmp_path):
     app = create_app(acquisition_runtime=runtime)
 
     assert app.state.acquisition_runtime is runtime
-    assert app.state.adapters is runtime.adapter_manager
-    assert app.state.adapters.acquisition_runtime is runtime
-    assert app.state.adapters.loaded_registry is runtime.loaded_registry
     assert app.state.service is runtime.analysis_service
     assert app.state.service.storage is runtime.report_storage
     assert default_app._application is None
@@ -127,7 +124,6 @@ def test_one_composition_root_per_process_for_bound_cli_serve(
     assert len(served) == 1
     explicit_app = served[0][0]
     assert explicit_app.state.acquisition_runtime is not None
-    assert explicit_app.state.adapters.acquisition_runtime is explicit_app.state.acquisition_runtime
     assert (
         explicit_app.state.service.storage
         is explicit_app.state.acquisition_runtime.report_storage
@@ -300,7 +296,6 @@ def test_default_unchanged_without_explicit_acquisition_runtime(tmp_path):
     client = TestClient(app)
 
     assert app.state.acquisition_runtime is None
-    assert app.state.adapters.acquisition_runtime is None
     assert client.get("/api/health").status_code == 200
     assert client.post(
         "/api/documents",

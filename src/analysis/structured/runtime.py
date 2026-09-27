@@ -324,6 +324,13 @@ class StructuredDataRuntime:
         run_ids: list[str] = []
         created_flags: list[bool] = []
         for identity in identities:
+            incremental_starts: dict[str, date] = {}
+            if mode == "incremental":
+                incremental_starts = self._incremental_starts(
+                    identity,
+                    datasets,
+                    activated_on_demand_ids=activated_on_demand_ids,
+                )
             target = CompanyPlanTarget(
                 company_id=identity.company_id,
                 ticker=identity.security_code,
@@ -331,6 +338,21 @@ class StructuredDataRuntime:
                 role="target",
                 selection_reason="resolved_security_identity",
             )
+            def earliest_available_at(item: Any) -> str:
+                configured = (
+                    (valuation_start or cutoff.date() - timedelta(days=14))
+                    if item.dataset_id == "market_cap"
+                    else min(date.fromisoformat(p) for p in selected_periods)
+                    if selected_periods and "REPORT_DATE" in item.date_fields
+                    else scope_start(cutoff.date(), research_profile_id)
+                )
+                if mode == "incremental":
+                    configured = max(
+                        configured,
+                        incremental_starts[item.dataset_id],
+                    )
+                return configured.isoformat()
+
             planning_datasets = tuple(
                 {
                     **item.model_dump(mode="json"),
@@ -339,7 +361,7 @@ class StructuredDataRuntime:
                     # planning item so a registry bump cannot fall back to
                     # planner's legacy 1.0.0 default and miss the bound source.
                     "source_definition_version": self.bundle.datasets.version,
-                    "earliest_available_at": ((valuation_start or cutoff.date() - timedelta(days=14)) if item.dataset_id == "market_cap" else min(date.fromisoformat(p) for p in selected_periods) if selected_periods and 'REPORT_DATE' in item.date_fields else scope_start(cutoff.date(), research_profile_id)).isoformat(),
+                    "earliest_available_at": earliest_available_at(item),
                     "history_boundary_kind": (
                         "conservative_query_floor_not_availability_claim"
                     ),
@@ -510,6 +532,100 @@ class StructuredDataRuntime:
             dataset_ids=effective_ids,
             created=any(created_flags),
         )
+
+    def _incremental_starts(
+        self,
+        identity: SecurityIdentity,
+        datasets: Sequence[Any],
+        *,
+        activated_on_demand_ids: Sequence[str],
+    ) -> dict[str, date]:
+        """Resolve conservative per-dataset incremental floors.
+
+        Structured coverage is the checkpoint for this runtime.  A failed,
+        empty, or partial latest partition has no safe upper bound and must
+        force a baseline/reconcile instead of silently re-running history.
+        """
+
+        activated = set(activated_on_demand_ids)
+        starts: dict[str, date] = {}
+        missing: list[str] = []
+        for item in datasets:
+            dataset_id = str(item.dataset_id)
+            history_mode = str(getattr(item, "history_mode", ""))
+            if history_mode in {"on_demand", "on_demand_all_available_history"} and dataset_id not in activated:
+                continue
+            rows = self.storage.list_acquisition_coverage(
+                company_id=identity.company_id,
+                dataset_id=dataset_id,
+                limit=None,
+            )
+            latest_by_scope: dict[str, dict[str, Any]] = {}
+            for row in rows:
+                scope_key = str(row.get("scope_key") or "")
+                current = latest_by_scope.get(scope_key)
+                version = int(row.get("version", 0) or 0)
+                if current is None or (
+                    version,
+                    str(row.get("recorded_at") or ""),
+                ) > (
+                    int(current.get("version", 0) or 0),
+                    str(current.get("recorded_at") or ""),
+                ):
+                    latest_by_scope[scope_key] = row
+            safe_rows = tuple(latest_by_scope.values())
+            if not safe_rows or any(
+                row.get("status") != "complete" or not row.get("safe_through")
+                for row in safe_rows
+            ):
+                missing.append(dataset_id)
+                continue
+            try:
+                safe_dates = [
+                    datetime.fromisoformat(str(row["safe_through"]).replace("Z", "+00:00")).date()
+                    for row in safe_rows
+                ]
+            except (TypeError, ValueError, KeyError):
+                missing.append(dataset_id)
+                continue
+            floor_rows = []
+            for row in safe_rows:
+                try:
+                    job = self.storage.get_job(str(row.get("job_id")))
+                except Exception:
+                    job = {}
+                if job.get("purpose") != "report_period":
+                    floor_rows.append(row)
+            if not floor_rows:
+                floor_rows = list(safe_rows)
+            floor_dates = [
+                datetime.fromisoformat(str(row["safe_through"]).replace("Z", "+00:00")).date()
+                for row in floor_rows
+            ]
+            schedule = next(
+                (
+                    value
+                    for value in self.bundle.schedules.dataset_schedules
+                    if str(value.dataset_id) == dataset_id
+                ),
+                None,
+            )
+            overlap_days = int(getattr(schedule, "overlap_days", 0) or 0)
+            # Event/lifecycle schedules deliberately re-read their bounded
+            # overlap so late corrections cannot be lost.  Ordinary report
+            # periods start at the safe upper bound and never re-fetch the
+            # historical range.
+            starts[dataset_id] = max(
+                min(floor_dates) - timedelta(days=overlap_days),
+                _SUPPLIER_QUERY_FLOORS.get(str(getattr(item, "provider", "")), date(1990, 1, 1)),
+            )
+        if missing:
+            raise ValueError(
+                "incremental需要每个适用数据集都有安全coverage；"
+                "请先执行baseline或reconcile: "
+                + ", ".join(sorted(set(missing)))
+            )
+        return starts
 
     def execute(self, run_id: str, *, max_jobs_per_round: int = 1) -> dict[str, Any]:
         if max_jobs_per_round < 1:

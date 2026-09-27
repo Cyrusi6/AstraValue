@@ -16,7 +16,7 @@ $env:PYTHONPATH=(Resolve-Path src).Path
 七家公司均显式引用已保存的期后公告目录证据；该命令本身不联网，并按 ticker 参数顺序串行构建：
 
 ```powershell
-python -m analysis.structured.research lite `
+python -m analysis.research lite `
   --input tmp/research-data-layer-v1 `
   --supplement tmp/research-data-layer-live-v1/materialized `
   --supplement tmp/eight-step-lite-v1/network-audit/2026-09-13 `
@@ -33,7 +33,7 @@ python -m analysis.structured.research lite `
 仅在确需核查最新事项时增加 `--execute`。它刷新当年有界公告目录并登记 D01–D21 类别，不下载未触发正文：
 
 ```powershell
-python -m analysis.structured.research lite `
+python -m analysis.research lite `
   --input tmp/research-data-layer-v1 `
   --supplement tmp/research-data-layer-live-v1/materialized `
   --ticker 600519 --as-of 2026-09-13 `
@@ -47,7 +47,7 @@ python -m analysis.structured.research lite `
 从 `evidence-index.jsonl` 或 `core-pack.md` 取得真实 evidence ID，再按页读取：
 
 ```powershell
-python -m analysis.structured.research evidence `
+python -m analysis.research evidence `
   --pack 'tmp/eight-step-lite-v1/600519/2026-09-13/<pack-id>' `
   --evidence-id '<evidence-id>' --page 1 --max-tokens 2000
 ```

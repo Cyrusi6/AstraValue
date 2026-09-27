@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
-from .scope import LITE_PROFILE_ID, ROOT, load_research_profile
+from .scope import LITE_PROFILE_ID, ROOT, load_research_profile, load_scope
 from .storage import canonical_json, canonical_sha256
 
 
@@ -84,6 +84,109 @@ def _write_json(path: Path, value: Any) -> None:
 
 def _write_jsonl(path: Path, values: Iterable[Mapping[str, Any]]) -> None:
     _write_text(path, "".join(canonical_json(value) + "\n" for value in values))
+
+
+def materialize_cache(
+    db: Path,
+    data_root: Path,
+    output: Path,
+    as_of: date,
+    tickers: Sequence[str] | None = None,
+    recompute: bool = False,
+    research_profile_id: str | None = None,
+) -> dict[str, Any]:
+    """Materialize structured runs into the lite projection used by research.
+
+    This is deliberately a small, read-only orchestration helper.  The old
+    research orchestration mixed materialization with broad report
+    downloading and ad-hoc coverage generation; those concerns now belong to
+    the acquisition runtime and the question-scoped lite pack respectively.
+    """
+    import sqlite3
+
+    from .materialization import StructuredFactMaterializer
+    from .materialization_replay import _export_result, _hash_file
+    from .storage import StructuredStorage
+    from analysis.acquisition.repository import AcquisitionRepository
+
+    db = Path(db).resolve()
+    data_root = Path(data_root).resolve()
+    output = Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(db)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA query_only=ON")
+    try:
+        row = connection.execute(
+            "SELECT namespace_id FROM storage_namespaces ORDER BY namespace_id LIMIT 1"
+        ).fetchone()
+        if row is None:
+            raise ValueError("structured_storage_namespace_missing")
+        namespace = row[0]
+        runs = connection.execute(
+            "SELECT run_id,ticker FROM structured_run_contexts ORDER BY ticker,run_id"
+        ).fetchall()
+        source_db_sha256 = _hash_file(db)
+        storage = StructuredStorage(db, namespace, initialize=False)
+        repository = AcquisitionRepository(db, initialize=False)
+        results: list[dict[str, Any]] = []
+        seen_tickers: set[str] = set()
+        for run in runs:
+            ticker = str(run["ticker"])
+            if tickers and ticker not in set(tickers):
+                continue
+            folder = output / ticker
+            if ticker in seen_tickers:
+                folder = output / ticker / "runs" / str(run["run_id"])
+            seen_tickers.add(ticker)
+            stamp = folder / "cache-binding.json"
+            identity = {
+                "source_db_sha256": source_db_sha256,
+                "run_id": str(run["run_id"]),
+                "scope_hash": load_scope()["content_sha256"],
+                "research_profile_id": research_profile_id,
+            }
+            reusable = (
+                not recompute
+                and stamp.exists()
+                and json.loads(stamp.read_text(encoding="utf-8")) == identity
+                and (folder / "manifest.json").exists()
+            )
+            if not reusable:
+                result = StructuredFactMaterializer(storage, repository).materialize(
+                    str(run["run_id"]),
+                    interpretation_contract="eastmoney-financial-interpretation-v1.0.0",
+                    research_scope=True,
+                    research_profile_id=research_profile_id,
+                )
+                _export_result(result, folder, namespace)
+                _write_json(stamp, identity)
+            manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+            results.append(
+                {
+                    "ticker": ticker,
+                    "run_id": str(run["run_id"]),
+                    "materialization_hash": manifest.get("materialization_hash"),
+                    "reused": reusable,
+                    "manifest": str((folder / "manifest.json").resolve()),
+                }
+            )
+        if _hash_file(db) != source_db_sha256:
+            raise ValueError("source_database_changed_during_readonly_run")
+    finally:
+        connection.close()
+    summary = {
+        "scope": research_profile_id or load_scope()["scope_id"],
+        "source_database_unchanged": True,
+        "source_db_sha256": source_db_sha256,
+        "companies": results,
+        "cache_replay": True,
+        "current_network": False,
+        "manual_acceptance": "pending",
+        "as_of": as_of.isoformat(),
+    }
+    _write_json(output / "cache-summary.json", summary)
+    return summary
 
 
 def _quarter_end(serial: int) -> date:
