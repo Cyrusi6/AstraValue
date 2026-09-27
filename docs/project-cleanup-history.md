@@ -45,6 +45,8 @@
 
 审计知识候选分支时发现：`codex/knowledge-base-v1` 的合并结果包含知识提交，但同时重新带回了旧 `src/analysis/adapters/`、`src/analysis/structured/research.py`、旧包装脚本和部分旧研究入口。因此它只能作为内容来源逐项迁移，不能直接作为最终 `main` 的整合基线；当前候选工作树的旧链删除结果必须优先保留。
 
+主工作树 `D:\估值模型` 另有未跟踪的 `openspec/changes/eight-step-knowledge-base-v1/`。在最终只保留 `main` 前必须先保存或明确归档，不能因分支清理而丢失。
+
 - 候选事实分支 `codex/fact-materialization-ultra` 已删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装脚本和直接报告写入路径，提交 `33b0800`。
 - 贵州茅台真实结构化 baseline run 为 `structured-run-ed9bcd788fc8ac594c4c01a9`：62 个分区任务，50 success、9 no_data、3 failed；失败和空响应均保留来源证据，没有用 fixture 或缓存冒充成功。
 - 该回采物化得到 548 facts、300 dimensional facts、8 events、21 sources；物化哈希为 `2bb49e8dc68d49b25d5dabdabf5ce11fae3e6281ff9865d3816c84aa446bacfb`。
