@@ -8,7 +8,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Sequence
 
-from .demo import build_demo_request
 from .exports import export_report
 from .registry import MethodRegistry
 from .service import AnalysisService
@@ -77,10 +76,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     serve.add_argument("--acquisition-data-root")
 
     subparsers.add_parser("validate-methods", help="检查文档、配置、实现和测试引用")
-
-    demo = subparsers.add_parser("demo", help="生成虚构公司的端到端示例")
-    demo.add_argument("--output-dir", default="outputs/demo")
-    demo.add_argument("--formats", nargs="+", default=["md", "html", "xlsx", "pdf"])
 
     export = subparsers.add_parser("export", help="导出已保存报告")
     export.add_argument("report_id")
@@ -157,7 +152,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     structured_plan = structured_commands.add_parser("plan", help="生成零网络计划预览")
     structured_plan.add_argument("ticker")
     structured_plan.add_argument(
-        "--mode", choices=["baseline", "incremental", "due"], default="incremental"
+        "--mode", choices=["baseline", "incremental", "due", "reconcile"], default="incremental"
     )
     structured_plan.add_argument(
         "--company-scope",
@@ -173,6 +168,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--research-profile",
         help="显式选择版本化研究消费范围，例如 eight-step-lite-v1.0.0",
     )
+    structured_plan.add_argument("--from-run", dest="parent_run_id", help="reconcile使用的已终结structured parent run")
+    structured_plan.add_argument("--from-latest", action="store_true", help="reconcile自动选择最新已终结structured parent run")
     _add_bound_storage_arguments(structured_plan)
 
     for name, help_text in (
@@ -335,17 +332,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_structured_command(args)
 
     service = AnalysisService()
-    if args.command == "demo":
-        report = service.create_report(build_demo_request())
-        output_dir = Path(args.output_dir).resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
-        report_json = output_dir / "report.json"
-        report_json.write_text(report.model_dump_json(indent=2), encoding="utf-8")
-        paths = [report_json]
-        for fmt in args.formats:
-            paths.append(export_report(report, fmt, output_dir))
-        print(json.dumps({"report_id": report.report_id, "outputs": [str(item) for item in paths]}, ensure_ascii=False, indent=2))
-        return 0
     if args.command == "export":
         report = service.storage.get_report(args.report_id)
         print(export_report(report, args.format, args.output_dir))
@@ -383,6 +369,8 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 report_periods=args.report_periods,
                 industry_profile_id=args.industry_profile,
                 research_profile_id=args.research_profile,
+                parent_run_id=args.parent_run_id,
+                from_latest=bool(args.from_latest),
             )
         elif command == "run":
             value = service.run(args.run_id)

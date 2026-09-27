@@ -11,6 +11,9 @@ from analysis.structured.exceptions import (
 
 
 class FakeStructuredService:
+    def __init__(self):
+        self.plan_calls = []
+
     def registry(self, *, limit, offset):
         rows = [{"dataset_id": f"D{index:04d}"} for index in range(620)]
         return {"total": len(rows), "items": rows[offset : offset + limit]}
@@ -38,6 +41,7 @@ class FakeStructuredService:
         return {"ticker": ticker, "company_scope": company_scope, "items": []}
 
     def plan(self, ticker, **kwargs):
+        self.plan_calls.append((ticker, kwargs))
         if kwargs["mode"] == "due" and ticker == "000000":
             raise ValueError("invalid due scope")
         return {"plan_id": "plan:1", "ticker": ticker, "performed_io": False}
@@ -134,6 +138,30 @@ def test_structured_routes_expose_precise_error_statuses(service):
     assert client.post("/api/structured/runs/conflict/execute").status_code == 409
     assert client.post("/api/structured/runs/busy/execute").status_code == 503
     assert client.post("/api/structured/runs/broken/execute").status_code == 500
+
+
+def test_structured_plan_accepts_reconcile_parent_selector(service):
+    fake = FakeStructuredService()
+    client = TestClient(create_app(service, structured_service=fake))
+    response = client.post(
+        "/api/structured/plans",
+        json={
+            "ticker": "600519",
+            "mode": "reconcile",
+            "parent_run_id": "structured-run-parent",
+        },
+    )
+    assert response.status_code == 201
+    assert fake.plan_calls[0][1]["mode"] == "reconcile"
+    assert fake.plan_calls[0][1]["parent_run_id"] == "structured-run-parent"
+    assert fake.plan_calls[0][1]["from_latest"] is False
+    latest = client.post(
+        "/api/structured/plans",
+        json={"ticker": "600519", "mode": "reconcile", "from_latest": True},
+    )
+    assert latest.status_code == 201
+    assert fake.plan_calls[1][1]["parent_run_id"] is None
+    assert fake.plan_calls[1][1]["from_latest"] is True
 
 
 def test_unbound_structured_query_is_503(service):

@@ -215,6 +215,8 @@ class StructuredDataService:
         report_periods: Sequence[str] = (),
         industry_profile_id: str | None = None,
         research_profile_id: str | None = None,
+        parent_run_id: str | None = None,
+        from_latest: bool = False,
     ) -> dict[str, Any]:
         cutoff = _as_datetime(as_of, fallback=self.acquisition_runtime.clock())
         resolution = self.resolver.resolve(ticker, as_of=cutoff.date())
@@ -242,6 +244,8 @@ class StructuredDataService:
             report_periods=report_periods,
             industry_profile_id=industry_profile_id,
             research_profile_id=research_profile_id,
+            parent_run_id=parent_run_id,
+            from_latest=from_latest,
             as_of=cutoff,
         )
         return {

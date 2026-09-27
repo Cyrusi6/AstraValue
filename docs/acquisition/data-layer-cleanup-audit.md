@@ -11,7 +11,7 @@
 | 改造 | `structured/runtime.py`、`protocols.py` | 全历史默认和强制 columns=ALL 与新范围冲突；在计划冻结及执行前应用新范围，旧证据不重写 |
 | 改造 | `structured/reading.py`、正文选择与解析入口 | 原分类将所有英文材料排除，且没有 D01–D21/期间/问题绑定 |
 | 改造 | 物化与 coverage | 旧解释保留；新消费须按研究范围、字段、期间计数，不能用行情数量冲抵财报 |
-| 删除 | `scripts/run_demo.py` | 仅给 `analysis.cli.main` 添加 demo 参数；README 改用 `python -m analysis.cli demo`，无独有功能或数据 |
+| 删除 | `scripts/run_demo.py` | 仅转发到早期 CLI 演示子命令；包装脚本和该演示子命令均已删除，虚构报告只保留 `src/analysis/demo.py` 测试夹具，不作为生产入口 |
 | 删除 | `scripts/smoke_online_sources.py` | 仅转发现有 `analysis.cli smoke-sources` 参数；README 改为直接 CLI，保留实际持久化探针实现 |
 
 依赖审计：pyproject 中 FastAPI、httpx、DuckDB、openpyxl、PyMuPDF 等仍有有效调用；此次不因删除两个启动包装器移除运行依赖。生成证据目录 tmp/var 不做批量删除，避免误删唯一真实证据。删除前使用 PowerShell 核实绝对路径位于指定工作树；本清单也是实际删除记录。

@@ -15,7 +15,7 @@
 8. **唯一报告路径**：研究工作区 → reporting bridge → `ReportVersion`。保留 `ReportVersion`、导出和审计能力作为结果模型，但删除 `/api/reports` 直接输入。
 9. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
 10. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
-11. **来源注册表**：删除只服务于旧入口的来源注册表历史版本；当前生效注册表和能够支撑历史证据复核的哈希/版本定位保留。
+11. **来源注册表（待用户确认）**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 是否保留为只读历史证据，待用户选择。无论取舍，历史 manifest、快照和报告必须保留 registry version/hash 定位。
 12. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更。
 13. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
 14. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
@@ -26,6 +26,13 @@
 - `POST /api/structured/reports` 与 CLI `structured report` 只接收已冻结、可校验的研究包；它们调用统一的 reporting bridge 生成 `ReportVersion`。
 - `/api/reports` 及其直接输入、重算、重分析和审阅入口从生产产品中删除；报告导出能力保留在研究工作区生成的 `ReportVersion` 上。
 - 结构化 API 不默认抓取全量行情或全部年报。字段、期间、同行和原文范围由八步研究问题及研究任务决定。
+
+## 等待用户确认的保留边界
+
+- `POST /api/documents` 是否继续作为受限的按需原文入口。
+- `SyncRequest/SyncResult`、同步表和旧回放字段是否作为只读历史兼容保留；生产不得创建新的 legacy 同步批次。
+- `business_model_sources.v1.0–v1.10` 是否保留为只读历史注册表。
+- 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
 
 ## 仍需通过的验收
 
@@ -40,6 +47,6 @@
 
 ## 当前状态与边界
 
-候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，structured incremental 的长期窗口和独立 reconcile 入口仍需复核，全量测试和人工报告验收仍未完成。
+候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，真实 API incremental/reconcile 尚未验收，全量测试和人工报告验收仍未完成。
 
 因此在实现、验证、人工验收和 review 完成前，不能删除承载材料的 worktree、分支或远程引用。

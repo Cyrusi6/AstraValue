@@ -186,6 +186,149 @@ def test_http_page_is_snapshotted_then_projected_under_shared_run(tmp_path):
         client.close()
 
 
+def test_reconcile_targets_only_failed_finalized_parent_coverage(tmp_path):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if len(calls) <= 2:
+            return httpx.Response(503, json={"error": "temporary"})
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "code": 0,
+                "result": {
+                    "data": [{"SECUCODE": "600519.SH", "ORG_CODE": "1000"}],
+                    "count": 1,
+                    "pages": 1,
+                },
+            },
+        )
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        baseline = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("company_basic",),
+            as_of=NOW,
+        )["run_ids"][0]
+        service.run(baseline)
+        service.resume(baseline)
+        assert service.status(baseline)["failed"] == 1
+        target = service.plan(
+            "600519",
+            mode="reconcile",
+            parent_run_id=baseline,
+            company_scope="company-only",
+            datasets=("company_basic",),
+            as_of=NOW + timedelta(days=1),
+        )
+        assert target["mode"] == "reconcile"
+        assert target["created"] is True
+        reconcile_id = target["run_ids"][0]
+        run = runtime.repository.get_run(reconcile_id)
+        assert run.mode.value == "reconcile"
+        assert run.parent_run_id == baseline
+        assert run.reconcile_target["selection"] == "latest_unsafe_structured_coverage"
+        assert target["runs"][0]["job_count"] == 1
+        assert len(calls) == 2
+        _run_all_rounds(service, reconcile_id)
+        assert service.status(reconcile_id)["succeeded"] == 1
+        coverage = service.storage.list_acquisition_coverage(
+            run_id=reconcile_id, limit=None
+        )
+        assert coverage[0]["status"] == "complete"
+        assert len(calls) == 3
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_reconcile_rejects_successful_parent_coverage(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "code": 0,
+                "result": {
+                    "data": [{"SECUCODE": "600519.SH", "ORG_CODE": "1000"}],
+                    "count": 1,
+                    "pages": 1,
+                },
+            },
+        )
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        baseline = service.plan(
+            "600519",
+            mode="baseline",
+            company_scope="company-only",
+            datasets=("company_basic",),
+            as_of=NOW,
+        )["run_ids"][0]
+        _run_all_rounds(service, baseline)
+        with pytest.raises(ValueError, match="reconcile没有失败、空响应或不安全coverage目标"):
+            service.plan(
+                "600519",
+                mode="reconcile",
+                parent_run_id=baseline,
+                company_scope="company-only",
+                datasets=("company_basic",),
+                as_of=NOW + timedelta(days=1),
+            )
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_reconcile_from_latest_skips_unfinalized_structured_run(tmp_path):
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "code": 0,
+                "result": {
+                    "data": [{"SECUCODE": "600519.SH", "ORG_CODE": "1000"}],
+                    "count": 1,
+                    "pages": 1,
+                },
+            },
+        )
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        finalized = service.plan(
+            "600519", mode="baseline", datasets=("company_basic",), as_of=NOW
+        )["run_ids"][0]
+        _run_all_rounds(service, finalized)
+        service.plan(
+            "600519",
+            mode="baseline",
+            datasets=("company_basic",),
+            as_of=NOW + timedelta(days=1),
+        )
+        with pytest.raises(ValueError, match="reconcile没有失败、空响应或不安全coverage目标"):
+            service.plan(
+                "600519",
+                mode="reconcile",
+                from_latest=True,
+                datasets=("company_basic",),
+                as_of=NOW + timedelta(days=2),
+            )
+    finally:
+        runtime.close()
+        client.close()
+
+
 def test_em_f_prerequisites_expand_catalog_into_persisted_report_batches(tmp_path):
     urls: list[str] = []
 

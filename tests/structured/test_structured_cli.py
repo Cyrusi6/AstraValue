@@ -107,6 +107,40 @@ def test_structured_plan_is_zero_network_and_keeps_due_mode(monkeypatch, capsys)
     assert fake.calls[0][2]["datasets"] == ("balance_fields",)
 
 
+def test_structured_reconcile_plan_passes_parent_selector(monkeypatch, capsys):
+    fake = FakeService()
+    code, output = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "plan",
+        "600519",
+        "--mode",
+        "reconcile",
+        "--from-run",
+        "structured-run-parent",
+    )
+    assert code == 0
+    assert output["mode"] == "reconcile"
+    assert fake.calls[0][2]["parent_run_id"] == "structured-run-parent"
+    assert fake.calls[0][2]["from_latest"] is False
+
+    fake = FakeService()
+    code, _ = invoke(
+        monkeypatch,
+        capsys,
+        fake,
+        "plan",
+        "600519",
+        "--mode",
+        "reconcile",
+        "--from-latest",
+    )
+    assert code == 0
+    assert fake.calls[0][2]["parent_run_id"] is None
+    assert fake.calls[0][2]["from_latest"] is True
+
+
 def test_run_and_resume_execute_one_explicit_call(monkeypatch, capsys):
     fake = FakeService()
     code, output = invoke(monkeypatch, capsys, fake, "run", "run:1")

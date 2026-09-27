@@ -32,9 +32,9 @@
 
 API 与 CLI 共用 reconcile 选择器，只接受 finalized 父运行，优先定位最早未解决 barrier，再考虑无 barrier 的未解决 coverage、隔离快照和最早已完成时间片。输出包含精确页/游标、来源、查询、父时间片和固定 overlap 范围；计划只包含该目标及所需前置查询。`--from-latest-run` 会列出被排除的较新未终结 run；任何适用且 enabled 的主采来源缺少安全 checkpoint 时，incremental 在创建 run 和联网前拒绝。
 
-当前默认注册表为 `business_model_sources.v1.9.json`：巨潮 `1.8.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧 v1.0–v1.8 合同保留用于历史重放。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
+当前默认注册表为 `business_model_sources.v1.11.json`：巨潮 `1.8.0` 主采，上交所 `1.4.0` 按需补缺。默认完整计划对上交所生成 `on_demand_supplement` 静态覆盖，只有已终结运行的实际缺口才通过 `acquire supplement` 显式启动；当前上交所协议只支持定期报告补缺。补缺保持来源身份，不自动清除巨潮屏障。巨潮公告 schema 3 兼容有证明的 null 空结果与历史 HTML，首发参数为 `category_sf_szsh`；材料类型以标题和已归档正文共同分类。详见 [`cninfo-history-archive-policy-2026-09-05.md`](docs/acquisition/cninfo-history-archive-policy-2026-09-05.md)。旧注册表合同仅用于冻结运行回放和哈希核验。直连、TLS 验证、来源并发 1、最小间隔 5 秒、无默认自动重试和既有个人本地研究范围继续适用。贵州茅台 IR 仍为 `pending_policy/disabled`。自动化、真实联网和人工黄金验收分别记录。
 
-公开大附件从 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）起支持，当前默认 1.9 沿用：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。旧配置和旧计划保留，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
+公开大附件从 `business_model_sources.v1.8.json`（巨潮 `1.7.0`）起支持，当前默认 1.11 沿用：128 MiB 响应上限、600 秒 attempt 预算，保留 30 秒 socket timeout 和全部既有访问边界。旧配置和旧计划保留，终态失败必须通过独立冻结计划补抓。下载每次读取前后和返回前校验总预算，超时不得提交正文成功。
 
 
 ```powershell
@@ -90,7 +90,6 @@ python -m pip install -e ".[sources,dev]"
 python scripts/validate_method_library.py
 python scripts/validate_golden_samples.py
 python -m pytest
-python -m analysis.cli demo
 uvicorn analysis.api:app --reload
 ```
 

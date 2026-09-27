@@ -60,9 +60,18 @@ python -m analysis.cli structured coverage SNAPSHOT_ID --limit 500 --offset 0 --
 python -m analysis.cli structured resolve 600519 --db var/pilots/structured-v1/analysis.db --data-root var/pilots/structured-v1/data --json
 python -m analysis.cli structured profile 600519 --db var/pilots/structured-v1/analysis.db --data-root var/pilots/structured-v1/data --json
 python -m analysis.cli structured peers 600519 --company-scope company-with-peers --db var/pilots/structured-v1/analysis.db --data-root var/pilots/structured-v1/data --json
+
+# 只从已终结 structured parent 的失败/空响应/不安全 coverage 生成定向 reconcile
+python -m analysis.cli structured plan 600519 --mode reconcile --from-run PARENT_RUN_ID `
+  --dataset company_basic `
+  --db var/pilots/structured-v1/analysis.db `
+  --data-root var/pilots/structured-v1/data --json
+# 也可用 --from-latest 选择最近一个已终结 structured parent
 ```
 
 `baseline` 枚举供应商可得历史，`incremental` 只计划新期间与登记重叠范围，`due` 只执行本轮到期工作并退出。显式 `--dataset` 是受控子集，不代表全部适用数据集覆盖；不传该参数以及 API/前端传空数组都表示全部适用数据集。
+
+`reconcile` 只允许以已 `finalized` 的 structured run 为 parent；计划从该 parent 每个 scope 的最新 coverage 中选择 `failed`、`partial`、`no_data` 或缺少 `safe_through` 的范围，并重建原冻结时间窗和查询参数。成功且安全的 coverage 不会被重采，找不到不安全目标、parent 未终结、身份或冻结 registry 不匹配时在联网前拒绝。reconcile 执行仍通过普通 snapshot/page/record/coverage 链，代码不会手工推进水位线或把失败写成成功。
 
 ### 行键、分页完整性与报告期缺失
 
@@ -84,6 +93,8 @@ EM-F 的报告日期目录只表示供应商声明的可查询期间，不保证
 - `GET /api/structured/runs/{run_id}`、`/records`、`/reading-tasks`、`/research-coverage/{snapshot_id}`。
 
 结构化计划 `POST /api/structured/plans` 只冻结计划并返回 `run_ids`，不会隐式联网；随后对每个运行调用 `/api/structured/runs/{run_id}/execute`，中断后调用 `/resume`。校验错误、冻结身份冲突、租约/存储忙和完整性错误分别返回 422、409、503 和 500。响应会过滤凭据、原始正文和不必要的本机绝对路径。
+
+计划请求的 `mode` 支持 `reconcile`，并接受 `parent_run_id` 或 `from_latest=true`；两者不能同时提供。该入口与 CLI 使用相同的 finalized parent、unsafe coverage 和冻结版本安全门。
 
 ## 隔离真实样本
 

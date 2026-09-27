@@ -100,7 +100,7 @@ class StructuredPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ticker: str = Field(pattern=r"^\d{6}$")
-    mode: str = Field(default="incremental", pattern="^(baseline|incremental|due)$")
+    mode: str = Field(default="incremental", pattern="^(baseline|incremental|due|reconcile)$")
     company_scope: str = Field(
         default="company-only",
         pattern="^(company-only|company-with-peers|peer-set)$",
@@ -111,6 +111,8 @@ class StructuredPlanRequest(BaseModel):
     report_periods: list[str] = Field(default_factory=list)
     industry_profile_id: str | None = None
     research_profile_id: str | None = None
+    parent_run_id: str | None = None
+    from_latest: bool = False
 
 
 class StructuredResolveRequest(BaseModel):
@@ -752,6 +754,8 @@ def create_app(
                 report_periods=payload.report_periods,
                 industry_profile_id=payload.industry_profile_id,
                 research_profile_id=payload.research_profile_id,
+                parent_run_id=payload.parent_run_id,
+                from_latest=payload.from_latest,
             )
         )
 
@@ -1094,7 +1098,7 @@ def _acquisition_runtime(request: Request) -> AcquisitionRuntime:
     if runtime is None:
         raise HTTPException(
             status_code=503,
-            detail="acquisition v1写入口未启用；旧报告与financial sync仍可用",
+            detail="acquisition runtime未绑定；请使用已绑定的结构化或按需采集服务",
         )
     return runtime
 

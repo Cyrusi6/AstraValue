@@ -281,6 +281,8 @@ class StructuredDataRuntime:
         valuation_start: date | None = None,
         industry_profile_id: str | None = None,
         research_profile_id: str | None = None,
+        parent_run_id: str | None = None,
+        from_latest: bool = False,
         as_of: datetime,
     ) -> StructuredPlanResult:
         cutoff = _aware(as_of)
@@ -297,8 +299,14 @@ class StructuredDataRuntime:
             raise ValueError("report_period_after_cutoff")
         if not identities:
             raise ValueError("structured plan requires a resolved identity")
-        if mode not in {"baseline", "incremental", "due"}:
+        if mode not in {"baseline", "incremental", "due", "reconcile"}:
             raise ValueError("unknown structured mode")
+        if mode == "reconcile" and parent_run_id and from_latest:
+            raise ValueError("reconcile不能同时指定parent_run_id和from_latest")
+        if mode == "reconcile" and not parent_run_id and not from_latest:
+            raise ValueError("reconcile必须指定parent_run_id或from_latest")
+        if mode != "reconcile" and (parent_run_id or from_latest):
+            raise ValueError("只有reconcile可以指定parent_run_id或from_latest")
         # Empty selects the versioned required research set, never all capabilities.
         from .scope import selected_datasets, load_scope, scope_start
         selected_ids = selected_datasets(dataset_ids, research_profile_id)
@@ -330,6 +338,15 @@ class StructuredDataRuntime:
                     identity,
                     datasets,
                     activated_on_demand_ids=activated_on_demand_ids,
+                )
+            reconcile_parent_id: str | None = None
+            reconcile_target: dict[str, Any] | None = None
+            if mode == "reconcile":
+                reconcile_parent_id, reconcile_target = self._resolve_reconcile_target(
+                    identity,
+                    datasets,
+                    parent_run_id=parent_run_id,
+                    from_latest=from_latest,
                 )
             target = CompanyPlanTarget(
                 company_id=identity.company_id,
@@ -368,12 +385,20 @@ class StructuredDataRuntime:
                 }
                 for item in datasets
             )
-            works = self.planner.plan_history(
-                companies=(target,),
-                datasets=planning_datasets,
-                as_of=cutoff,
-                selected_dataset_ids=effective_ids,
-                activated_dataset_ids=activated_on_demand_ids,
+            works = (
+                self._reconcile_works(
+                    identity,
+                    planning_datasets,
+                    reconcile_target or {},
+                )
+                if mode == "reconcile"
+                else self.planner.plan_history(
+                    companies=(target,),
+                    datasets=planning_datasets,
+                    as_of=cutoff,
+                    selected_dataset_ids=effective_ids,
+                    activated_dataset_ids=activated_on_demand_ids,
+                )
             )
             run_id = stable_structured_id(
                 "structured-run",
@@ -391,6 +416,8 @@ class StructuredDataRuntime:
                     "selected_report_periods": selected_periods,
                     **({"valuation_start": valuation_start.isoformat()} if valuation_start else {}),
                     **({"industry_profile_id": industry_profile_id} if industry_profile_id else {}),
+                    **({"parent_run_id": reconcile_parent_id, "reconcile_target": reconcile_target}
+                       if mode == "reconcile" else {}),
                 },
             )
             complete_baseline = mode == "baseline" and not dataset_ids and not research_profile_id
@@ -401,6 +428,8 @@ class StructuredDataRuntime:
                 mode=(
                     AcquisitionMode.BASELINE
                     if mode == "baseline"
+                    else AcquisitionMode.RECONCILE
+                    if mode == "reconcile"
                     else AcquisitionMode.INCREMENTAL
                 ),
                 run_kind=(
@@ -440,6 +469,8 @@ class StructuredDataRuntime:
                     else "conservative_supplier_query_floor"
                 ),
                 storage_namespace_id=self.acquisition_runtime.namespace_id,
+                parent_run_id=reconcile_parent_id,
+                reconcile_target=reconcile_target,
             )
             frozen = self._frozen_config(
                 identity,
@@ -452,6 +483,8 @@ class StructuredDataRuntime:
             )
             peer_set = self.bundle.peer_sets.peer_sets[0]
             frozen["selected_report_periods"] = list(selected_periods)
+            if reconcile_target is not None:
+                frozen["reconcile_target"] = reconcile_target
             if valuation_start:
                 frozen["valuation_start"] = valuation_start.isoformat()
             if industry_profile_id:
@@ -632,6 +665,198 @@ class StructuredDataRuntime:
                 + ", ".join(sorted(set(missing)))
             )
         return starts
+
+    def _resolve_reconcile_target(
+        self,
+        identity: SecurityIdentity,
+        datasets: Sequence[Any],
+        *,
+        parent_run_id: str | None,
+        from_latest: bool,
+    ) -> tuple[str, dict[str, Any]]:
+        """Resolve a finalized structured parent and its unsafe coverage only.
+
+        Reconcile deliberately stays inside the structured control plane.  It
+        never edits coverage or checkpoints; the derived run must execute and
+        append a new coverage record before it can become the next cursor.
+        """
+
+        selected_ids = {str(item.dataset_id) for item in datasets}
+        candidates: list[str] = []
+        if parent_run_id:
+            candidates = [str(parent_run_id)]
+        elif from_latest:
+            for run in self.repository.list_runs(
+                ticker=identity.security_code, limit=100
+            ):
+                run_id = str(getattr(run, "run_id", ""))
+                if not run_id:
+                    continue
+                try:
+                    context = self.storage.get_run_context(run_id)
+                except Exception:
+                    continue
+                if context.company_id == identity.company_id and any(
+                    event.event_type == AcquisitionRunEventType.FINALIZED
+                    for event in self.repository.list_run_events(run_id)
+                ):
+                    candidates.append(run_id)
+                    break
+        if not candidates:
+            raise ValueError("reconcile找不到同公司已终结的structured parent run")
+        resolved = candidates[0]
+        try:
+            parent = self.repository.get_run(resolved)
+            context = self.storage.get_run_context(resolved)
+        except Exception as exc:
+            raise ValueError("reconcile parent不是可恢复的structured run") from exc
+        if context.company_id != identity.company_id or parent.ticker != identity.security_code:
+            raise ValueError("reconcile parent与当前公司身份不匹配")
+        if not any(
+            event.event_type == AcquisitionRunEventType.FINALIZED
+            for event in self.repository.list_run_events(resolved)
+        ):
+            raise ValueError("reconcile parent尚未finalized")
+        for name, expected in (
+            ("dataset_registry_hash", self.bundle.content_hashes["datasets"]),
+            ("field_registry_hash", self.bundle.content_hashes["fields"]),
+            ("requirement_set_hash", self.bundle.content_hashes["research_requirements"]),
+            ("schedule_hash", self.bundle.content_hashes["schedules"]),
+        ):
+            if getattr(context, name) != expected:
+                raise ValueError(f"reconcile parent的{name}版本已变化")
+        if context.source_registry_hash != self.acquisition_runtime.loaded_registry.content_hash:
+            raise ValueError("reconcile parent的source registry版本已变化")
+
+        rows = self.storage.list_acquisition_coverage(
+            run_id=resolved, company_id=identity.company_id, limit=None
+        )
+        latest: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            dataset_id = str(row.get("dataset_id") or "")
+            if dataset_id not in selected_ids:
+                continue
+            key = (dataset_id, str(row.get("scope_key") or ""))
+            current = latest.get(key)
+            marker = (int(row.get("version", 0) or 0), str(row.get("recorded_at") or ""))
+            current_marker = (
+                int(current.get("version", 0) or 0),
+                str(current.get("recorded_at") or ""),
+            ) if current else (-1, "")
+            if current is None or marker > current_marker:
+                latest[key] = row
+        unsafe = [
+            row for row in latest.values()
+            if str(row.get("status") or "") != "complete" or not row.get("safe_through")
+        ]
+        # A transport/parser failure can terminate before a structured
+        # coverage row is appended.  Treat that missing row as an explicit
+        # unsafe target, while keeping successful jobs outside the target.
+        covered_keys = set(latest)
+        for job in self.storage.list_jobs(resolved, limit=None):
+            dataset_id = str(job.get("dataset_id") or "")
+            key = (dataset_id, str(job.get("scope_key") or ""))
+            if dataset_id in selected_ids and key not in covered_keys:
+                unsafe.append(
+                    {
+                        "coverage_record_id": None,
+                        "job_id": job.get("job_id"),
+                        "dataset_id": dataset_id,
+                        "scope_key": key[1],
+                        "status": "missing",
+                        "reason_code": "coverage_missing_after_failed_job",
+                    }
+                )
+        if not unsafe:
+            raise ValueError("reconcile没有失败、空响应或不安全coverage目标")
+        targets: list[dict[str, Any]] = []
+        for row in sorted(unsafe, key=lambda value: (str(value.get("dataset_id")), str(value.get("scope_key")))):
+            job_id = row.get("job_id")
+            if not job_id:
+                raise ValueError("reconcile coverage缺少原始job，无法安全恢复")
+            try:
+                job = self.storage.get_job(str(job_id))
+            except Exception as exc:
+                raise ValueError("reconcile coverage引用的job不存在") from exc
+            targets.append(
+                {
+                    "coverage_record_id": str(
+                        row.get("coverage_record_id") or f"missing:{job_id}"
+                    ),
+                    "job_id": str(job_id),
+                    "dataset_id": str(row["dataset_id"]),
+                    "scope_key": str(row["scope_key"]),
+                    "status": str(row.get("status") or ""),
+                    "reason_code": row.get("reason_code"),
+                    "time_start": job.get("time_start"),
+                    "time_end": job.get("time_end"),
+                    "purpose": job.get("purpose"),
+                }
+            )
+        return resolved, {
+            "parent_run_id": resolved,
+            "selection": "latest_unsafe_structured_coverage",
+            "dataset_ids": sorted({item["dataset_id"] for item in targets}),
+            "coverage_record_ids": [item["coverage_record_id"] for item in targets],
+            "scope_keys": [item["scope_key"] for item in targets],
+            "items": targets,
+        }
+
+    def _reconcile_works(
+        self,
+        identity: SecurityIdentity,
+        datasets: Sequence[Any],
+        target: Mapping[str, Any],
+    ) -> tuple[DatasetWork, ...]:
+        """Rebuild only the frozen query windows named by reconcile target."""
+
+        dataset_ids = {
+            str(item.get("dataset_id") if isinstance(item, Mapping) else item.dataset_id)
+            for item in datasets
+        }
+        works: list[DatasetWork] = []
+        for ordinal, selected in enumerate(target.get("items") or ()):
+            dataset_id = str(selected.get("dataset_id") or "")
+            if dataset_id not in dataset_ids:
+                continue
+            try:
+                job = self.storage.get_job(str(selected["job_id"]))
+                plan_item = self.repository.get_physical_query_plan_item(job["plan_item_id"])
+            except Exception as exc:
+                raise ValueError("reconcile目标的原始job或plan不存在") from exc
+            start = _parse_datetime(job.get("time_start"))
+            end = _parse_datetime(job.get("time_end"))
+            if start is None or end is None or end <= start:
+                raise ValueError("reconcile原始job缺少有效时间范围")
+            try:
+                history_mode = HistoryMode(str(job["schedule_mode"]))
+            except (KeyError, ValueError) as exc:
+                raise ValueError("reconcile原始job的schedule_mode无法恢复") from exc
+            works.append(
+                DatasetWork(
+                    company_id=identity.company_id,
+                    ticker=identity.security_code,
+                    dataset_id=dataset_id,
+                    source_definition_id=str(plan_item.source_definition_id),
+                    source_definition_version=str(plan_item.source_definition_version),
+                    query_id=str(plan_item.query_id),
+                    purpose=str(job["purpose"]),
+                    history_mode=history_mode,
+                    disposition=PlanDisposition.REQUIRED,
+                    time_start=start,
+                    time_end=end,
+                    partition_key=str(plan_item.partition_key or selected["scope_key"]),
+                    parameters=dict(plan_item.normalized_parameters or {}),
+                    ordinal=ordinal,
+                    reason_code=(
+                        f"reconcile:{selected.get('status')}:"
+                        f"{selected.get('reason_code') or 'unsafe_coverage'}"
+                    ),
+                )
+            )
+        if not works:
+            raise ValueError("reconcile目标不包含当前研究范围内的可恢复job")
+        return tuple(works)
 
     def execute(self, run_id: str, *, max_jobs_per_round: int = 1) -> dict[str, Any]:
         if max_jobs_per_round < 1:
