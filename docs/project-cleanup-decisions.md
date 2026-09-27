@@ -32,6 +32,7 @@
 
 - `POST /api/documents` 是否继续作为受限的按需原文入口。
 - `SyncRequest/SyncResult`、同步表和旧回放字段是否作为只读历史兼容保留；生产不得创建新的 legacy 同步批次。
+- 当前代码审计确认：`SyncRequest` 已无生产调用；`SyncResult` 的物理表和迁移仍支撑旧数据库恢复，唯一运行时回填点是 `AnalysisService._with_synced_facts`。若选择保留兼容，建议切断新报告的自动回填，只保留只读 getter、迁移和历史报告读取。
 - `business_model_sources.v1.0–v1.10` 是否保留为只读历史注册表。
 - 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
 
