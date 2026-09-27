@@ -195,6 +195,20 @@ def test_missing_historical_metric_does_not_substitute_latest(workspace):
     with pytest.raises(ValueError, match="integrity|reproduc"): service.expand(ref)
 
 
+def test_candidate_content_hash_is_stable_across_rebuilds(workspace):
+    service, _, _ = build(workspace)
+    second_store = workspace[0] / "store-second"
+    reread = api().KnowledgeService.from_catalog(workspace[1], second_store)
+
+    first = service.build_candidate()
+    second = reread.build_candidate()
+
+    assert first["bundle_id"] == second["bundle_id"]
+    assert first["content_sha256"] == second["content_sha256"]
+    assert service.get_bundle(first["bundle_id"])["content_sha256"] == first["content_sha256"]
+    assert reread.get_bundle(second["bundle_id"])["content_sha256"] == second["content_sha256"]
+
+
 def test_short_response_cannot_silently_drop_limits(workspace):
     service, bundle, _ = build(workspace)
     short = service.read("ES02.Q04", bundle_id=bundle["bundle_id"], max_chars=20)
@@ -264,6 +278,33 @@ def test_same_source_republication_is_not_independent_support(workspace):
     service, bundle, _ = build(workspace, duplicate)
     detail = service.read("ES02.Q04", bundle_id=bundle["bundle_id"], detail=True)
     assert detail["methods"][0]["independent_source_count"] == 1
+
+
+def test_versioned_source_alias_resolves_without_reintroducing_duplicate_source(workspace):
+    def alias(catalog):
+        catalog["source_aliases"] = [{
+            "alias_source_id": "SRC-OLD",
+            "alias_version": "snapshot-1",
+            "canonical_source_id": "source-a",
+            "canonical_version": "1",
+            "status": "historical_alias",
+            "scope": "historical bundle/manifest only",
+        }]
+        catalog["methods"][0]["rules"][0]["source_refs"][0].update(source_id="SRC-OLD", version="snapshot-1")
+        for case in catalog["cases"]:
+            case["source_refs"][0].update(source_id="SRC-OLD", version="snapshot-1")
+
+    service, bundle, _ = build(workspace, alias)
+    detail = service.read("ES02.Q04", bundle_id=bundle["bundle_id"], detail=True)
+    assert detail["methods"][0]["source_refs"] == [{
+        "kind": "source", "bundle_id": bundle["bundle_id"],
+        "source_id": "source-a", "source_version": "1",
+    }]
+    resolved = service.expand({
+        "kind": "source", "bundle_id": bundle["bundle_id"],
+        "source_id": "SRC-OLD", "source_version": "snapshot-1",
+    })
+    assert resolved["source_id"] == "source-a"
 
 
 def test_default_publish_needs_full_scope_and_human_evidence(workspace):

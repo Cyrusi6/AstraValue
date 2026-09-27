@@ -96,6 +96,28 @@ def test_draft_reverting_text_is_a_new_revision_and_survives_restart(workspace):
         drafts.save_section(**{**args, "evidence_refs": ["F999"]}, markdown="text")
 
 
+def test_business_profile_is_snapshot_bound_research_evidence(workspace):
+    from analysis.research.drafts import Drafts
+
+    state = workspace.prepare_research("600519", "2025-01-01")
+    profile = {
+        "profile_id": "profile-" + "a" * 64,
+        "company_id": "600519",
+        "acceptance": {"citation_verification": "passed"},
+        "manifest_id": "manifest-1",
+        "facts": [],
+    }
+    artifact = workspace.save_business_profile(state["research_id"], profile)
+    assert artifact["snapshot_id"] == state["snapshot_id"]
+    assert workspace.business_profiles(state["research_id"])[0]["profile_id"] == profile["profile_id"]
+    Drafts(workspace).save_section(
+        state["research_id"], state["snapshot_id"], 1, "画像证据。", "画像判断。",
+        [artifact["artifact_id"]],
+    )
+    with pytest.raises(ResearchError, match="business_profile_company_mismatch"):
+        workspace.save_business_profile(state["research_id"], {**profile, "company_id": "000001"})
+
+
 def test_material_request_wording_cannot_reset_budget(workspace):
     from analysis.research.jobs import MaterialJobs
     rid = workspace.prepare_research("600519", "2025-01-01")["research_id"]

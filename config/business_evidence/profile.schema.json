@@ -1,0 +1,373 @@
+{
+  "$defs": {
+    "Calculation": {
+      "additionalProperties": false,
+      "properties": {
+        "series_id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Series Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "share_pct",
+            "blended_unit_revenue",
+            "gross_margin_pct"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "numerator": {
+          "title": "Numerator",
+          "type": "string"
+        },
+        "denominator": {
+          "title": "Denominator",
+          "type": "string"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "label",
+        "operation",
+        "numerator",
+        "denominator",
+        "note"
+      ],
+      "title": "Calculation",
+      "type": "object"
+    },
+    "Gap": {
+      "additionalProperties": false,
+      "properties": {
+        "gap_id": {
+          "minLength": 1,
+          "title": "Gap Id",
+          "type": "string"
+        },
+        "question_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Question Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "not_found_in_reviewed_materials",
+            "external_evidence_needed",
+            "comparability",
+            "conflict"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "next_action": {
+          "minLength": 1,
+          "title": "Next Action",
+          "type": "string"
+        },
+        "fact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "searches": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SearchScope"
+          },
+          "title": "Searches",
+          "type": "array"
+        }
+      },
+      "required": [
+        "gap_id",
+        "question_ids",
+        "kind",
+        "description",
+        "next_action"
+      ],
+      "title": "Gap",
+      "type": "object"
+    },
+    "SearchScope": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_id": {
+          "title": "Snapshot Id",
+          "type": "string"
+        },
+        "derived_artifact_id": {
+          "title": "Derived Artifact Id",
+          "type": "string"
+        },
+        "pages": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "derived_artifact_id"
+      ],
+      "title": "SearchScope",
+      "type": "object"
+    },
+    "Selector": {
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        },
+        "subject_role": {
+          "enum": [
+            "company",
+            "subsidiary",
+            "investee",
+            "third_party"
+          ],
+          "title": "Subject Role",
+          "type": "string"
+        },
+        "metric": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Metric",
+          "type": "string"
+        },
+        "dimensions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Dimensions",
+          "type": "object"
+        },
+        "basis": {
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "event_stage": {
+          "default": "reported",
+          "enum": [
+            "reported",
+            "completed"
+          ],
+          "title": "Event Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "subject_role",
+        "metric",
+        "dimensions",
+        "basis",
+        "unit"
+      ],
+      "title": "Selector",
+      "type": "object"
+    },
+    "Series": {
+      "additionalProperties": false,
+      "properties": {
+        "series_id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Series Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "selector": {
+          "$ref": "#/$defs/Selector"
+        },
+        "selector_overrides": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Selector"
+          },
+          "title": "Selector Overrides",
+          "type": "object"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_id",
+        "label",
+        "selector",
+        "note"
+      ],
+      "title": "Series",
+      "type": "object"
+    },
+    "Statement": {
+      "additionalProperties": false,
+      "properties": {
+        "statement_id": {
+          "minLength": 1,
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "question_id": {
+          "pattern": "^Q(?:0[1-9]|10)$",
+          "title": "Question Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "disclosed_fact",
+            "company_statement",
+            "analysis"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "fact_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "statement_id",
+        "question_id",
+        "kind",
+        "text"
+      ],
+      "title": "Statement",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "company_id": {
+      "pattern": "^\\d{6}$",
+      "title": "Company Id",
+      "type": "string"
+    },
+    "as_of": {
+      "title": "As Of",
+      "type": "string"
+    },
+    "periods": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Periods",
+      "type": "array"
+    },
+    "series": {
+      "items": {
+        "$ref": "#/$defs/Series"
+      },
+      "minItems": 1,
+      "title": "Series",
+      "type": "array"
+    },
+    "calculations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Calculation"
+      },
+      "title": "Calculations",
+      "type": "array"
+    },
+    "statements": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Statement"
+      },
+      "title": "Statements",
+      "type": "array"
+    },
+    "gaps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Gap"
+      },
+      "title": "Gaps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "title",
+    "company_id",
+    "as_of",
+    "periods",
+    "series"
+  ],
+  "title": "ProfileInput",
+  "type": "object"
+}

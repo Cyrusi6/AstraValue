@@ -399,3 +399,28 @@ class ResearchWorkspace:
             rows = con.execute("SELECT id,payload FROM research_artifacts WHERE research_id=? AND kind=? AND snapshot_id=? ORDER BY rowid",
                                (research_id, kind, state["snapshot_id"])).fetchall()
         return [{"artifact_id": x["id"], **json.loads(x["payload"])} for x in rows]
+
+    def save_business_profile(self, research_id: str, profile: dict) -> dict:
+        """Bind a verified business profile to the current research snapshot.
+
+        The profile is a research artifact, rather than a second report entry point.
+        Its source manifest and immutable fact identifiers remain in the payload so
+        the reporting bridge can cite it as evidence when the host explicitly does so.
+        """
+        if not isinstance(profile, dict) or not str(profile.get("profile_id", "")).startswith("profile-"):
+            raise ResearchError("business_profile_payload_invalid")
+        state, _, _ = self.pack(research_id)
+        if profile.get("company_id") != state.get("ticker"):
+            raise ResearchError("business_profile_company_mismatch")
+        if not profile.get("manifest_id"):
+            raise ResearchError("business_profile_manifest_required")
+        profile_cutoff = str(profile.get("as_of", ""))[:10]
+        if profile_cutoff and profile_cutoff > str(state.get("as_of", ""))[:10]:
+            raise ResearchError("business_profile_future_cutoff")
+        if profile.get("acceptance", {}).get("citation_verification") != "passed":
+            raise ResearchError("business_profile_citations_not_verified")
+        return self.artifact(research_id, "business_profile", profile)
+
+    def business_profiles(self, research_id: str) -> list[dict]:
+        """Return profiles bound to the current snapshot in insertion order."""
+        return self.artifacts(research_id, "business_profile")

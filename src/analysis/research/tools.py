@@ -10,6 +10,7 @@ def operations(workspace: ResearchWorkspace) -> dict:
     from .drafts import Drafts
     from .jobs import MaterialJobs
     from .knowledge import Knowledge
+    from .business_profile import BusinessProfiles
     from .reports import Reports
     from .valuation_history import ValuationHistory
     from .processing import Processing
@@ -45,6 +46,12 @@ def operations(workspace: ResearchWorkspace) -> dict:
         "get_research_prompt", "save_section", "save_conclusion", "get_draft")})
     from .briefing import Briefing
     registry["get_research_brief"] = Briefing(workspace).get_research_brief
+    profiles = BusinessProfiles(workspace)
+    registry.update({
+        "build_business_profile": profiles.build,
+        "list_business_profiles": profiles.list,
+        "get_business_profile": profiles.get,
+    })
     def prepare_research(company: str, as_of: str = "latest", scope: str = "eight_step", offline: bool = False):
         """Prepare a company task and return the shared clean writing view when data is ready."""
         result = workspace.prepare_research(company, as_of, scope)

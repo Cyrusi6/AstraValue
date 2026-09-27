@@ -212,13 +212,22 @@ class Catalog:
                         'source_url':row.get('canonical_url'),'page':1,'pages_total':pages},
                         '与八步研究相关的缓存公告原文；数值尚不自动成为标准指标',key)
         from .knowledge import Knowledge
-        for _,meta,_ in Knowledge(self.w)._cards():
-            add('knowledge',meta['title'],None,'readable','knowledge',{'card_id':meta['id']},'按问题选用已核实理论',meta['id'])
+        knowledge = Knowledge(self.w)
+        knowledge_index = knowledge.available_methods()
+        knowledge_bundle_id = knowledge_index.get('bundle_id')
+        for method in knowledge_index.get('items', []):
+            add('knowledge', method['title'], None, 'readable', 'knowledge',
+                {'card_id': method['id'], 'bundle_id': knowledge_bundle_id,
+                 'version': method['version'], 'content_sha256': method['content_sha256']},
+                '按问题选用已核实理论', method['id'] + '@' + str(knowledge_bundle_id))
         if not any(i['category']=='knowledge' for i in items.values()):
-            add('knowledge','已核实理论卡片',None,'missing','missing',{'next_action':'search_knowledge'},'知识按需使用，不阻塞研究','knowledge:none')
+            add('knowledge','已发布理论知识',None,'missing','missing',
+                {'next_action':'search_knowledge', 'bundle_id': knowledge_bundle_id},
+                '知识按需使用，不阻塞研究','knowledge:none@' + str(knowledge_bundle_id))
         from .topics import group_topics
         group_topics(items,s['snapshot_id'])
-        data={'snapshot_id':s['snapshot_id'],'catalog_version':'topics-v2','items':list(items.values()),'ledger':ledger,
+        data={'snapshot_id':s['snapshot_id'],'catalog_version':'topics-v2','knowledge_bundle_id':knowledge_bundle_id,
+            'items':list(items.values()),'ledger':ledger,
             'audit_scope':{'registered_archive_databases':cache_roots,'projection_files':sorted(seen_files),
                 'default_period_start':earliest,'as_of':s['as_of'],'cached_originals_examined':examined,
                 'boundary':'核对已登记缓存和当前快照；未登记路径不宣称覆盖，未取得指这些输入中未发现可交付材料'},
@@ -354,7 +363,8 @@ class Catalog:
         if reader=='evidence':return common|self.w.read_evidence(research_id,p['evidence_id'],page,max_tokens)
         if reader=='knowledge':
             from .knowledge import Knowledge
-            return common|Knowledge(self.w).search_knowledge(card_id=p['card_id'],page=page)
+            return common|Knowledge(self.w).search_knowledge(
+                card_id=p['card_id'], page=page, bundle_id=p.get('bundle_id'))
         if reader=='pdf':
             import fitz
             if sha(Path(p['path']))!=p['sha256']:raise ResearchError('material_original_changed')

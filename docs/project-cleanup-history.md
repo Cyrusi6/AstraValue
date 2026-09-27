@@ -63,6 +63,10 @@
 - `reconcile` 的 acquisition 证据存在，但普通 structured run 尚未提供独立 reconcile mode；在实现或补充契约前，不能把 acquisition reconcile 测试当成 structured 链完整验收。
 - 知识产品已按文件选择性迁入当前工作树；知识回归为 79 项通过，发布门新增 `candidate_content_identity` 哈希检查。全量 pytest 的唯一失败仍是当前候选缺少重新绑定的 Agent 样例和人工验收，不是代码回归失败；旧 acceptance 哈希不匹配时会被拒绝。
 - 当前候选已完成一次显式 CLI 试读：构建 `cleanup-candidate-v1` 后，54/54 coverage 和 `ES02.Q08`（industrial/manufacturing 上下文）读取均成功；`default_published=false`，因此这次试读不等于默认包发布。
+- 知识适配层已迁移到 `KnowledgeService`：旧 `cashflow-definition` 只映射到 `knowledge.working_capital`，研究目录保存 bundle/version/hash，未发布时明确返回 `no_default_release`；旧 research-cards 不再是运行时正文来源。
+- business-profile 独有逻辑已选择性迁入 `business_evidence/profile.py` 与研究工作区 adapter，输出绑定当前 snapshot artifact，仍由 reporting bridge 生成 `ReportVersion`，没有新增独立报告入口。
+- IFRS3 重复来源已 canonicalize，旧 source ID 仅保留 version-scoped historical alias；因此 `knowledge.es04_q05` 的 4 条来源引用与旧 source/case review identity 已失效，当前 candidate 必须重新绑定审阅，未以旧 acceptance 冒充通过。
+- 真实 incremental 补充验收：`structured-run-096a85739296a0de6f6cffc2` 在 `income_fields` 安全窗口完成 3 个成功分区、106 条记录；整批仍被失败/空响应安全门禁拒绝。针对性研究/知识/画像回归通过，完整发布门仍因缺少新 Agent 样例和人工验收保持阻塞。
 
 ## 交接约束
 

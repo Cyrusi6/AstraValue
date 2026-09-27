@@ -23,6 +23,7 @@ class Drafts:
         evidence = {i["evidence_id"] for i in pack["evidence"]}
         evidence.update(i["evidence_id"] for i in pack.get("supplemental_evidence", []))
         evidence.update(i["artifact_id"] for i in self.w.artifacts(research_id,"evidence_read"))
+        evidence.update(i["artifact_id"] for i in self.w.business_profiles(research_id))
         calculations = {i["artifact_id"] for i in self.w.artifacts(research_id,"calculation")}
         exploration_refs = {ref for ref in evidence_refs if ref.startswith("exploration_")}
         for kind, ref in re.findall(r"\{\{(explore|cite):([^{}]+)\}\}", markdown):

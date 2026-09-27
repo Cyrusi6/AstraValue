@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "catalog_version": "1.0.0-candidate",
+  "catalog_version": "1.0.1-candidate",
   "mapping_version": "1.0.0",
   "sources": [
     {
@@ -196,22 +196,6 @@
       "jurisdiction_scope": "IFRS官方公开概览，不等于已取得完整准则；A股具体会计要求另核"
     },
     {
-      "source_id": "SRC-IFRS-IFRS3-OVERVIEW",
-      "version": "snapshot-2026-09-19",
-      "title": "ifrs-3-business-combinations",
-      "author": "IFRS Foundation",
-      "url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-3-business-combinations/",
-      "final_url": "https://www.ifrs.org/issued-standards/list-of-standards/ifrs-3-business-combinations/",
-      "acquired_at": "2026-09-19T08:21:37.368079+00:00",
-      "content_sha256": "9a66759f10f75b282a432e153af9084cfa5332605b642c517985d0434b308c32",
-      "locator": "About概览正文",
-      "verification_status": "verified",
-      "access_status": "full_text_accessible",
-      "redistribution": "仅本地研究缓存原文；不将整篇或大段引文纳入Git",
-      "publication_date": "unknown",
-      "jurisdiction_scope": "IFRS官方公开概览，不等于已取得完整准则；A股具体会计要求另核"
-    },
-    {
       "source_id": "SRC-IFRS-IAS36-OVERVIEW",
       "version": "snapshot-2026-09-19",
       "title": "IFRS - IAS 36 Impairment of Assets",
@@ -288,8 +272,7 @@
       "redistribution": "local_reference_only",
       "content_sha256": "9a66759f10f75b282a432e153af9084cfa5332605b642c517985d0434b308c32",
       "publication_date": "unknown",
-      "source_type": "official_standard_overview",
-      "original_source_id": "SRC-IFRS-IFRS3-OVERVIEW"
+      "source_type": "official_standard_overview"
     }
   ],
   "methods": [
@@ -16084,6 +16067,17 @@
       "prompt_version": "valuation-source-case-review-v1",
       "reviewed_at": "2026-09-19",
       "manual_acceptance": "pending"
+    }
+  ],
+  "source_aliases": [
+    {
+      "alias_source_id": "SRC-IFRS-IFRS3-OVERVIEW",
+      "alias_version": "snapshot-2026-09-19",
+      "canonical_source_id": "SRC-IFRS3-OVERVIEW",
+      "canonical_version": "2026-09-19",
+      "status": "historical_alias",
+      "scope": "historical bundle/manifest only",
+      "reason": "同一 IFRS Foundation 公开概览 URL 与内容哈希；统一当前知识目录身份，保留旧快照可复核。"
     }
   ]
 }

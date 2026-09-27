@@ -53,3 +53,16 @@ python -m analysis.cli structured plan 600519 --mode reconcile --from-latest `
 
 结构化 API 已能在空数据根重新获取贵州茅台当前结构化数据，重复 baseline 可复用既有 snapshot，reconcile 能在不联网的计划阶段定位 parent 并只恢复不安全窗口，失败、空响应和物化缺口均可追踪。真实报告正文仍只通过研究任务按需采集；本次 baseline 和 reconcile 没有扩大为全量报告归档。由于真实来源仍有空响应和失败，真实 incremental 的安全水位线仍未满足，不能把本次 reconcile 写成 incremental 通过。
 
+## 真实安全窗口 incremental
+
+为验证增量执行本身，在同一贵州茅台数据库中只选择 baseline 已建立 `complete + safe_through` 的 `income_fields` 数据集；这不是把不完整的整批 baseline 宣称为完整增量。计划阶段未联网并生成 `structured-run-096a85739296a0de6f6cffc2`：
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path 'src').Path
+python -m analysis.cli structured plan 600519 --mode incremental --dataset income_fields `
+  --company-scope company-only --as-of '2026-09-29T00:00:00+08:00' `
+  --db 'tmp/moutai-real-api/analysis.db' --data-root 'tmp/moutai-real-api/data' --json
+```
+
+首次执行后恢复两轮，最终 3 个 `income_fields` 分区全部 `succeeded`，共提交 106 条真实 API 记录，`failed=0`、`no_data=0`、`pending=0`。执行使用既有安全水位线计算增量起点，未手工修改 checkpoint；同一运行的恢复只处理剩余 pending job。整批适用数据集仍因前述 `no_data`/`failed` coverage 被安全门禁拒绝，必须先 reconcile 成功后才能宣称全量增量完成。
+

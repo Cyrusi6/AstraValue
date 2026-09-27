@@ -16,7 +16,7 @@
 9. **唯一报告路径**：研究工作区 → reporting bridge → `ReportVersion`。保留 `ReportVersion`、导出和审计能力作为结果模型，但删除 `/api/reports` 直接输入。
 10. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
 11. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
-12. **来源注册表（待用户确认）**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 是否保留为只读历史证据，待用户选择。无论取舍，历史 manifest、快照和报告必须保留 registry version/hash 定位。
+12. **来源注册表历史兼容**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 保留为只读历史证据，不参与新 planner/orchestrator。历史 manifest、快照和报告继续保留 registry version/hash 定位。
 13. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更。
 14. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
 15. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
@@ -28,19 +28,25 @@
 - `/api/reports` 及其直接输入、重算、重分析和审阅入口从生产产品中删除；报告导出能力保留在研究工作区生成的 `ReportVersion` 上。
 - 结构化 API 不默认抓取全量行情或全部年报。字段、期间、同行和原文范围由八步研究问题及研究任务决定。
 
-## 等待用户确认的保留边界
+## 本轮继续实施采用的保留边界
 
-- `POST /api/documents` 是否继续作为受限的按需原文入口。
-- `SyncRequest/SyncResult`、同步表和旧回放字段是否作为只读历史兼容保留；生产不得创建新的 legacy 同步批次。
-- 当前代码审计确认：`SyncRequest` 已无生产调用；`SyncResult` 的物理表和迁移仍支撑旧数据库恢复，唯一运行时回填点是 `AnalysisService._with_synced_facts`。若选择保留兼容，建议切断新报告的自动回填，只保留只读 getter、迁移和历史报告读取。
-- v1.11 注册表仍保存 5 个 `legacy_definitions` 身份，但新 planner/orchestrator 不遍历它们；删除这些字段会改变默认 registry hash 并使已有 snapshot/DB 无法按原身份复核，因此是否只读保留与 Sync 兼容一起决定。
+用户要求继续按已确认方案实施。前一轮列出的推荐方案现在作为实现基线：
+
+- `POST /api/documents` 保留为受注册来源约束的按需原文入口；前端必须填写 `source_url`，并可填写来源定义及版本，禁止把它做成全量报告下载器。
+- `SyncRequest`、`SyncResult`、同步表和旧编辑方法只保留历史读取、迁移和回放；新结构化报告禁止自动回填 legacy synced facts，不再创建新的 legacy 同步批次。
+- `business_model_sources.v1.0–v1.10` 作为只读历史注册表保留，v1.11 是唯一生产默认注册表。
+- 旧 `research-cards` 迁移为绑定知识版本的薄适配层后，删除旧 `Knowledge` 实现和重复卡片目录；未发布的 candidate 不得被适配层静默当作 default。
+- ES01.Q10 的 `pricing_power` 与 `competitive_advantage`、ES02.Q04 的 `roic` 与 `roe_dupont` 均保留为同题互补路径，不标成 alternatives。
+- IFRS3 使用 canonical source ID，旧 ID 只作为历史 bundle/manifest alias；`pilot_remaining.md` 移入 acceptance history 并标记 superseded，保留 1/54、pilot、54/54 时间线。
+- 当前知识候选仍需重新绑定 Agent 样例和人工验收；旧 acceptance 不自动授权新版本发布。
+
+## 已确认、仍需执行的验收边界
+
+- 当前代码审计确认：`SyncRequest` 已无生产调用；`SyncResult` 的物理表和迁移仍支撑旧数据库恢复，唯一运行时回填点是 `AnalysisService._with_synced_facts`。实施时切断新报告的自动回填，只保留只读 getter、迁移和历史报告读取。
+- v1.11 注册表仍保存 5 个 `legacy_definitions` 身份，但新 planner/orchestrator 不遍历它们；这些字段作为只读历史身份保留，不能被新计划使用。
 - `AnalysisService.patch_assumptions/recalculate/reanalyze/review` 当前没有公开 API 路由，只被旧测试和内部兼容代码调用；`ReportVersion` 查询、变化查看和导出仍是公开只读能力。是否连这些内部旧版本编辑方法一起删除，随历史兼容取舍处理。
-- 知识候选在独立工作树的 `tests/knowledge` 当前仍有 1 项发布门失败：缺少当前工作树可验证的 `KNOWLEDGE_ACCEPTANCE`、agent sample 和 human review；历史 `candidate-54-v2` JSON 还会因 `candidate_content_identity` 哈希不匹配而被拒绝。另有旧 `src/analysis/research/knowledge.py` 与新 `analysis.knowledge` 两套知识入口，迁移新服务后需决定适配或删除旧入口。
-- `business_model_sources.v1.0–v1.10` 是否保留为只读历史注册表。
-- 知识分支的 56 个方法状态、两组互补问题路径、IFRS3 source ID、来源定位字段和 pilot 时间线如何合并。
-- 旧 `src/analysis/research/knowledge.py`（research-cards）是否迁移为新 `analysis.knowledge.KnowledgeService` 的适配层后删除；当前研究工作区的 `Catalog` 和工具注册仍在调用它。
-
-审计给出的默认建议（尚未替用户确认）：保留 56 条方法路径并把双路径标成互补；保留来源级 `locator` 与规则级 `source_refs[].locator/support` 两层定位；用 alias 兼容 IFRS3 重复 source ID；把 `pilot_remaining.md` 移到 acceptance history 并标记 superseded；保留 1/54、pilot、54/54 三段历史时间线；把旧 research-cards 入口迁移到 `KnowledgeService` 适配层后删除。
+- 知识候选当前不能生成可发布 bundle：IFRS3 canonical source 变更使 `knowledge.es04_q05` 的旧 source/case review identity 失效，且仍缺当前版本 Agent sample 与 human review；历史 acceptance 会被 `candidate_content_identity` 检查拒绝。`src/analysis/research/knowledge.py` 已迁移为按 bundle 绑定的 `KnowledgeService` 薄适配层，未发布时返回 `no_default_release`。
+- 知识分支的 56 个方法状态、来源定位字段和历史时间线已经按上述互补/canonical/alias 规则作为迁移基线；当前目录已完成 canonical 迁移，但必须重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收，才能生成并发布新的 candidate/default。
 
 ## 仍需通过的验收
 
@@ -56,6 +62,6 @@
 
 ## 当前状态与边界
 
-候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），贵州茅台真实 reconcile 尝试已记录，但仍留下空响应、失败和待执行窗口，不能据此宣称 incremental 通过。详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识分支冲突仍待用户决定，真实茅台 baseline 仍有失败和空响应，全量测试和人工报告验收仍未完成。
+候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口和直接报告写入口；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），贵州茅台真实 reconcile 尝试已记录，但仍留下空响应、失败和待执行窗口，不能据此宣称 incremental 通过。详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识目录 canonical 迁移已完成，当前 candidate 仍待 review/Agent/人工验收；真实茅台 baseline 仍有失败和空响应，完整测试和人工报告验收仍未完成。
 
 因此在实现、验证、人工验收和 review 完成前，不能删除承载材料的 worktree、分支或远程引用。

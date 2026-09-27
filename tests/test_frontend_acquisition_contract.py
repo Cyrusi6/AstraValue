@@ -34,6 +34,16 @@ def test_business_model_plan_cannot_be_reduced_with_source_checkboxes() -> None:
     assert "/execute" in source
 
 
+def test_manual_document_form_requires_registered_source_identity() -> None:
+    source = APP.read_text(encoding="utf-8")
+    document_section = source.split('title="正式公告归档"', 1)[1].split("function PanelTitle", 1)[0]
+    assert "source_url" in document_section
+    assert "source_definition_id" in document_section
+    assert "source_definition_version" in document_section
+    assert "不会扫描或下载全量报告" in document_section
+    assert "!document.source_url" in document_section
+
+
 def test_legacy_financial_scope_is_removed_from_frontend() -> None:
     source = APP.read_text(encoding="utf-8")
     assert 'title="Legacy 财务同步"' not in source

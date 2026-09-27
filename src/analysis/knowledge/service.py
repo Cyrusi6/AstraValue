@@ -15,6 +15,20 @@ def _hash(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _bundle_hash(value: dict) -> str:
+    """Hash immutable bundle content without volatile metadata.
+
+    ``created_at`` records when a candidate was materialized, but it is not
+    part of the candidate's content identity.  Including it in the digest
+    made identical rebuilds look like different knowledge versions and made
+    acceptance evidence impossible to reuse safely.
+    """
+    normalized = copy.deepcopy(value)
+    normalized.pop("content_sha256", None)
+    normalized.pop("created_at", None)
+    return _hash(normalized)
+
+
 def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -41,6 +55,27 @@ def _index(items: list[dict], key: str) -> dict:
     return {item[key]: item for item in items}
 
 
+def _source_alias_index(catalog: dict) -> dict[tuple[str, str], tuple[str, str]]:
+    """Return versioned historical-source aliases for a catalog.
+
+    Aliases are intentionally scoped to a frozen catalog/bundle.  They make
+    old manifests readable after duplicate source identities are collapsed,
+    while new methods and bundles continue to carry the canonical identity.
+    Older bundles that used ``original_source_id`` remain supported below.
+    """
+    return {
+        (item["alias_source_id"], item["alias_version"]):
+        (item["canonical_source_id"], item["canonical_version"])
+        for item in catalog.get("source_aliases", [])
+        if item.get("status") == "historical_alias"
+        and item.get("scope") == "historical bundle/manifest only"
+    }
+
+
+def _canonical_source_key(catalog: dict, source_id: str, version: str) -> tuple[str, str]:
+    return _source_alias_index(catalog).get((source_id, version), (source_id, version))
+
+
 def _source_refs(method: dict, cases: dict) -> list[dict]:
     refs = [ref for rule in method.get("rules", []) for ref in rule.get("source_refs", [])]
     refs.extend(ref for cid in method.get("case_ids", []) for ref in cases.get(cid, {}).get("source_refs", []))
@@ -63,7 +98,7 @@ def method_identity(catalog: dict, method_id: str, project_root: Path | str | No
     cases = _index(catalog.get("cases", []), "case_id")
     selected_cases = {cid: cases.get(cid) for cid in method.get("case_ids", [])}
     refs = _source_refs(method, cases)
-    source_keys = {(r.get("source_id"), r.get("version")) for r in refs}
+    source_keys = {_canonical_source_key(catalog, r.get("source_id"), r.get("version")) for r in refs}
     selected_sources = sorted((s for s in catalog.get("sources", []) if (s.get("source_id"), s.get("version")) in source_keys), key=lambda s: (s["source_id"], s["version"]))
     selected_metrics = {i["metric_id"]: metrics.get("metrics", {}).get(i["metric_id"]) for i in method.get("required_inputs", []) if i.get("metric_id")}
     payload = {"method": method, "sources": selected_sources, "cases": selected_cases, "metrics_version": metrics.get("schema_version"), "metrics": selected_metrics}
@@ -153,7 +188,7 @@ class KnowledgeService:
                 if not rule.get("rule_id") or not rule.get("statement") or not rule.get("source_refs"):
                     errors.append(f"{mid}: rule missing identity, statement or source")
             for ref in _source_refs(method, cases):
-                source = sources.get((ref.get("source_id"), ref.get("version")))
+                source = sources.get(_canonical_source_key(catalog, ref.get("source_id"), ref.get("version")))
                 if not source or source.get("verification_status") != "verified":
                     errors.append(f"{mid}: unverified source {ref.get('source_id')}")
                 if not ref.get("locator") or not ref.get("support"):
@@ -224,7 +259,7 @@ class KnowledgeService:
         payload["method_identities"] = identities
         bundle_id = _id(bundle_id or "kb-" + _hash(payload)[:24])
         payload.update(bundle_id=bundle_id, created_at=datetime.now(timezone.utc).isoformat())
-        payload["content_sha256"] = _hash(payload)
+        payload["content_sha256"] = _bundle_hash(payload)
         path = self.store_root / "bundles" / f"{bundle_id}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -244,7 +279,7 @@ class KnowledgeService:
             raise KeyError(f"unknown version: {bundle_id}")
         payload = _load(path)
         digest = payload.pop("content_sha256", None)
-        if digest != _hash(payload):
+        if digest != _bundle_hash(payload):
             raise ValueError(f"bundle integrity prevents complete reproduction: {bundle_id}")
         payload["content_sha256"] = digest
         return payload
@@ -361,7 +396,7 @@ class KnowledgeService:
         result["detail_ref"] = {"kind": "method", "bundle_id": bundle["bundle_id"], "method_id": mid, "method_version": method.get("version"), "context": context}
         cases = _index(bundle["catalog"].get("cases", []), "case_id")
         refs = _source_refs(method, cases)
-        source_keys = {(r.get("source_id"), r.get("version")) for r in refs}
+        source_keys = {_canonical_source_key(bundle["catalog"], r.get("source_id"), r.get("version")) for r in refs}
         sources = [s for s in bundle["catalog"].get("sources", []) if (s.get("source_id"), s.get("version")) in source_keys]
         by_id = _index(bundle["catalog"].get("sources", []), "source_id")
         def original(sid: str) -> str:
@@ -453,8 +488,9 @@ class KnowledgeService:
                 raise KeyError("unknown method version")
             return self._method_result(bundle, method, reference.get("context", {}), True)
         if kind == "source":
+            source_key = _canonical_source_key(bundle["catalog"], reference["source_id"], reference["source_version"])
             for source in bundle["catalog"]["sources"]:
-                if source["source_id"] == reference["source_id"] and source["version"] == reference["source_version"]:
+                if (source["source_id"], source["version"]) == source_key:
                     return copy.deepcopy(source)
             raise KeyError("unknown source version")
         raise ValueError("unknown expansion reference")
@@ -476,9 +512,14 @@ class KnowledgeService:
             cases = _index(catalog.get("cases", []), "case_id")
             affected = set()
             sources = _index(catalog.get("sources", []), "source_id")
+            source_target = object_id
+            for alias in catalog.get("source_aliases", []):
+                if alias.get("alias_source_id") == object_id and alias.get("status") == "historical_alias":
+                    source_target = alias.get("canonical_source_id")
+                    break
             for mid, method in methods.items():
                 refs = _source_refs(method, cases)
-                hit = (kind == "method" and mid == object_id) or (kind == "rule" and any(r.get("rule_id") == object_id for r in method.get("rules", []))) or (kind == "input" and any(i.get("metric_id") == object_id or i.get("input_id") == object_id for i in method.get("required_inputs", []))) or (kind == "source" and any(r.get("source_id") == object_id or sources.get(r.get("source_id"), {}).get("original_source_id") == object_id for r in refs))
+                hit = (kind == "method" and mid == object_id) or (kind == "rule" and any(r.get("rule_id") == object_id for r in method.get("rules", []))) or (kind == "input" and any(i.get("metric_id") == object_id or i.get("input_id") == object_id for i in method.get("required_inputs", []))) or (kind == "source" and any(r.get("source_id") in {object_id, source_target} or sources.get(r.get("source_id"), {}).get("original_source_id") in {object_id, source_target} for r in refs))
                 if hit:
                     affected.add(mid)
             while True:

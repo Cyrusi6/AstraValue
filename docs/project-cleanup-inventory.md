@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-09-28
+更新时间：2026-09-28（增量补充证据：`structured-run-096a85739296a0de6f6cffc2`）
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
@@ -14,16 +14,18 @@
 | P02 | 结构化事实物化：`src/analysis/structured/materialization.py`、`materialization_contracts.py`、`materialization_audit.py`、`materialization_replay.py`，并由 `structured materialize` 调用。 | **保留为唯一 `StructuredFactMaterializer` 路径**；旧的直接财务/行情拼装不再并行维护。 | 物化结果的事实数量、期间、单位、来源和哈希可回溯到结构化记录；旧数据只作为显式迁移/回放输入，不作为生产入口。 |
 | P03 | 八步轻量研究包与报告桥接：`src/analysis/structured/research_lite.py`、`reporting_bridge.py`、`report_semantics.py`；`/api/structured/reports`；CLI `structured report`。旧 `structured/research.py` 全量编排已删除。 | **保留**。完整报告链固定为“研究工作区 → reporting bridge → `ReportVersion`”。 | `/api/structured/reports` 只接受已冻结且可校验的研究包；报告生成、导出和审计信息能从包与物化事实复现。 |
 | P04 | 研究工作区与资料处理：`src/analysis/research/`（当前 fact worktree 有已修改和未跟踪的资料、计算、图表、补充资料、Python sandbox、报告组装代码），以及 `docs/acquisition/research-workspace-runbook.md`。 | **纳入并作为报告唯一上游**。fact worktree 的 4 组未提交研究内容全部纳入统一主线。 | 资料采集、状态、计算、图表、笔记表和报告组装使用同一研究任务/快照；真实样本和贵州茅台验收文档保留。 |
-| P05 | 知识产品：`codex/knowledge-base-v1` 中的 `src/analysis/knowledge/`、`knowledge_release.py`、`config/methods/knowledge/catalog.v1.json` 及知识发布测试/文档；该分支还夹带了已删除的旧 adapters、旧 research 编排和包装入口。当前 `src/analysis/research/knowledge.py` 仍读取旧 `research-cards`。 | **按文件范围选择性迁移知识产品，不整支合并**。同 ID 内容使用 `knowledge-content` 修订，同时保留 KB/core 的严格发布门；旧研究知识入口待用户决定是否迁移后删除。 | 知识服务、内容版本、来源定位、缺口和发布门验收通过；迁移后旧全量采集和旧物化路径仍不存在；未决冲突先标明 candidate，不擅自覆盖用户选择。历史 acceptance 不能仅凭 bundle ID 复用，必须匹配当前内容哈希。 |
+| P05 | 知识产品：`src/analysis/knowledge/`、`knowledge_release.py`、`config/methods/knowledge/catalog.v1.json` 及知识发布测试/文档已按文件选择性迁入；旧 `research-cards` 目录只作历史材料。 | **保留版本化 KnowledgeService 和严格发布门；研究入口改为按 bundle 绑定的薄适配层。** 不整支合并 knowledge-base 分支。 | 适配层、canonical source alias、分页读取和无默认发布的 fail-closed 行为已测试；IFRS3 变更使旧 review identity 失效，必须重新绑定 Agent/人工验收后才能发布 default。 |
 | P06 | 治理全链路：`src/analysis/governance/`（当前 main 约 26 个 Python 文件、约 16,695 行），治理测试和 `scripts/validate_governance_*.py`。当前 API/主 CLI 未直接接入。 | **保留并接入统一生产链路**，不再作为孤立测试包。 | 治理采集、抽取、冲突/版本、报告输入和审计状态在结构化运行及研究工作区中有明确入口；接入完成前不得宣称生产可用。 |
-| P07 | business-profile 分支独有逻辑：`origin/codex/business-profile-v1` 的 `src/analysis/business_evidence/profile.py`、`config/business_evidence/profile.schema.json`、对应测试和文档。该分支基于旧主线，不能整支合并。 | **只移植独有业务画像逻辑**到统一业务分析入口；不直接 merge 该分支。 | 画像输入复用统一业务证据/来源注册表，输出进入研究工作区和报告桥；移植后删除旧分支特有重复入口。 |
+| P07 | `business-profile-v1` 独有画像计算已迁入 `src/analysis/business_evidence/profile.py`、schema、测试和方法说明；`src/analysis/research/business_profile.py` 负责绑定研究 snapshot。 | **保留并通过研究工作区调用**；不直接 merge 旧基线分支，也不保留独立 profile report CLI。 | 画像复用 FactStore/FrozenCorpus，引用校验和截止日/公司校验通过；artifact 可被报告桥显式引用，仍需真实公司画像样例和人工报告验收。 |
 | P08 | 商业模式证据与事实：`src/analysis/business_evidence/{cli,corpus,models,routing,store}.py`、`docs/acquisition/business-evidence-facts.md`、相关 schema。当前主要是独立 CLI。 | **保留并接入统一业务分析入口**；与 P07 的画像逻辑共享证据存储和引用。 | 路由、复核、事实查询和画像消费使用同一 manifest/snapshot；无证据时保留缺口，不生成完整结论。 |
 | P09 | 旧 adapters 与 legacy 同步：`src/analysis/adapters/` 已删除；`SyncRequest/SyncResult`、历史同步表和兼容测试仍被旧报告回放使用。 | **生产路径删除；历史模型待用户决定**。结构化 API 是唯一常规数据入口。 | 旧请求明确失败/不再注册；若保留模型，只能作为只读历史兼容，不得创建新的同步批次。 |
 | P10 | 旧全量行情和报告抓取：legacy providers（AkShare、Sina、BaoStock、Tushare、official）及按 5 年/12 季度和 market/report scope 批量抓取的旧组合。 | **删除**，不再以全量行情或报告抓取补齐八步研究。按需报告原文采集由研究工作区的资料任务完成。 | 常规运行只请求研究问题需要的结构化字段/期间；报告原文仅在研究任务明确需要时采集，并保留来源、页码/定位和缺口。 |
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、`AnalysisService.create_report` 的直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告入口**；保留 `ReportVersion`、导出和审计对象作为研究工作区链路的结果模型。 | 只能从研究工作区冻结包经 reporting bridge 生成报告；旧直接输入测试、前端入口、文档和 CLI 同步移除。 |
-| P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **待用户决定：保留只读历史版本或迁移后删除**。生产默认只使用 `v1.11`。 | 无论取舍，manifest、快照和报告必须保留可追溯的 registry version/hash；旧文件不能作为当前默认来源。 |
+| P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **保留为只读历史证据**；生产默认只使用 `v1.11`。 | 新 planner/orchestrator 不遍历旧版本；manifest、快照和报告保留 registry version/hash 定位。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
 | P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`；fact worktree 当前 HEAD `987d55a`，清理、增量修复、知识候选和回采记录已提交，仅保留 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 三个未跟踪临时文件；knowledge-base worktree 有未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
+
+当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档和 business-profile 研究工作区 adapter 已实现并通过针对性回归；`income_fields` 安全窗口的真实增量已完成，整批增量仍因 baseline 中的失败/空响应保持门禁。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
 
 ## 决策与验收边界
 

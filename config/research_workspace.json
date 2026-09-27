@@ -6,6 +6,9 @@
   "pack_roots": ["tmp/moutai-golden-v1/lite", "tmp/eight-step-lite-v1"],
   "projection_roots": ["tmp/research-data-layer-v1", "tmp/research-data-layer-live-v1/materialized"],
   "evidence_roots": ["tmp/eight-step-lite-v1/network-audit"],
+  "knowledge_catalog": "config/methods/knowledge/catalog.v1.json",
+  "knowledge_store": "var/research/knowledge-store",
+  "knowledge_bundle_id": null,
   "profile_id": "eight-step-lite-v1.0.0",
   "max_tool_seconds": 120,
   "max_attempts": 3

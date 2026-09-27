@@ -54,6 +54,26 @@ def test_verified_rules_have_versioned_primary_source_locations(catalog):
                 assert ref["locator"] and ref["support"]
 
 
+def test_ifrs3_duplicate_uses_canonical_source_and_historical_alias(catalog):
+    sources = [s for s in catalog["sources"] if s["source_id"] in {
+        "SRC-IFRS-IFRS3-OVERVIEW", "SRC-IFRS3-OVERVIEW"
+    }]
+    assert [s["source_id"] for s in sources] == ["SRC-IFRS3-OVERVIEW"]
+    aliases = [a for a in catalog["source_aliases"] if a["alias_source_id"] == "SRC-IFRS-IFRS3-OVERVIEW"]
+    assert aliases == [{
+        "alias_source_id": "SRC-IFRS-IFRS3-OVERVIEW",
+        "alias_version": "snapshot-2026-09-19",
+        "canonical_source_id": "SRC-IFRS3-OVERVIEW",
+        "canonical_version": "2026-09-19",
+        "status": "historical_alias",
+        "scope": "historical bundle/manifest only",
+        "reason": "同一 IFRS Foundation 公开概览 URL 与内容哈希；统一当前知识目录身份，保留旧快照可复核。",
+    }]
+    refs = [r for m in catalog["methods"] for rule in m.get("rules", []) for r in rule.get("source_refs", [])]
+    refs.extend(r for c in catalog["cases"] for r in c.get("source_refs", []))
+    assert not any(r["source_id"] == "SRC-IFRS-IFRS3-OVERVIEW" for r in refs)
+
+
 def test_cases_cover_positive_counterexample_and_missing_for_each_pilot(catalog):
     cases = by_id(catalog["cases"], "case_id")
     for method_id in ("knowledge.pricing_power", "knowledge.roic", "knowledge.working_capital"):

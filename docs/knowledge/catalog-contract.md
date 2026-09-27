@@ -6,7 +6,8 @@
 
 `config/methods/knowledge/catalog.v1.json` 是 JSON 对象，包含 `schema_version`、`catalog_version`、`mapping_version`（均为版本字符串）以及以下数组。
 
-- `sources`: `source_id, version, title, author, url, locator, acquired_at, verification_status, access_status, redistribution, content_sha256`。已取得正文且已核对定位时 `verification_status="verified"`。另可记录 `original_source_id` 归并同源转载，`publication_date` 未知须显式 `unknown`。
+- `sources`: `source_id, version, title, author, url, locator, acquired_at, verification_status, access_status, redistribution, content_sha256`。已取得正文且已核对定位时 `verification_status="verified"`；`publication_date` 未知须显式 `unknown`。同一内容只保留一个当前 `source_id`。
+- `source_aliases`（可选）：历史 `alias_source_id/alias_version` 到当前 `canonical_source_id/canonical_version` 的映射，`status` 必须为 `historical_alias`，并声明 `scope`。别名只用于读取旧 bundle/manifest 和更正定位；新方法、案例和新 bundle 必须引用 canonical ID。
 - `methods`: `method_id, version, legacy_method_id, title, question_ids, content_status, body_path, steps, required_inputs, evidence_requirements, rules, counterexamples, limitations, industry_gaps, case_ids, applicability, dependencies`。正文 `body_path` 相对项目根，快照会保存正文。步骤/反例/限制/行业缺口均为字符串数组。`dependencies` 是先行知识方法 ID 数组；`alternatives` 可选，为替代方法 ID 数组。`content_status` 为 `skeleton/draft/reviewed/published`。`question_ids` 不复制维护问题标题。
 - `cases`: `case_id, method_ids, kind, expected_factors, supported_conclusions, forbidden_conclusions, reason, source_refs, evaluation_mode`。`kind` 为 `normal/counterexample/missing/boundary`，三个结论/因素字段为字符串数组。另可含 `facts` 合成事实、`pair_id`。
 - `reviews`: `review_id, method_id, method_version, content_sha256, kind, outcome, reasons, unresolved_issues, reviewer`。`kind` 为 `source/case/agent/human`，`outcome` 为 `passed/failed`，理由和未解决事项均为字符串数组。Agent 审阅另记录 `model,prompt_version`。`source` 与 `case` 审阅必须存在且绑定内容身份，程序不能代替内容审阅。不得生成虚构的人工通过记录。

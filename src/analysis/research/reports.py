@@ -356,8 +356,13 @@ class Reports:
         request = build_report_request(path)
         request.claims = []
         request.report_notes = "宿主模型自主研究；数据/公式/假设分别记录；人读验收未完成。"
-        request.input_metadata["agent_research"] = {"snapshot_id":state["snapshot_id"],"draft":draft,
-            "evidence":payload["evidence"] + payload.get("supplemental_evidence", []) + [dict(x,evidence_id=x["artifact_id"]) for x in self.w.artifacts(research_id,"evidence_read")],
+        evidence = payload["evidence"] + payload.get("supplemental_evidence", [])
+        evidence += [dict(x, evidence_id=x["artifact_id"])
+                     for x in self.w.artifacts(research_id, "evidence_read")]
+        evidence += [dict(x, evidence_id=x["artifact_id"])
+                     for x in self.w.business_profiles(research_id)]
+        request.input_metadata["agent_research"] = {"snapshot_id": state["snapshot_id"], "draft": draft,
+            "evidence": evidence,
             "charts":rendered_charts,"calculations":self.w.artifacts(research_id,"calculation"),
             "explorations":explorations}
         request.input_metadata["processing_audit"] = payload.get("processing_audit")
