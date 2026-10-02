@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-10-02（补充采集时间修复、完整 baseline 和 9 项空响应归因）
+更新时间：2026-10-02（9 项茅台 API 空响应补齐已由用户决定延期）
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
@@ -26,7 +26,7 @@
 | P14 | OpenSpec、分支和工作树：2026-10-02 核对 `main` 为 `181a4cb`、`codex/knowledge-base-v1` 为 `027ac38`；fact 候选已包含清理、增量修复、知识候选、治理接入，最新采集时间修复代码为 `4c203d5`。三份未跟踪报告材料继续保留；其他 worktree 的未提交内容须在合并前核对。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
-当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档、business-profile 研究工作区 adapter 和旧报告编辑链删除已实现并通过针对性回归；有效截止日的 `income_fields` 真实增量及同参数重复采集已完成，最新空根 baseline 为 53 成功、9 空响应、0 失败；整批增量仍因 9 项空 coverage 保持门禁，空响应来源已查明，放行规则待用户决定。治理独立编排的删除及共享 workspace 接入已实现并通过针对性回归；治理真实 manifest 尚未登记，业务样本验收待补。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
+当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档、business-profile 研究工作区 adapter 和旧报告编辑链删除已实现并通过针对性回归；有效截止日的 `income_fields` 真实增量及同参数重复采集已完成，最新空根 baseline 为 53 成功、9 空响应、0 失败。用户已将 9 项空响应补齐列为后续工作；本轮其余适用数据集的范围落实和真实增量验收待完成，当前全范围增量代码仍保留原门禁。治理独立编排的删除及共享 workspace 接入已实现并通过针对性回归；治理真实 manifest 尚未登记，业务样本验收待补。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
 
 ## 决策与验收边界
 
@@ -42,6 +42,7 @@
 - 旧内部报告编辑方法删除；历史报告读取和导出保留，修改统一回到研究工作区。
 - fact worktree 的 4 组未提交研究内容全部纳入；两份贵州茅台验收文档都保留。
 - OpenSpec 统一为 `eight-step-production-pipeline-v1`；整合完成后只留 `main`。
+- 贵州茅台 9 项 API 空响应的补齐延期；现阶段保留缺口与已有报告证据，先验收其余适用数据集及报告主链。
 
 当前尚未等同于完成的事项：
 
