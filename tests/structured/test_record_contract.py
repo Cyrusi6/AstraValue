@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import runpy
 
 import pytest
 
@@ -69,6 +70,19 @@ def test_registry_row_keys_are_explicit_non_synthetic_contracts():
         assert not any(name.startswith("__") for name in dataset.primary_key_fields)
     for dataset_id, expected in EXPECTED_KEYS.items():
         assert by_id[dataset_id].primary_key_fields == expected
+
+
+def test_registry_and_generator_do_not_invent_business_dates():
+    root = Path(__file__).resolve().parents[2]
+    bundle = StructuredRegistryLoader().load()
+    generate = runpy.run_path(str(root / 'scripts/generate_structured_registry_v1.py'))
+    plan = json.loads((root / 'docs/acquisition/structured-data-interface-fields-v1.json').read_text(encoding='utf-8'))
+    for source in plan['datasets']:
+        _, dates = generate['_record_contract'](source)
+        assert tuple(dates) == bundle.dataset(source['dataset_id']).date_fields
+        assert all(not name.startswith('__') for name in dates)
+    for dataset_id in ('company_basic', 'controller', 'repurchase', 'tags', 'baostock_adjust'):
+        assert bundle.dataset(dataset_id).date_fields == ()
 
 
 def test_realistic_rows_reject_old_keys_and_keep_new_keys_unique():

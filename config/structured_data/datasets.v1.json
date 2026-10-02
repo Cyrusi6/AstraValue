@@ -2,12 +2,12 @@
   "schema_version": "structured-registry.v1",
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
-  "version": "1.2.0",
-  "content_sha256": "53c6de27110a4de071b16123ae63ce5ea95f5f5cadc97f511a7bbd1cdab720e5",
+  "version": "1.2.1",
+  "content_sha256": "ac3f44e5acb860138518ee89aa0e34408db80de5d8fc0278da1812dfadf277d0",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "openspec/retired/structured-data-first-v1/design.md"
   ],
   "datasets": [
     {
@@ -432,9 +432,7 @@
       "primary_key_fields": [
         "SECUCODE"
       ],
-      "date_fields": [
-        "__retrieved_at"
-      ],
+      "date_fields": [],
       "pagination": "none",
       "update_category": "snapshot",
       "empty_result": {
@@ -917,9 +915,7 @@
         "SECUCODE",
         "HOLDER_NAME"
       ],
-      "date_fields": [
-        "__retrieved_at"
-      ],
+      "date_fields": [],
       "pagination": "page_number",
       "update_category": "event",
       "empty_result": {
@@ -1334,9 +1330,7 @@
         "SECUCODE",
         "REPURCODE"
       ],
-      "date_fields": [
-        "__retrieved_at"
-      ],
+      "date_fields": [],
       "pagination": "page_number",
       "update_category": "event",
       "empty_result": {
@@ -2649,9 +2643,7 @@
         "SECUCODE",
         "BOARD_CODE"
       ],
-      "date_fields": [
-        "__retrieved_at"
-      ],
+      "date_fields": [],
       "pagination": "page_number",
       "update_category": "on_demand",
       "empty_result": {
@@ -3112,9 +3104,7 @@
         "code",
         "dividOperateDate"
       ],
-      "date_fields": [
-        "__retrieved_at"
-      ],
+      "date_fields": [],
       "pagination": "sdk_exhaustion",
       "update_category": "market",
       "empty_result": {
@@ -3632,5 +3622,6 @@
         "db7a029062efab88abefa74c9628370429f02d2a648ce1c903f0553f2f426129"
       ]
     }
-  ]
+  ],
+  "source_definition_version": "1.2.0"
 }

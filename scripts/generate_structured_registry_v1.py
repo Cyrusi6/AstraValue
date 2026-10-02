@@ -16,14 +16,14 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN_PATH = ROOT / "docs" / "acquisition" / "structured-data-interface-fields-v1.json"
-DESIGN_PATH = ROOT / "openspec" / "changes" / "structured-data-first-v1" / "design.md"
+DESIGN_PATH = ROOT / "openspec" / "retired" / "structured-data-first-v1" / "design.md"
 LEGACY_QUESTIONS_PATH = ROOT / "config" / "data_sources" / "business_model_questions.v1.json"
 OUTPUT_DIR = ROOT / "config" / "structured_data"
 
 SCHEMA_VERSION = "structured-registry.v1"
 VERSION = "1.0.0"
 REGISTRY_VERSIONS = {
-    "datasets": "1.2.0",
+    "datasets": "1.2.1",
     "fields": "1.1.0",
     "schedules": "1.2.0",
     "research_requirements": "1.1.0",
@@ -34,7 +34,7 @@ REGISTRY_VERSIONS = {
 GENERATED_FROM = (
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md",
+    "openspec/retired/structured-data-first-v1/design.md",
 )
 
 COMPANY_FILTER_FIELDS = {
@@ -437,7 +437,7 @@ def _record_contract(dataset: dict[str, Any]) -> tuple[list[str], list[str]]:
         )
         if name in names
     ]
-    dates = date_candidates or ["__retrieved_at"]
+    dates = date_candidates
     discriminator = next(
         (
             name
@@ -457,7 +457,12 @@ def _record_contract(dataset: dict[str, Any]) -> tuple[list[str], list[str]]:
         None,
     )
     has_override = dataset["dataset_id"] in KEY_FIELD_OVERRIDES
-    primary = list(KEY_FIELD_OVERRIDES.get(dataset["dataset_id"], (company, dates[0])))
+    if has_override:
+        primary = list(KEY_FIELD_OVERRIDES[dataset["dataset_id"]])
+    elif dates:
+        primary = [company, dates[0]]
+    else:
+        raise ValueError(f"{dataset['dataset_id']}: 无业务日期时必须显式声明行键")
     if not has_override and discriminator and discriminator not in primary:
         primary.append(discriminator)
     missing = [field for field in primary if field not in names]
@@ -508,6 +513,7 @@ def _build_datasets(plan: dict[str, Any]) -> dict[str, Any]:
             }
         )
     payload = _envelope("datasets", "structured_data_datasets")
+    payload["source_definition_version"] = "1.2.0"
     payload["datasets"] = datasets
     return payload
 

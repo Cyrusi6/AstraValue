@@ -221,8 +221,7 @@
         "REAL_CONTROLER_CODE",
         "SECUCODE",
         "SWINDUSTRY_CODE2",
-        "SWINDUSTRY_NAME2",
-        "__retrieved_at"
+        "SWINDUSTRY_NAME2"
       ]
     },
     "segments": {
@@ -363,8 +362,7 @@
         "HOLDER_NAME",
         "HOLD_RATIO",
         "RELATED_RELATION",
-        "SECUCODE",
-        "__retrieved_at"
+        "SECUCODE"
       ]
     },
     "equity": {
@@ -484,8 +482,7 @@
         "REPURNUM",
         "REPUROBJECTIVE",
         "REPURPROGRESS",
-        "SECUCODE",
-        "__retrieved_at"
+        "SECUCODE"
       ]
     },
     "guarantee": {
@@ -791,8 +788,7 @@
       "request_fields": [
         "BOARD_CODE",
         "BOARD_RANK",
-        "SECUCODE",
-        "__retrieved_at"
+        "SECUCODE"
       ]
     },
     "forecasts": {
@@ -905,7 +901,6 @@
       "question_ids": [],
       "consume_fields": [],
       "request_fields": [
-        "__retrieved_at",
         "code",
         "dividOperateDate"
       ]
@@ -1260,5 +1255,5 @@
       "basis": "ordinary adjusted price history excluded by research scope"
     }
   },
-  "content_sha256": "515850dd0e6285d2b8b5d3069e5b0b95dfe6b53425e91347103fcb42c1b33786"
+  "content_sha256": "3fb53100f8e6c4b77eab5a4901337b0c23be2493972110ca3d24fa78f85b954d"
 }

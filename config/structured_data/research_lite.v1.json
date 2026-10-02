@@ -88,13 +88,13 @@
     },
     "income_quarter": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE"]},
     "cashflow_quarter": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE"]},
-    "company_basic": {"selection": "required", "fields": ["ORG_NAME", "MAIN_BUSINESS", "REAL_CONTROLER", "CSRC_INDUSTRY_NAME", "SWINDUSTRY_NAME2", "FOUND_DATE", "ACCOUNT_FIRM", "__retrieved_at"]},
+    "company_basic": {"selection": "required", "fields": ["ORG_NAME", "MAIN_BUSINESS", "REAL_CONTROLER", "CSRC_INDUSTRY_NAME", "SWINDUSTRY_NAME2", "FOUND_DATE", "ACCOUNT_FIRM"]},
     "segments": {"selection": "required", "fields": ["REPORT_DATE", "MAINOP_TYPE", "ITEM_CODE", "ITEM_PARENT_CODE", "MAIN_BUSINESS_INCOME", "MAIN_BUSINESS_COST", "MAIN_BUSINESS_RPOFIT"]},
     "customers_peer": {"selection": "required", "fields": ["REPORT_DATE", "TYPE", "TYPE_CODE", "RANK", "AMOUNT", "SUM_AMOUNT", "TOI_RATIO"]},
-    "controller": {"selection": "required", "fields": ["HOLDER_NAME", "HOLD_RATIO", "RELATED_RELATION", "__retrieved_at"]},
+    "controller": {"selection": "required", "fields": ["HOLDER_NAME", "HOLD_RATIO", "RELATED_RELATION"]},
     "equity": {"selection": "required", "fields": ["END_DATE", "NOTICE_DATE", "TOTAL_SHARES"]},
     "dividend": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE", "ASSIGN_PROGRESS", "IMPL_PLAN_PROFILE", "PRETAX_BONUS_RMB", "EQUITY_RECORD_DATE", "EX_DIVIDEND_DATE"]},
-    "repurchase": {"selection": "required", "fields": ["DIM_DATE", "REPURPROGRESS", "REPURNUM", "REPURAMOUNT", "REPURAMOUNTLIMIT", "REPUROBJECTIVE", "FINISHDATE", "__retrieved_at"]},
+    "repurchase": {"selection": "required", "fields": ["DIM_DATE", "REPURPROGRESS", "REPURNUM", "REPURAMOUNT", "REPURAMOUNTLIMIT", "REPUROBJECTIVE", "FINISHDATE"]},
     "guarantee": {"selection": "required", "fields": ["REPORT_DATE", "NOTICE_DATE", "TRADE_DATE", "IS_RELATED_TRADE", "EID_EID"]},
     "litigation": {"selection": "required", "fields": ["NOTICE_DATE", "CASE_NAME", "CASE_PROFILE", "DEFENCE"]},
     "violation": {"selection": "required", "fields": ["NOTICE_DATE", "PUNISH_OBJECT", "PUNISH_TYPE"]},
@@ -180,5 +180,5 @@
     "600809": ["600519", "000568", "603369"],
     "603369": ["000596", "002304", "600809"]
   },
-  "content_sha256": "4ba7bc7bf2388ae4adf9b6b56f11e439bb3f325e748a38ced94253e3b1898050"
+  "content_sha256": "f4767775d8d8a70cbb187c408a3a5bf88daa080fa1ce70c591452cbd9f323737"
 }

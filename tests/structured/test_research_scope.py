@@ -41,6 +41,29 @@ def test_optional_columns_are_narrowed_including_em_m():
     assert 'ALL' not in params['columns']
 
 
+def test_retrieval_timestamp_is_provenance_only():
+    scope = load_scope()
+    for dataset_id, rule in scope['datasets'].items():
+        assert '__retrieved_at' not in rule.get('request_fields', [])
+    profile = load_research_profile(LITE_PROFILE_ID)
+    for rule in profile['datasets'].values():
+        assert '__retrieved_at' not in rule.get('fields', [])
+    params = request_fields('company_basic', {'columns': 'ALL'})
+    assert '__retrieved_at' not in params['columns'].split(',')
+
+
+def test_request_fields_excludes_local_provenance_from_legacy_profile(monkeypatch):
+    from analysis.structured import scope as scope_module
+
+    rule = dict(load_scope()['datasets']['company_basic'])
+    rule['request_fields'] = [*rule['request_fields'], '__retrieved_at']
+    monkeypatch.setattr(scope_module, 'load_scope', lambda: {'datasets': {'company_basic': rule}})
+    for parameter in ('columns', 'fields', 'sty'):
+        params = request_fields('company_basic', {parameter: 'ALL'})
+        assert '__retrieved_at' not in params[parameter].split(',')
+        assert 'SECUCODE' in params[parameter].split(',')
+
+
 def test_lite_profile_narrows_plan_request_and_network_binding():
     profile=load_research_profile(LITE_PROFILE_ID)
     assert sum(map(len,profile['question_routing'].values()))==54

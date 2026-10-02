@@ -119,6 +119,9 @@ def request_fields(dataset_id, params, profile_id=None, *, research_profile_id=N
         if profile_id:
             fields |= set(profile_fields(profile_id, dataset_id))
         fields &= set(rule["request_fields"])
+    # Local provenance is never an upstream column, even if an old profile
+    # or an industry overlay still includes it.
+    fields.discard("__retrieved_at")
     fields = sorted(fields)
     for key in ("columns", "fields", "sty"):
         if key in result:

@@ -86,7 +86,9 @@ class DatasetDefinition(FrozenStructuredModel):
         "on_demand_complete_pagination",
     ]
     primary_key_fields: tuple[str, ...] = Field(min_length=1)
-    date_fields: tuple[str, ...] = Field(min_length=1)
+    # Some upstream datasets expose no business date. Observation time is
+    # stored separately and must not supply a synthetic business period.
+    date_fields: tuple[str, ...]
     pagination: Literal["page_number", "financial_date_catalog", "sdk_exhaustion", "none"]
     update_category: Literal["financial", "market", "event", "snapshot", "on_demand"]
     empty_result: EmptyResultContract
@@ -98,6 +100,9 @@ class DatasetDefinition(FrozenStructuredModel):
 
 class DatasetRegistry(RegistryEnvelope):
     registry_kind: Literal[RegistryKind.DATASETS]
+    # Local record metadata can change without changing the upstream protocol.
+    # Older registries use their own version for both identities.
+    source_definition_version: str | None = Field(default=None, pattern=r"^\d+\.\d+\.\d+$")
     datasets: tuple[DatasetDefinition, ...] = Field(min_length=1)
 
 

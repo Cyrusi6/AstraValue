@@ -105,6 +105,10 @@ def test_plan_is_durable_idempotent_and_empty_dataset_list_means_all(tmp_path):
         run_id = first["run_ids"][0]
         context = service.storage.get_run_context(run_id)
         assert context.frozen_config["datasets"][0]["dataset_id"] == "company_basic"
+        assert context.dataset_registry_version == service.runtime.bundle.datasets.version
+        job = service.storage.list_jobs(run_id, limit=None)[0]
+        source_version = service.runtime.bundle.datasets.source_definition_version
+        assert job['source_definition_version'] == (source_version or context.dataset_registry_version)
         assert service.status(run_id)["pending"] == 1
     finally:
         acquisition_runtime.close()
@@ -125,6 +129,7 @@ def test_http_page_is_snapshotted_then_projected_under_shared_run(tmp_path):
         assert request.url.host == "datacenter.eastmoney.com"
         assert request.url.params["pageNumber"] == "1"
         assert request.url.params["filter"] == '(SECUCODE="600519.SH")'
+        assert '__retrieved_at' not in request.url.params['columns']
         return httpx.Response(
             200,
             json={
@@ -174,11 +179,28 @@ def test_http_page_is_snapshotted_then_projected_under_shared_run(tmp_path):
         )
         assert pages[0]["terminal"] is True
         assert records[0]["raw_row"]["__retrieved_at"].endswith("+00:00")
-        assert {item["raw_field_name"] for item in fields} >= {
+        assert {item["raw_field_name"] for item in fields} == {
             "SECUCODE",
             "ORG_CODE",
             "ORG_NAME",
         }
+        assert all(item['period_key'] is None for item in fields)
+        # A later observation of identical upstream content must not create
+        # another content version or supply a business period.
+        raw = {k: v for k, v in records[0]['raw_row'].items() if k != '__retrieved_at'}
+        context = service.storage.get_run_context(run_id)
+        dataset = dict(context.frozen_config['datasets'][0])
+        dataset['date_fields'] = ['__retrieved_at']  # Legacy frozen contract.
+        later = datetime.fromisoformat(records[0]['observed_at']) + timedelta(days=1)
+        repeated_records, repeated_fields = service.runtime._project_rows(
+            context, job, dataset,
+            SimpleNamespace(rows=(raw,), page_number=1, response_sha256=pages[0]['content_hash']),
+            snapshot_id=pages[0]['snapshot_id'], observed_at=later,
+        )
+        assert repeated_records[0]['version_hash'] == records[0]['version_hash']
+        assert repeated_records[0]['raw_row']['__retrieved_at'] == later.isoformat()
+        assert all(item['period_key'] is None for item in repeated_fields)
+        assert '__retrieved_at' not in {item['raw_field_name'] for item in repeated_fields}
         assert coverage[0]["status"] == "complete"
         assert snapshot.physical_query_plan_item_id == job["plan_item_id"]
     finally:

@@ -527,11 +527,12 @@ class StructuredDataRuntime:
             planning_datasets = tuple(
                 {
                     **item.model_dump(mode="json"),
-                    # The dataset registry version is also the frozen version
-                    # of the generated source definitions.  Keep it on each
-                    # planning item so a registry bump cannot fall back to
-                    # planner's legacy 1.0.0 default and miss the bound source.
-                    "source_definition_version": self.bundle.datasets.version,
+                    # Bind the actual source contract; a local metadata fix
+                    # need not invalidate the unchanged upstream protocol.
+                    "source_definition_version": (
+                        self.bundle.datasets.source_definition_version
+                        or self.bundle.datasets.version
+                    ),
                     "earliest_available_at": earliest_available_at(item),
                     "history_boundary_kind": (
                         "conservative_query_floor_not_availability_claim"
@@ -2090,7 +2091,8 @@ class StructuredDataRuntime:
         fields: list[dict[str, Any]] = []
         for ordinal, raw in enumerate(page.rows):
             row = dict(raw)
-            # Retrieval time is provenance metadata, never part of row identity.
+            # Keep retrieval time locally, outside upstream field projection,
+            # business periods and content version hashing.
             row.setdefault("__retrieved_at", observed_at.isoformat())
             key_fields = tuple(dataset["primary_key_fields"])
             if job["purpose"] == "company_type":
@@ -2107,7 +2109,7 @@ class StructuredDataRuntime:
                     )
             version = RecordVersion.create(
                 dataset_id=job["dataset_id"],
-                raw_row=row,
+                raw_row=raw,
                 key_fields=key_fields,
                 snapshot_sha256=page.response_sha256,
                 retrieved_at=observed_at,
@@ -2138,14 +2140,14 @@ class StructuredDataRuntime:
             )
             period_key = next(
                 (
-                    str(row[name])
+                    str(raw[name])
                     for name in dataset.get("date_fields") or ()
-                    if row.get(name) not in (None, "")
+                    if raw.get(name) not in (None, "")
                 ),
                 None,
             )
             for mapped in map_row(
-                job["dataset_id"], row, known_fields=known_fields
+                job["dataset_id"], raw, known_fields=known_fields
             ):
                 fields.append(
                     {
@@ -2375,7 +2377,7 @@ def _build_sources(
         )
         payload = {
             "source_definition_id": f"structured-{provider}",
-            "version": bundle.datasets.version,
+            "version": bundle.datasets.source_definition_version or bundle.datasets.version,
             "upstream_identity": provider,
             "queries": [item.to_mapping() for item in queries],
             "retry_policy": {
