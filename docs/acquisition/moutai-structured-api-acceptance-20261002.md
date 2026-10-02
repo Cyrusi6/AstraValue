@@ -8,7 +8,7 @@
 
 9 个空响应已逐项查明到来源覆盖层面：东方财富当前主题表没有贵州茅台的记录。旧取证中“有数据”的部分来自同行样本，茅台自身的补充证据来自年报/中报正文。未发现这 9 个接口过去曾返回茅台结构化记录的证据。供应商未收录的内部原因无法由当前响应确定。
 
-整批 incremental 仍在创建运行及联网前被 9 项空 coverage 阻止。`reconcile` 已真实复查这 9 项，仍为空。用户随后决定将其补齐列为后续工作；下一步先明确其余适用数据集的验收范围并完成真实增量，本记录中的全范围增量仍未通过。
+本文记录 baseline 验收时的状态：整批 incremental 当时被 9 项空 coverage 阻止。`reconcile` 复查仍为空，用户随后将其补齐延期。后续已落实 22 项采集范围并修复完整空查询规则，真实增量证据另见 [增量与恢复验收](moutai-incremental-recovery-20261002.md)；本文原始运行及计数保持不变。
 
 ## 验收对象与证据
 
@@ -84,7 +84,7 @@ HTTP 均为 200。协议解析器将已登记的 `9201` 转为零行终止页；
 - 全量 Python：**1,729 passed、14 skipped、1 failed**。唯一失败为 `tests/knowledge/release/test_full_release.py::test_all_54_questions_and_recorded_acceptance_are_ready`，当前候选缺 Agent 样例和人工 review。这是已有发布门，未删除或放宽。日志：`tmp/provenance-final-regression-20261002.log` 和同名 XML。
 - 前端构建、OpenSpec strict（2 项）通过；旧 `src/analysis/adapters/`、旧 `structured/research.py` 及旧包装入口均不存在。
 
-后续决定：用户将本轮茅台 9 项 API 空响应的补齐延期。原始 `no_data`、快照及已取得的报告证据继续保留；下一步验收其余适用数据集，并列明未验收的后补项。当前增量代码和 required/conditional 配置尚未调整，本文不据此改写已记录运行的状态或水位线。
+后续决定：本轮茅台 9 项 API 补齐延期。其余 22 项已完成真实增量，完整空查询不再禁止更新，未完成任务按原窗口独立恢复。原始 `no_data`、快照、报告证据和本记录中的水位线保持不变。
 
 报告人工阅读、知识发布门、真实治理 manifest 和分支收口仍按原清单验收，本次字段修复不关闭这些门。
 

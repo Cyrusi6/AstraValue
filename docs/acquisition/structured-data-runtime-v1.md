@@ -2,7 +2,7 @@
 
 本文说明 `structured-data-first-v1` 分支的软件入口和验收边界。结构化来源的成功字段可以在来源、字段定义、快照、行键、字段路径和质量检查全部绑定后直接消费；这不等于双源一致、正式披露核验、方法完成或人工验收。
 
-2026-09-13 范围更新：后续研究按 [八步数据与文件采集清单](eight-step-data-and-document-scope.md) 选择字段、期间和文件。本次只改文档，未改变下面 CLI 中“省略 `--dataset` 表示全部适用数据集”的旧行为；这些旧示例不能直接当作新推荐采集范围。新请求端约束在 [OpenSpec 1.9](../../openspec/changes/eight-step-production-pipeline-v1/tasks.md) 实施，现有生产缓存盘点见清单第 9 节。本文后部“尚未运行”等是原交付时点状态，后续运行与验收以阶段日志和对应证据为准。
+当前范围：按 [八步数据与文件采集清单](eight-step-data-and-document-scope.md) 和 `research_scope.v1.json` 选择字段、期间和文件。省略 `--dataset` 或传空数组使用默认研究范围，贵州茅台按用户决定延期 9 项，本轮执行其余 22 项；其他公司范围不变。显式 `--dataset` 仍可补采延期项。本文后部“尚未运行”等是原交付时点状态，后续运行与验收以阶段日志和对应证据为准。
 
 ## 配置合同
 
@@ -36,7 +36,7 @@ python -m compileall -q src
 ## CLI
 
 ```powershell
-# 零网络生成并持久化 baseline 计划；留空 --dataset 表示全部适用数据集
+# 零网络生成并持久化 baseline 计划；留空 --dataset 使用默认研究范围
 python -m analysis.cli structured plan 600519 --mode baseline `
   --company-scope company-only `
   --db var/pilots/structured-v1/analysis.db `
@@ -61,7 +61,7 @@ python -m analysis.cli structured resolve 600519 --db var/pilots/structured-v1/a
 python -m analysis.cli structured profile 600519 --db var/pilots/structured-v1/analysis.db --data-root var/pilots/structured-v1/data --json
 python -m analysis.cli structured peers 600519 --company-scope company-with-peers --db var/pilots/structured-v1/analysis.db --data-root var/pilots/structured-v1/data --json
 
-# 只从已终结 structured parent 的失败/空响应/不安全 coverage 生成定向 reconcile
+# 从已终结 structured parent 的未完成窗口生成定向 reconcile
 python -m analysis.cli structured plan 600519 --mode reconcile --from-run PARENT_RUN_ID `
   --dataset company_basic `
   --db var/pilots/structured-v1/analysis.db `
@@ -69,9 +69,15 @@ python -m analysis.cli structured plan 600519 --mode reconcile --from-run PARENT
 # 也可用 --from-latest 选择最近一个已终结 structured parent
 ```
 
-`baseline` 枚举供应商可得历史，`incremental` 只计划新期间与登记重叠范围，`due` 只执行本轮到期工作并退出。显式 `--dataset` 是受控子集，不代表全部适用数据集覆盖；不传该参数以及 API/前端传空数组都表示全部适用数据集。
+`baseline` 枚举选定范围内的供应商可得历史，`incremental` 只计划新期间与登记重叠范围，`due` 只执行本轮到期工作并退出。显式 `--dataset` 选择具体数据集；默认研究范围和单公司延期清单随运行冻结，在计划和状态返回，延期 baseline 不标为完整生产范围。
 
-`reconcile` 只允许以已 `finalized` 的 structured run 为 parent；计划从该 parent 每个 scope 的最新 coverage 中选择 `failed`、`partial`、`no_data` 或缺少 `safe_through` 的范围，并重建原冻结时间窗和查询参数。成功且安全的 coverage 不会被重采，找不到不安全目标、parent 未终结、身份或冻结 registry 不匹配时在联网前拒绝。reconcile 执行仍通过普通 snapshot/page/record/coverage 链，代码不会手工推进水位线或把失败写成成功。
+`no_data` 表示本次没有返回记录。协议正常、分页完整且终页明确时，系统同时保存 `query_complete=true` 与实际查询截止时间，记录“本次已查完但没有数据”；首次查询和增量均允许以后继续联网，不要求先有历史数据。原有记录保留，不补零、不推断公司无事项。`completed_empty_jobs` 单列已完整查询的空任务数。
+
+`reconcile` 只允许以已 `finalized` 的 structured run 为 parent；选择失败、分页不完整或缺少安全查询进度的窗口，重建原冻结时间窗和查询参数。完整空查询不再是恢复目标；旧规则留下的无进度空响应通过 reconcile 重新查询、追加证据并关联原任务，随后继续增量。超时、失败、漏页保留未完成位置与已提交页，通过重试、resume 或 reconcile 恢复，不手工修改水位线。
+
+`incremental` 同时安排两类工作：正常数据集继续增量，未完成项目在原窗口补采。一次失败不会中止其他数据集；只将依赖缺失输入的任务暂缓。没有历史记录的项目从当前研究范围起点采集。`status.summary` 返回更新成功、完整为空和未完成列表；未完成项包含原因、时间窗、`resume_page`、`resume_action` 及缺少的前置 job。`runnable_finished=true` 表示本轮可执行任务已结束，仍需检查未完成清单。
+
+恢复时先核查已保存页与原始快照：有效前缀复用，异常页重新请求；有效终页已保存但完成事件缺失时，补写完成证明，不请求多余一页。修复产生新页版本，旧页和原始响应继续留存；物化只使用恢复后验证通过的页。工作区汇总在各数据集都运行后生成，部分成果保持 `partial` 并保存可用候选快照。
 
 ### 行键、分页完整性与报告期缺失
 

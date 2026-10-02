@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-10-02（9 项茅台 API 空响应补齐已由用户决定延期）
+更新时间：2026-10-02（延期范围、增量和空查询规则已落实，失败隔离与恢复已接入）
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
@@ -26,7 +26,7 @@
 | P14 | OpenSpec、分支和工作树：2026-10-02 核对 `main` 为 `181a4cb`、`codex/knowledge-base-v1` 为 `027ac38`；fact 候选已包含清理、增量修复、知识候选、治理接入，最新采集时间修复代码为 `4c203d5`。三份未跟踪报告材料继续保留；其他 worktree 的未提交内容须在合并前核对。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
-当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档、business-profile 研究工作区 adapter 和旧报告编辑链删除已实现并通过针对性回归；有效截止日的 `income_fields` 真实增量及同参数重复采集已完成，最新空根 baseline 为 53 成功、9 空响应、0 失败。用户已将 9 项空响应补齐列为后续工作；本轮其余适用数据集的范围落实和真实增量验收待完成，当前全范围增量代码仍保留原门禁。治理独立编排的删除及共享 workspace 接入已实现并通过针对性回归；治理真实 manifest 尚未登记，业务样本验收待补。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
+当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。治理真实 manifest、知识候选 review/Agent/人工验收及报告人工验收仍待完成；在此之前保留候选材料、worktree 和分支。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
 
 ## 决策与验收边界
 
@@ -46,8 +46,8 @@
 
 当前尚未等同于完成的事项：
 
-1. 旧 adapters、全量编排、旧报告编辑方法和直接报告写入口已删除；知识候选、发布门和历史 acceptance 已选择性迁入，治理共享 workspace 已接入。真实治理资料、知识与报告的人工验收、完整增量和分支收口仍未完成。
-2. 600519 已在空数据根完成真实结构化 baseline、重复计划幂等、有效截止日 `income_fields` 增量和重复增量幂等、物化及研究包/报告回放；2026-10-02 新空根 baseline 的 3 个失败已修复，完整增量仍受 9 项空响应 coverage 门禁；详见 `docs/acquisition/moutai-structured-api-acceptance-20261002.md`。
+1. 旧重复链已删除，治理共享 workspace 已接入。真实治理资料、知识与报告的人工验收及分支收口仍未完成。
+2. 600519 本轮 22 项范围的真实增量、重复运行和中断接续已验证；9 项原始空响应和已有报告证据保留为后补项。真实接口本次未披露新增业务行，新增入库分支另由受控上游变化测试验证。
 3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
 4. 分支删除属于最后一步；未提交内容未保存、测试或人工验收未完成时不得执行。
 
@@ -61,3 +61,4 @@
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。
 - 结构化 API 真实回采：`docs/acquisition/moutai-structured-api-recapture-20260928.md`。
 - 最新字段修复与 9 项空响应归因：[真实 API 验收](acquisition/moutai-structured-api-acceptance-20261002.md)、[逐主题来源对照](acquisition/moutai-no-data-source-comparison-20261002.md)。
+- 本轮范围、空查询、失败隔离与恢复：[增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
