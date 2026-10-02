@@ -52,6 +52,10 @@ def present(item,period=None):
             'scope':'仅列明期间及资料范围；原文可读不表示已进入正式计算'}
     if value=='alternative':result['reason']='已有替代资料，原供应商字段保留为空；观察日期不等于历史生效日期'
     if isinstance(item.get('payload'),dict) and item['payload'].get('scope'):result['scope']=item['payload']['scope']
+    if isinstance(item.get('payload'),dict) and item['payload'].get('acquisition_coverage'):
+        receipt=item['payload']['acquisition_coverage']
+        result['source_query_status']=receipt['state']
+        result['source_query_scope']=receipt['scope']
     return result
 
 

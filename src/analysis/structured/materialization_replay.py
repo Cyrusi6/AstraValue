@@ -16,7 +16,13 @@ from analysis.acquisition.bootstrap import ROOT_MARKER_NAME
 from analysis.acquisition.repository import AcquisitionRepository
 from .materialization import StructuredFactMaterializer
 from .storage import StructuredStorage
-from .storage import canonical_json
+from .storage import canonical_json, canonical_sha256
+
+
+PROJECTION_SCHEMA_VERSION = "structured-standalone-projection-v1.1.0"
+PROJECTION_FILES = ("facts.jsonl", "field-gaps.jsonl", "sources.jsonl", "dimensional-facts.jsonl",
+                    "events.jsonl", "coverage.json", "samples.json")
+RESEARCH_FILES = ("normalized-records.jsonl", "acquisition-coverage.jsonl", "record-gaps.jsonl")
 
 
 def replay(db: Path, data_root: Path, run_id: str, *, profile_memory: bool = False,
@@ -103,18 +109,22 @@ def replay(db: Path, data_root: Path, run_id: str, *, profile_memory: bool = Fal
     return summary
 
 
-def _export_result(result, output_dir, namespace):
+def _export_result(result, output_dir, namespace, *, research_projection=None):
     """Stable standalone evidence files; these are not a rebound projection DB."""
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    projection_hash = canonical_sha256({"materialization_hash": result.materialization_hash,
+        "schema": PROJECTION_SCHEMA_VERSION, "research": {
+            key: value for key, value in (research_projection or {}).items() if key != "sources"}})
     previous = output_dir / "manifest.json"
     if previous.exists():
         old = json.loads(previous.read_text(encoding="utf-8"))
-        old_hash = old.get("materialization_hash")
-        if old_hash and old_hash != result.materialization_hash:
+        old_hash = old.get("projection_hash") or old.get("materialization_hash")
+        if old_hash and old_hash != projection_hash:
             import shutil
             history = output_dir / "history" / old_hash
             history.mkdir(parents=True, exist_ok=True)
-            for name in ("facts.jsonl", "field-gaps.jsonl", "sources.jsonl", "dimensional-facts.jsonl", "events.jsonl", "manifest.json", "coverage.json", "samples.json"):
+            for name in (*PROJECTION_FILES, *RESEARCH_FILES, "manifest.json"):
                 source = output_dir / name
                 if source.exists() and not (history/name).exists():
                     shutil.copy2(source, history/name)
@@ -137,21 +147,43 @@ def _export_result(result, output_dir, namespace):
                 if expected != Decimal(f.metadata["decimal_value"]) or float(expected) != f.value:
                     raise ValueError("exported numeric value cannot be recomputed")
                 samples.setdefault(key, f.model_dump(mode="json"))
-    for name, items in (("field-gaps", result.field_gaps), ("sources", result.sources),
-                        ("dimensional-facts", result.dimensional_facts), ("events", result.events)):
+    sources = {source.source_id: source for source in result.sources}
+    for source in (research_projection or {}).get("sources", ()):
+        if source.source_id in sources and sources[source.source_id] != source:
+            raise ValueError(f"projection_conflicting_source:{source.source_id}")
+        sources[source.source_id] = source
+    rows = [("field-gaps", result.field_gaps), ("sources", [sources[key] for key in sorted(sources)]),
+            ("dimensional-facts", result.dimensional_facts), ("events", result.events)]
+    if research_projection is not None:
+        rows.extend((("normalized-records", research_projection["records"]),
+                     ("acquisition-coverage", research_projection["acquisition_coverage"]),
+                     ("record-gaps", research_projection["gaps"])))
+    for name, items in rows:
         with (output_dir / (name+".jsonl")).open("w", encoding="utf-8", newline="\n") as stream:
             for item in items:
                 stream.write(canonical_json(item.model_dump(mode="json") if hasattr(item, "model_dump") else item)+"\n")
     coverage = [{"dataset_id":k[0], "metric_id":k[1], "period_type":k[2],
         "fact_count":v, "consumable_count":selected_counts[k]} for k,v in sorted(counts.items())]
-    payloads = {"manifest": {**result.to_mapping(), "source_namespace_id":namespace,
-        "projection_namespace_id":None, "projection_kind":"readonly_standalone_files"},
-        "coverage":coverage, "samples":[samples[k] for k in sorted(samples)]}
+    payloads = {"coverage":coverage, "samples":[samples[k] for k in sorted(samples)]}
     for name, payload in payloads.items():
         (output_dir / (name+".json")).write_text(canonical_json(payload)+"\n", encoding="utf-8")
-    files = ["facts.jsonl", "field-gaps.jsonl", "sources.jsonl", "dimensional-facts.jsonl", "events.jsonl",
-             "manifest.json", "coverage.json", "samples.json"]
-    return {name: {"path":str(output_dir / name), "sha256":_hash_file(output_dir / name)} for name in files}
+    files = (*PROJECTION_FILES, *(RESEARCH_FILES if research_projection is not None else ()))
+    exports = {name: {"path": str((output_dir / name).resolve()), "sha256": _hash_file(output_dir / name)} for name in files}
+    manifest = {**result.to_mapping(), "source_count": len(sources), "source_namespace_id": namespace,
+        "projection_namespace_id": None, "projection_kind": "readonly_standalone_files",
+        "projection_schema_version": PROJECTION_SCHEMA_VERSION, "projection_hash": projection_hash,
+        "exports": exports}
+    if research_projection is not None:
+        manifest.update(research_projection_version=research_projection["version"],
+            normalized_record_count=len(research_projection["records"]),
+            acquisition_coverage_count=len(research_projection["acquisition_coverage"]),
+            record_gap_count=len(research_projection["gaps"]),
+            research_scope_sha256=research_projection["scope_sha256"],
+            research_profile_id=research_projection["profile_id"],
+            research_profile_sha256=research_projection["profile_sha256"])
+    (output_dir / "manifest.json").write_text(canonical_json(manifest)+"\n", encoding="utf-8")
+    return {**exports, "manifest.json": {"path": str((output_dir / "manifest.json").resolve()),
+                                         "sha256": _hash_file(output_dir / "manifest.json")}}
 
 
 def _hash_file(path):

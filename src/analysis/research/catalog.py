@@ -6,7 +6,7 @@ import re
 import sqlite3
 from typing import Annotated, Literal
 from pydantic import Field
-from .workspace import ResearchError, digest, sha, read_json, validate_integer_parameter
+from .workspace import ResearchError, digest, sha, read_json, validate_integer_parameter, event_reading_rows
 
 CATEGORIES={'metrics':'财务指标与字段','statements':'完整合并三大报表','notes':'报表附注',
     'business':'业务与经营','governance':'治理与风险','capital':'资本配置与分红',
@@ -14,6 +14,91 @@ CATEGORIES={'metrics':'财务指标与字段','statements':'完整合并三大�
 GROUP={'A':'business','B':'metrics','C':'governance','D':'capital','E':'industry','F':'valuation'}
 STATUS={'readable':'已有原文','processing':'待处理','missing':'尚未取得'}
 from .material_status import present, period_statuses
+
+
+def projection_files(manifest, names):
+    """Yield registered files from both company roots and current run directories."""
+    seen = {}
+    for descriptor in manifest.get('source_inputs', []) + manifest.get('auxiliary_inputs', []):
+        for name, file in descriptor.get('files', {}).items():
+            if name.replace('\\', '/').rsplit('/', 1)[-1] not in names:
+                continue
+            path = str(Path(file['path']).resolve())
+            if path in seen:
+                if seen[path] != file['sha256']:
+                    raise ResearchError('catalog_projection_descriptor_conflict')
+                continue
+            seen[path] = file['sha256']
+            yield file
+
+
+def dataset_fact_ids(manifest, pack, ticker):
+    """Locate only already admitted pack facts; a metric name cannot prove its dataset."""
+    selected = {m['fact']['fact_id']: m['fact'] for m in pack['metrics']
+                if m.get('state') == 'ready' and m.get('fact')}
+    datasets = defaultdict(set)
+    for file in projection_files(manifest, {'facts.jsonl', 'dimensional-facts.jsonl', 'coverage-facts.jsonl'}):
+        path = Path(file['path'])
+        if sha(path) != file['sha256']:
+            raise ResearchError('catalog_projection_changed')
+        with path.open(encoding='utf8') as stream:
+            for line in stream:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                ident = row.get('fact_id') or row.get('dimensional_fact_id')
+                if ident not in selected:
+                    continue
+                if row.get('ticker') != ticker:
+                    raise ResearchError('catalog_fact_company_mismatch')
+                metadata = row.get('metadata') or {}
+                namespace = metadata.get('storage_namespace_id')
+                if selected[ident].get('source_namespace_id') not in {None, namespace}:
+                    continue
+                dataset = metadata.get('structured_dataset_id')
+                if dataset:
+                    datasets[dataset].add(ident)
+    return datasets
+
+
+def acquisition_coverage(manifest, ticker, as_of, scope):
+    """Keep frozen query receipts distinct from business records and admitted numbers."""
+    from analysis.structured.runtime import _effective_coverage, _query_complete
+    groups = defaultdict(list)
+    files = list(projection_files(manifest, {'acquisition-coverage.jsonl'}))
+    for file in files:
+        path = Path(file['path'])
+        if sha(path) != file['sha256']:
+            raise ResearchError('catalog_projection_changed')
+        for line in path.read_text('utf8').splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            rule = scope.get(row['dataset_id'], {})
+            if row.get('company_id') not in {ticker, 'company:'+ticker}:
+                continue
+            if not rule or rule.get('selection') == 'excluded':
+                continue
+            if (row.get('recorded_at') or '')[:10] > as_of:
+                continue
+            groups[row['dataset_id']].append({'coverage': row, 'source_path': str(path),
+                                              'source_sha256': file['sha256']})
+    summaries = {}
+    for dataset, receipts in groups.items():
+        namespaces = defaultdict(list)
+        for receipt in receipts:
+            row = receipt['coverage']
+            namespaces[row.get('storage_namespace_id')].append(row)
+        effective = [row for rows in namespaces.values() for row in _effective_coverage(rows)]
+        unfinished = [row for row in effective if not _query_complete(row)]
+        empty = [row for row in effective if row['status'] == 'no_data' and _query_complete(row)]
+        state = ('acquisition_incomplete' if not effective or unfinished else 'source_returned_empty'
+                 if len(empty) == len(effective) else 'query_completed')
+        summaries[dataset] = {'state': state, 'effective_record_ids': [r['coverage_record_id'] for r in effective],
+            'unfinished_record_ids': [r['coverage_record_id'] for r in unfinished],
+            'empty_query_record_ids': [r['coverage_record_id'] for r in empty], 'receipts': receipts,
+            'scope': '所列查询窗口的采集状态；空响应不证明公司无事项，后续日期可继续更新。'}
+    return summaries, files
 
 
 def classify_filing(title):
@@ -60,19 +145,28 @@ class Catalog:
             'unindexed_selected':data['unindexed_selected'],'reprocessed_notes':sorted(selected)})
 
     def _load(self,rid):
-        s,_,pack=self.w.pack(rid)
+        s,pack_path,pack=self.w.pack(rid)
         records=self.w.artifacts(rid,'material_catalog')
         if not records:
             self.refresh_catalog(rid);records=self.w.artifacts(rid,'material_catalog')
         r=records[-1];p=Path(r['path'])
         if sha(p)!=r['sha256']:raise ResearchError('catalog_integrity_failed')
+        data=read_json(p);manifest=read_json(pack_path/'manifest.json')
+        # Existing catalogs may predate indexing runs/<id>/normalized-records.jsonl.
+        expected={f['path'] for f in projection_files(manifest, {'normalized-records.jsonl', 'acquisition-coverage.jsonl'})}
+        expected_events={row['event_id'] for row in event_reading_rows(pack,s['ticker'],s['as_of'])}
+        indexed_events={r['payload'].get('event_id') for r in data['items'] if isinstance(r.get('payload'),dict)}
+        if expected-set(data.get('audit_scope',{}).get('projection_files',[])) or expected_events-indexed_events:
+            record=self.refresh_catalog(rid);p=Path(record['path'])
+            if sha(p)!=record['sha256']:raise ResearchError('catalog_integrity_failed')
+            data=read_json(p)
         from .availability import reconcile
         from .filing_checks import enrich
         from .api_materials import enrich as enrich_api
         from .sw_industry import enrich as enrich_sw
-        view = enrich_sw(enrich_api(enrich(read_json(p),pack),self.w.artifacts(rid,'catalog_api_materials')),
+        view = enrich_sw(enrich_api(enrich(data,pack),self.w.artifacts(rid,'catalog_api_materials')),
                          self.w.artifacts(rid,'sw_industry_classification'),s)
-        return s,reconcile(view,pack)
+        return s,reconcile(view,pack,dataset_fact_ids(manifest,pack,s['ticker']))
 
     def refresh_catalog(self,research_id:str):
         """Audit registered local caches against useful research materials. No network or blanket ingestion."""
@@ -102,10 +196,15 @@ class Catalog:
             if e.get('original_sha256'):seen_sources.add(e['original_sha256'])
             add(GROUP.get(e.get('group'),'business'),e.get('title') or e.get('slot_id') or '公司原文',e.get('period'),
                 'readable','evidence',{'evidence_id':e['evidence_id']},'已选研究证据，可核对上下文',e['evidence_id'])
+        for row in event_reading_rows(pack,s['ticker'],s['as_of']):
+            event=row['event']
+            add(GROUP[row['group']],event['summary'],row['period'],'readable','evidence',
+                {'evidence_id':row['event_id'],'event_id':row['event_id']},
+                '已采事件记录的公告时间、方案条款、生命周期及来源','event:'+row['event_id'])
         scope=load_scope()['datasets'];seen_files=set();present=set()
-        for descriptor in manifest.get('source_inputs',[])+manifest.get('auxiliary_inputs',[]):
-            file=descriptor.get('files',{}).get('normalized-records.jsonl')
-            if not file or file['path'] in seen_files:continue
+        coverage,coverage_files=acquisition_coverage(manifest,s['ticker'],s['as_of'],scope)
+        seen_files.update(file['path'] for file in coverage_files)
+        for file in projection_files(manifest, {'normalized-records.jsonl'}):
             seen_files.add(file['path']);p=Path(file['path'])
             if sha(p)!=file['sha256']:raise ResearchError('catalog_projection_changed')
             datasets=defaultdict(list)
@@ -115,6 +214,7 @@ class Catalog:
                 if row.get('company')!=s['ticker']:exclude(key,'other_company');continue
                 if rule.get('selection')=='excluded' or not rule.get('question_ids'):exclude(key,'outside_research_scope');continue
                 if (row.get('period') or '')>s['as_of']:exclude(key,'period_after_cutoff');continue
+                if (row.get('available_at') or '')[:10]>s['as_of']:exclude(key,'record_available_after_cutoff');continue
                 datasets[row['dataset_id']].append(row);present.add(row['dataset_id'])
             for ds,rows in datasets.items():
                 key=str(p)+':'+ds;rule=scope[ds]
@@ -124,6 +224,7 @@ class Catalog:
                 parent_id=add('metrics',ds+' 原始字段',sorted({r['period'] for r in rows if r.get('period')}),status,
                     'records',{'rows':rows,'fields':sorted(allowed),'source_path':str(p),'source_sha256':file['sha256'],
                         'numeric_consumption':'仅已有正式fact_id可作正式计算输入'},rule['purpose'],key)
+                if ds in coverage:items[parent_id]['payload']['acquisition_coverage']=coverage[ds]
                 for field in sorted(allowed):
                     has_value=any(r['fields'].get(field) is not None for r in rows)
                     child=add('metrics',ds+'.'+field,items[parent_id]['period'],'readable' if has_value else 'processing',
@@ -133,7 +234,9 @@ class Catalog:
                 for r in rows:ledger.append({'source_key':str(p)+':'+r['record_id'],'decision':'indexed','material_id':material_id})
         for ds,rule in scope.items():
             if rule['selection']=='required' and ds not in present:
-                add('metrics',ds,[], 'missing','missing',{'dataset_id':ds,'next_action':'request_materials'},rule['purpose'],'missing-dataset:'+ds)
+                payload={'dataset_id':ds,'next_action':'request_materials'}
+                if ds in coverage:payload['acquisition_coverage']=coverage[ds]
+                add('metrics',ds,[], 'missing','missing',payload,rule['purpose'],'missing-dataset:'+ds)
         # Index topical notes from already verified filings; original pages remain available.
         documents={r['sha256']:r for r in pack.get('statements',[])}
         import fitz
@@ -187,7 +290,7 @@ class Catalog:
         earliest=min(pack.get('periods',{}).get('annual',[s['as_of']]))[:4]+'-01-01'
         cache_roots=[]
         for cache in self.w.config.get('valuation_caches',[]):
-            db=Path(cache['db']);root=Path(cache['data_root']);cache_roots.append(str(db))
+            db=self.w.path(cache['db']);root=self.w.path(cache['data_root']);cache_roots.append(str(db))
             if not db.exists():exclude(str(db),'configured_cache_unavailable');continue
             with sqlite3.connect(db.as_uri()+'?mode=ro',uri=True) as con:
                 if not con.execute("select name from sqlite_master where name='raw_resource_snapshots'").fetchone():continue
@@ -301,6 +404,13 @@ class Catalog:
         s=self.w.task(research_id)[0];data=loaded if loaded is not None else self._load(research_id)[1];r=next((r for r in data['items'] if r['material_id']==material_id),None)
         if not r:raise ResearchError('material_not_in_current_catalog')
         p=r['payload'];reader=r['reader'];common={'material_id':material_id,'status':r['status'],'status_label':r['status_label'],'snapshot_id':s['snapshot_id']}
+        acquisition=p.get('acquisition_coverage') if isinstance(p,dict) else None
+        verified_coverage=set()
+        for receipt in (acquisition or {}).get('receipts',[]):
+            if receipt['source_path'] in verified_coverage:continue
+            if sha(Path(receipt['source_path']))!=receipt['source_sha256']:
+                raise ResearchError('material_projection_changed')
+            verified_coverage.add(receipt['source_path'])
         if table_id and reader!='topic':raise ResearchError('table_id_requires_topic')
         if reader=='sw_classification':
             if period and period not in r['period']:raise ResearchError('material_period_not_available')
@@ -319,6 +429,7 @@ class Catalog:
             from .availability import resolved_view
             from analysis.structured.research_lite import _split_utf8
             view=resolved_view(r,period)|present(r,period)
+            if acquisition:view['acquisition_coverage']=acquisition
             from .material_status import route_status, LABELS
             view['materials']=[{**route,'source_state':route['state'],'state':route_status(route),
                 'status_label':LABELS[route_status(route)]} for route in view['materials']]
@@ -356,7 +467,7 @@ class Catalog:
                         'currency':None,'value':value,'state':'ready' if value is not None else 'missing',
                         'ref':row['record_id']+'@'+row['snapshot_id']})
             p={k:v for k,v in p.items() if k!='rows'}|{'tables':matrix(cells)}
-        if reader=='missing':return common|p
+        if reader=='missing' and not acquisition:return common|p
         if reader=='statement':
             from .statements import Statements
             return common|Statements(self.w).read_statement(research_id,**p,page=page,max_tokens=max_tokens)

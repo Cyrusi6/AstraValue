@@ -62,3 +62,4 @@
 - 结构化 API 真实回采：`docs/acquisition/moutai-structured-api-recapture-20260928.md`。
 - 最新字段修复与 9 项空响应归因：[真实 API 验收](acquisition/moutai-structured-api-acceptance-20261002.md)、[逐主题来源对照](acquisition/moutai-no-data-source-comparison-20261002.md)。
 - 本轮范围、空查询、失败隔离与恢复：[增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
+- 真实报告启动暴露的文件合同迁移问题：[完整修复清单及证据](acquisition/projection-file-contract-audit-20261002.md)。14 类问题已修复，必需输入为 299 项数值就绪、2 项已有原文、12 项待处理；8 条正式分红事件已可读并进入报告输入。使用独立 `workspace-config-repaired-v3.json`，原空快照保留；第一阶段证据见[数值衔接记录](acquisition/moutai-projection-bridge-repair-20261002.md)。

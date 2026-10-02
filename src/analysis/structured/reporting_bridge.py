@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterable, Mapping
 
 from analysis.models import (
     DimensionalFactRecord,
+    EventRecord,
     FactRecord,
     ReportCreateRequest,
     SourceRecord,
@@ -22,7 +23,7 @@ from .scope import LITE_PROFILE_ID, load_research_profile
 from .storage import canonical_sha256
 
 
-REPORT_BRIDGE_VERSION = "eight-step-lite-report-bridge-v1.1.0"
+REPORT_BRIDGE_VERSION = "eight-step-lite-report-bridge-v1.1.1"
 # 原 lite-derived ID 的数值投影合同未变；语义桥升级不能重写旧事实元数据。
 DERIVED_FACT_PROJECTION_VERSION = "eight-step-lite-report-bridge-v1.0.0"
 METRIC_ALIASES = {
@@ -95,6 +96,8 @@ def _validate_pack(pack_dir: Path) -> tuple[dict[str, Any], dict[str, Any], dict
                     _verify_descriptor(descriptor, label=f"{group}[{index}].files.{name}")
             elif "path" in item:
                 _verify_descriptor(item, label=f"{group}[{index}]")
+            for manifest_index, descriptor in enumerate(item.get("manifests", ())):
+                _verify_descriptor(descriptor, label=f"{group}[{index}].manifests[{manifest_index}]")
 
     core = _read_json(pack_dir / "core-pack.json")
     coverage = _read_json(pack_dir / "core-coverage.json")
@@ -115,10 +118,13 @@ def _full_projection_records(
 ) -> tuple[dict[str, FactRecord], dict[str, DimensionalFactRecord]]:
     facts: dict[str, FactRecord] = {}
     dimensions: dict[str, DimensionalFactRecord] = {}
-    for source_input in manifest.get("source_inputs", ()):
-        descriptor = (source_input.get("files") or {}).get("coverage-facts.jsonl")
-        if not descriptor:
-            continue
+    projection_files = (
+        descriptor
+        for source_input in manifest.get("source_inputs", ())
+        for name, descriptor in (source_input.get("files") or {}).items()
+        if Path(name).name in {"coverage-facts.jsonl", "facts.jsonl", "dimensional-facts.jsonl"}
+    )
+    for descriptor in projection_files:
         path = Path(str(descriptor["path"])).resolve()
         for payload in _read_jsonl(path):
             if payload.get("ticker") != ticker:
@@ -352,11 +358,13 @@ def _sources(
     facts: list[FactRecord],
     dimensions: list[DimensionalFactRecord],
     source_lookup: Callable[[str], SourceRecord] | None,
+    events: Iterable[EventRecord] = (),
 ) -> list[SourceRecord]:
+    events = tuple(events)
     required = sorted(
         {
             source_id
-            for item in (*facts, *dimensions)
+            for item in (*facts, *dimensions, *events)
             for source_id in item.source_ids
         }
     )
@@ -372,6 +380,11 @@ def _sources(
         if source is None:
             source = _reconstruct_source(source_id, facts, dimensions)
         _validate_source_binding(source, facts, dimensions)
+        for event in events:
+            if source_id in event.source_ids:
+                if (event.metadata.get("snapshot_sha256") != source.document_hash
+                        or event.metadata.get("structured_snapshot_id") != source.raw_resource_snapshot_id):
+                    raise ValueError(f"report_pack_event_source_binding_mismatch:{event.event_id}")
         result.append(source)
     return result
 
@@ -423,10 +436,10 @@ def _alias_fact(fact: FactRecord, *, annual_periods: set[date]) -> FactRecord | 
 
 
 def _coverage_projection(
-    manifest: Mapping[str, Any], coverage: Mapping[str, Any]
+    manifest: Mapping[str, Any], coverage: Mapping[str, Any], pack_dir: Path | None = None
 ) -> dict[str, Any]:
     from .report_semantics import full_coverage
-    detailed = full_coverage(manifest, _read_jsonl)
+    detailed = full_coverage(manifest, _read_jsonl, pack_dir=pack_dir)
     questions = []
     by_step: dict[str, list[str]] = defaultdict(list)
     for item in coverage.get("question_routes", ()):
@@ -516,7 +529,11 @@ def build_report_request(
         if (alias := _alias_fact(fact, annual_periods=annual_periods)) is not None
     ]
     facts = sorted([*selected, *aliases], key=lambda item: item.fact_id)
-    sources = _sources(manifest, selected, dimensions, source_lookup)
+    events = [EventRecord.model_validate(value) for value in core.get("events", ())]
+    for event in events:
+        if event.ticker != ticker:
+            raise ValueError("report_pack_event_company_mismatch")
+    sources = _sources(manifest, selected, dimensions, source_lookup, events)
 
     as_of_date = date.fromisoformat(str(manifest["as_of"]))
     china_tz = timezone(timedelta(hours=8))
@@ -542,7 +559,7 @@ def build_report_request(
     profile = load_research_profile(str(manifest["profile_id"]))
     supported = profile.get("industry_profile", {}).get("supported_tickers", {})
     resolved_industry = industry or ("消费" if ticker in supported else "未知")
-    report_coverage = _coverage_projection(manifest, coverage)
+    report_coverage = _coverage_projection(manifest, coverage, pack_path)
     coverage_hash = canonical_sha256(report_coverage)
     from .report_semantics import semantic_inputs
     semantic = semantic_inputs(pack_path, manifest, core, as_of, _read_jsonl)
@@ -558,7 +575,7 @@ def build_report_request(
         facts=facts,
         dimensional_facts=dimensions,
         claims=semantic["claims"],
-        events=semantic["events"],
+        events=[*events, *semantic["events"]],
         peer_sets=semantic["peer_sets"],
         use_synced_facts=False,
         research_coverage_snapshot_id="lite-coverage-" + coverage_hash[:24],

@@ -2,7 +2,7 @@
 
 新增公司级研究入口见[研究工具运行说明](research-workspace-runbook.md)。模型通过共享 CLI／MCP 服务读取数据、自主提交判断与估值假设，再调用组装；下面保留轻量数据构建及旧技术报告复现入口，不能用其规则文字替代模型研究。
 
-当前实现版本为 `eight-step-lite-pack-v1.0.4`，profile 为 `eight-step-lite-v1.0.0`。新版本修复人读表格的累计/单季键冲突和估值倍数格式，旧七包保留。默认 `research lite` 命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入；报告需再调用第 7 节的 `structured report`。两条命令都不会自动确认评级、目标价或交易指令。七家公司旧轻量输入验收见 [逐公司验收表](eight-step-lite-acceptance.md)，当前仅推进[贵州茅台黄金报告验收](moutai-golden-report-acceptance.md)。
+当前 profile 为 `eight-step-lite-v1.0.0`；实际构建版本记录在新包 `manifest.json`。新构建直接读取正式 `facts.jsonl`、`dimensional-facts.jsonl`、各运行消费清单及研究记录，兼容历史 `coverage-facts.jsonl`，旧七包保留。新回采的物化导出与工作区绑定步骤见[结构化运行说明](research-data-layer-runbook.md)，下面的七公司路径用于历史复现。默认 `research lite` 命令只读取既有事实投影和原件索引，输出供模型阅读的轻量研究输入；报告需再调用第 7 节的 `structured report`。两条命令都不会自动确认评级、目标价或交易指令。七家公司旧轻量输入验收见 [逐公司验收表](eight-step-lite-acceptance.md)，当前仅推进[贵州茅台黄金报告验收](moutai-golden-report-acceptance.md)。
 
 ## 1. 环境与默认离线构建
 
@@ -26,7 +26,7 @@ python -m analysis.research lite `
   --as-of 2026-09-13 --output tmp/eight-step-lite-v1
 ```
 
-同一 profile、源投影、同行输入、证据索引、截止日和预算会得到稳定 `pack-id`。再次运行返回 `cache_reused=true`、`performed_network_io=false`；同行 `coverage-facts.jsonl` 的路径和 SHA256 也进入缓存键，同行更新不会错误复用旧包。
+同一 profile、源投影、同行输入、证据索引、截止日和预算会得到稳定 `pack-id`。再次运行返回 `cache_reused=true`、`performed_network_io=false`；已登记的同行事实文件及消费清单的路径和 SHA256 也进入缓存键，同行更新不会错误复用旧包。
 
 ## 2. 显式刷新期后公告目录
 
@@ -100,6 +100,6 @@ python -m analysis.cli structured report `
   --json
 ```
 
-转换器会复核 pack 及上游哈希，从完整 `coverage-facts.jsonl` 补齐确定性派生闭包和来源，并保留 lite 物化选择 ID。年度累计口径映射为报告使用的 `annual`，`operating_income` 等已登记指标生成确定性 alias；原件和旧轻量包不变，绑定数据库追加报告消费投影。新桥接保留旧派生事实的投影元数据合同，避免以同一事实 ID 覆盖旧记录。
+转换器会复核 pack 及上游哈希，从已登记的正式事实、维度文件及消费清单补齐确定性派生闭包和来源，并保留 lite 物化选择 ID；历史包仍支持 `coverage-facts.jsonl`。年度累计口径映射为报告使用的 `annual`，`operating_income` 等已登记指标生成确定性 alias；原件和旧轻量包不变，绑定数据库追加报告消费投影。新桥接保留旧派生事实的投影元数据合同，避免以同一事实 ID 覆盖旧记录。
 
 默认导出 Markdown、HTML、XLSX、PDF，并保存同一 `ReportVersion` 的 JSON。旧七家公司技术导出仅为 QA 草稿。当前贵州茅台新候选已核对数值、期间、原文引用与覆盖一致性，实际结果见黄金验收清单；54题仍待补、暂不评级。`research_coverage.requirements`保存完整逐期间要求，`core_requirements`和兼容字段`counts`保存轻量输入计数，二者不互相替代。人工签署前不关闭2.1、2.2。

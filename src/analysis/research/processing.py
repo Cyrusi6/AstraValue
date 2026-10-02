@@ -11,6 +11,7 @@ import re
 from analysis.structured.research_lite import build_lite_pack, _count_tokens
 from analysis.structured.scope import STANDARD_PROFILE_ID
 from .workspace import ResearchError, ResearchWorkspace, digest, read_json, sha
+from .pack_outputs import output_hashes, read_pack_outputs
 
 
 def extract_evidence(spec: dict, ticker: str, cutoff: str) -> dict:
@@ -160,6 +161,7 @@ class Processing:
         """Build a five-year/twelve-quarter candidate from existing inputs; explicit adoption is separate."""
         state, old_path, _ = self.w.pack(research_id)
         manifest = read_json(old_path / "manifest.json")
+        inherited = read_pack_outputs(old_path, manifest)
         roots = list(dict.fromkeys(x["root"] for x in manifest["source_inputs"] + manifest.get("auxiliary_inputs",[]) if x.get("root")))
         # Verify every frozen descriptor before reusing inputs.
         for group in ("source_inputs", "auxiliary_inputs"):
@@ -171,6 +173,10 @@ class Processing:
                                 output_root=self.w.state/"processing-base", supplements=[Path(r) for r in roots[1:]],
                                 profile_id=STANDARD_PROFILE_ID)
         base = Path(built["pack_dir"])
+        base_manifest = read_json(base/"manifest.json")
+        # Standard-profile rebuilding intentionally replaces matching outputs;
+        # other parent artifacts remain frozen, including future output types.
+        inherited.update(read_pack_outputs(base, base_manifest))
         pack = read_json(base/"core-pack.json")
         evidence = [extract_evidence(s,state["ticker"],state["as_of"]) for s in evidence_sources or []]
         attached = []
@@ -182,7 +188,9 @@ class Processing:
         if audit["errors"]:
             raise ResearchError("processing_validation_failed:"+str(audit["errors"]))
         disclosures = organize_disclosures(evidence)
-        identity = {"version":"research-processing-v1.0.1", "base":built["pack_id"], "evidence":evidence,"attachments":attached,"audit":audit,"disclosures":disclosures}
+        identity = {"version":"research-processing-v1.0.2", "base":built["pack_id"],
+                    "parent_manifest_sha256":sha(old_path/"manifest.json"),
+                    "evidence":evidence,"attachments":attached,"audit":audit,"disclosures":disclosures}
         ident = "lite-pack-" + digest(identity)[:24]
         target = self.w.state/"processing-packs"/state["ticker"]/state["as_of"]/ident
         pack.update(pack_id=ident, supplemental_evidence=evidence, processing_attachments=attached, processing_audit=audit, organized_disclosures=disclosures)
@@ -214,20 +222,23 @@ class Processing:
             raise ResearchError("processing_pack_budget_exceeded")
         outputs = {"core-pack.json": json.dumps(pack,ensure_ascii=False,indent=2), "core-pack.md":content,
                    "core-coverage.json":json.dumps(coverage,ensure_ascii=False,indent=2),
-                   "evidence-index.jsonl":(base/"evidence-index.jsonl").read_text(encoding="utf-8"),
-                   "next-work.json":(base/"next-work.json").read_text(encoding="utf-8"),
                    "processing-audit.json":json.dumps(audit,ensure_ascii=False,indent=2)}
-        new_manifest = read_json(base/"manifest.json")
+        outputs = inherited | {name:text.encode("utf-8") for name,text in outputs.items()}
+        new_manifest = base_manifest
         new_manifest.update(pack_id=ident, pack_identity_hash=digest(identity), token_count=count,
-                            processing_identity=identity, parent_snapshot_id=state["snapshot_id"])
+                            processing_identity=identity, parent_snapshot_id=state["snapshot_id"],
+                            output_hashes=output_hashes(outputs))
         if target.exists():
             self.w._verify_pack(target)
-            if read_json(target/"core-pack.json") != pack:
+            if (read_json(target/"core-pack.json") != pack
+                    or read_json(target/"manifest.json")["output_hashes"] != new_manifest["output_hashes"]):
                 raise ResearchError("immutable_processing_pack_conflict")
         else:
             target.mkdir(parents=True)
-            for name, text in outputs.items(): (target/name).write_text(text,encoding="utf-8")
-            new_manifest["output_hashes"]={name:sha(target/name) for name in outputs}
+            for name, content in outputs.items():
+                destination = target/name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
             (target/"manifest.json").write_text(json.dumps(new_manifest,ensure_ascii=False,indent=2),encoding="utf-8")
         return self.w.artifact(research_id,"snapshot_candidate",{"candidate_pack_path":str(target),"candidate_snapshot_id":ident,
              "reason":"扩展五年十二季度及最新累计/TTM，采用有定位补充原文和独立计算附件；原始快照不变",

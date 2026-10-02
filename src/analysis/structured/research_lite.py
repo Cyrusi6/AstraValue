@@ -5,7 +5,7 @@ import hashlib
 import json
 import math
 from collections import Counter, defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -14,7 +14,7 @@ from .scope import LITE_PROFILE_ID, ROOT, load_research_profile, load_scope
 from .storage import canonical_json, canonical_sha256
 
 
-PACK_VERSION = "eight-step-lite-pack-v1.0.4"
+PACK_VERSION = "eight-step-lite-pack-v1.0.6"
 FORMULA_VERSION = "eight-step-lite-formulas-v1.0.0"
 STOCK_METRICS = {
     "cash",
@@ -105,7 +105,9 @@ def materialize_cache(
     import sqlite3
 
     from .materialization import StructuredFactMaterializer
-    from .materialization_replay import _export_result, _hash_file
+    from .materialization_replay import _export_result, _hash_file, PROJECTION_SCHEMA_VERSION, PROJECTION_FILES, RESEARCH_FILES
+    from .research_projection import build_research_projection, RESEARCH_PROJECTION_VERSION
+    from .interpretation import load_interpretation
     from .storage import StructuredStorage
     from analysis.acquisition.repository import AcquisitionRepository
 
@@ -113,7 +115,9 @@ def materialize_cache(
     data_root = Path(data_root).resolve()
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db)
+    if output.is_relative_to(data_root) or db.is_relative_to(output):
+        raise ValueError("projection output must be separate from the source cache")
+    connection = sqlite3.connect(db.as_uri() + "?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA query_only=ON")
     try:
@@ -127,6 +131,9 @@ def materialize_cache(
             "SELECT run_id,ticker FROM structured_run_contexts ORDER BY ticker,run_id"
         ).fetchall()
         source_db_sha256 = _hash_file(db)
+        wal = db.with_name(db.name + "-wal")
+        source_wal_sha256 = _hash_file(wal) if wal.is_file() else None
+        effective_as_of = datetime.combine(as_of, time.max, tzinfo=timezone(timedelta(hours=8)))
         storage = StructuredStorage(db, namespace, initialize=False)
         repository = AcquisitionRepository(db, initialize=False)
         results: list[dict[str, Any]] = []
@@ -140,11 +147,20 @@ def materialize_cache(
                 folder = output / ticker / "runs" / str(run["run_id"])
             seen_tickers.add(ticker)
             stamp = folder / "cache-binding.json"
+            context = storage.get_run_context(str(run["run_id"]))
+            profile_id = research_profile_id or context.frozen_config.get("research_profile_id")
+            interpretation = load_interpretation("eastmoney-financial-interpretation-v1.0.0", context)
             identity = {
                 "source_db_sha256": source_db_sha256,
+                "source_wal_sha256": source_wal_sha256,
                 "run_id": str(run["run_id"]),
                 "scope_hash": load_scope()["content_sha256"],
-                "research_profile_id": research_profile_id,
+                "research_profile_id": profile_id,
+                "profile_sha256": load_research_profile(profile_id)["content_sha256"] if profile_id else None,
+                "interpretation_sha256": interpretation["content_sha256"],
+                "as_of": effective_as_of.isoformat(),
+                "projection_schema_version": PROJECTION_SCHEMA_VERSION,
+                "research_projection_version": RESEARCH_PROJECTION_VERSION,
             }
             reusable = (
                 not recompute
@@ -152,14 +168,24 @@ def materialize_cache(
                 and json.loads(stamp.read_text(encoding="utf-8")) == identity
                 and (folder / "manifest.json").exists()
             )
+            if reusable:
+                cached = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+                declared = cached.get("exports") or {}
+                reusable = (cached.get("research_projection_version") == RESEARCH_PROJECTION_VERSION
+                    and all(name in declared and (folder / name).is_file()
+                            and _hash_file(folder / name) == declared[name].get("sha256")
+                            for name in (*PROJECTION_FILES, *RESEARCH_FILES)))
             if not reusable:
                 result = StructuredFactMaterializer(storage, repository).materialize(
                     str(run["run_id"]),
                     interpretation_contract="eastmoney-financial-interpretation-v1.0.0",
                     research_scope=True,
-                    research_profile_id=research_profile_id,
+                    research_profile_id=profile_id,
+                    as_of=effective_as_of,
                 )
-                _export_result(result, folder, namespace)
+                research = build_research_projection(storage, repository, str(run["run_id"]),
+                    as_of=effective_as_of, research_profile_id=profile_id)
+                _export_result(result, folder, namespace, research_projection=research)
                 _write_json(stamp, identity)
             manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
             results.append(
@@ -288,60 +314,133 @@ def _payload_without_internal(value: Mapping[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if not key.startswith("_")}
 
 
+def _materialized_facts(directory: Path, manifest: Mapping[str, Any], ticker: str) -> list[dict[str, Any]]:
+    """Read the materializer's selected revisions without restoring the old exporter."""
+    from analysis.models import DimensionalFactRecord, FactRecord
+    from .consumption import CONSUMABLE_STATUSES, is_fact_consumable
+
+    if not manifest.get("materialization_version"):
+        raise ValueError(f"lite_materialization_manifest_missing:{directory}")
+    facts = []
+    for name, id_key, selection_key, count_key, model in (
+        ("facts.jsonl", "fact_id", "selected_fact_ids", "fact_count", FactRecord),
+        ("dimensional-facts.jsonl", "dimensional_fact_id", "selected_dimensional_fact_ids",
+         "dimensional_fact_count", DimensionalFactRecord),
+    ):
+        selected = manifest.get(selection_key)
+        if not isinstance(selected, list):
+            raise ValueError(f"lite_materialization_selection_missing:{directory}:{selection_key}")
+        if len(set(selected)) != len(selected):
+            raise ValueError(f"lite_materialization_selection_duplicate:{directory}:{selection_key}")
+        selected = frozenset(selected)
+        path = directory / name
+        if not path.is_file():
+            raise ValueError(f"lite_materialization_file_missing:{path}")
+        seen = set()
+        for fact in _read_jsonl(path):
+            if fact.get("ticker") != ticker:
+                raise ValueError("lite_projection_company_mismatch")
+            ident = fact[id_key]
+            if ident in seen:
+                raise ValueError(f"lite_materialization_duplicate_fact:{ident}")
+            seen.add(ident)
+            if ident not in selected:
+                continue
+            value = model.model_validate(fact)
+            eligible = (is_fact_consumable(value, materialization_selected_ids=selected)
+                        if model is FactRecord else
+                        value.value is not None and value.verification_status in CONSUMABLE_STATUSES
+                        and (value.verification_status.value != "供应商直采" or
+                             bool(value.source_ids and value.structured_admission
+                                  and value.structured_admission.programmatic_eligible)))
+            if eligible:
+                facts.append(fact)
+        if not selected.issubset(seen) or manifest.get(count_key) != len(seen):
+            raise ValueError(f"lite_materialization_incomplete:{path}")
+    return facts
+
+
 def _discover_projection(root: Path, ticker: str, role: str, priority: int) -> dict[str, Any]:
     company = root / ticker
     if not company.is_dir():
         raise FileNotFoundError(f"projection_company_missing:{company}")
-    files = {}
-    for name in (
-        "coverage-facts.jsonl",
-        "normalized-records.jsonl",
-        "question-coverage.jsonl",
-        "next-work.json",
-        "question-coverage-summary.json",
-    ):
-        path = company / name
-        if path.is_file():
-            files[name] = {"path": str(path.resolve()), "sha256": _hash_file(path)}
-    manifests = []
-    for path in sorted(company.glob("**/manifest.json")):
-        value = json.loads(path.read_text(encoding="utf-8"))
-        manifests.append(
-            {
-                "path": str(path.resolve()),
-                "sha256": _hash_file(path),
-                "run_id": value.get("run_id"),
-                "source_namespace_id": value.get("source_namespace_id"),
-                "contract_hash": value.get("contract_hash"),
-                "materialization_hash": value.get("materialization_hash"),
-            }
-        )
+    files, manifests, facts, records, coverage, work, events = {}, [], [], [], [], [], []
+    # materialize_cache stores additional runs here. Archived history is never
+    # an active input; an empty reconcile run must not hide the other runs.
+    directories = [company, *sorted(p for p in (company / "runs").glob("*") if p.is_dir())]
+    for directory in directories:
+        manifest_path = directory / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+        if manifest_path.is_file():
+            manifests.append({
+                "path": str(manifest_path.resolve()), "sha256": _hash_file(manifest_path),
+                **{key: manifest.get(key) for key in (
+                    "run_id", "source_namespace_id", "contract_hash", "materialization_hash")},
+            })
+        standalone = manifest.get("materialization_version") or (directory / "facts.jsonl").is_file()
+        rows = (_materialized_facts(directory, manifest, ticker) if standalone else
+                _read_jsonl(directory / "coverage-facts.jsonl"))
+        if standalone:
+            # A formal export must never inherit stale legacy auxiliaries from
+            # a directory that happened to be used by the removed exporter.
+            names = set(manifest.get("exports") or ("facts.jsonl", "dimensional-facts.jsonl", "sources.jsonl", "events.jsonl"))
+            if manifest.get("projection_schema_version"):
+                from .materialization_replay import PROJECTION_FILES, RESEARCH_FILES
+                required = set(PROJECTION_FILES)
+                if manifest.get("research_projection_version"):
+                    required.update(RESEARCH_FILES)
+                if not required.issubset(names):
+                    raise ValueError(f"lite_projection_exports_incomplete:{directory}")
+            for name in names:
+                if Path(name).name != name:
+                    raise ValueError(f"lite_projection_export_path_invalid:{name}")
+                path = directory / name
+                expected = (manifest.get("exports") or {}).get(name, {}).get("sha256")
+                if expected and (not path.is_file() or _hash_file(path) != expected):
+                    raise ValueError(f"lite_projection_export_hash_mismatch:{path}")
+        else:
+            names = {"coverage-facts.jsonl", "sources.jsonl", "normalized-records.jsonl",
+                     "question-coverage.jsonl", "next-work.json", "question-coverage-summary.json"}
+        for name in sorted(names):
+            path = directory / name
+            if path.is_file():
+                files[path.relative_to(company).as_posix()] = {
+                    "path": str(path.resolve()), "sha256": _hash_file(path)}
+        for fact in rows:
+            if fact.get("ticker") != ticker:
+                raise ValueError("lite_projection_company_mismatch")
+            fact = dict(fact)
+            fact.update(_projection_role=role, _projection_priority=priority,
+                        _projection_path=str(directory.resolve()))
+            if manifest.get("source_namespace_id"):
+                fact["_source_namespace_id"] = manifest["source_namespace_id"]
+            facts.append(fact)
+        for record in (_read_jsonl(directory / "normalized-records.jsonl") if "normalized-records.jsonl" in names else ()):
+            if record.get("company") != ticker:
+                raise ValueError("lite_record_company_mismatch")
+            record = dict(record)
+            record.update(_projection_role=role, _projection_priority=priority,
+                          _projection_path=str(directory.resolve()))
+            records.append(record)
+        if "events.jsonl" in names:
+            from analysis.models import EventRecord
+            run_events = []
+            for event in _read_jsonl(directory / "events.jsonl"):
+                value = EventRecord.model_validate(event)
+                if value.ticker != ticker:
+                    raise ValueError("lite_event_company_mismatch")
+                run_events.append(value.model_dump(mode="json"))
+            if standalone and manifest.get("event_count", 0) != len(run_events):
+                raise ValueError(f"lite_materialization_incomplete:{directory / 'events.jsonl'}")
+            events.extend(run_events)
+        if "question-coverage.jsonl" in names:
+            coverage.extend(_read_jsonl(directory / "question-coverage.jsonl"))
+        work_path = directory / "next-work.json"
+        if "next-work.json" in names and work_path.is_file():
+            work.extend(json.loads(work_path.read_text(encoding="utf-8")).get("items", []))
     namespaces = sorted(
         {str(item["source_namespace_id"]) for item in manifests if item.get("source_namespace_id")}
     )
-    facts = []
-    for fact in _read_jsonl(company / "coverage-facts.jsonl"):
-        if fact.get("ticker") != ticker:
-            raise ValueError("lite_projection_company_mismatch")
-        fact = dict(fact)
-        fact["_projection_role"] = role
-        fact["_projection_priority"] = priority
-        fact["_projection_path"] = str(company.resolve())
-        if len(namespaces) == 1:
-            fact["_source_namespace_id"] = namespaces[0]
-        facts.append(fact)
-    records = []
-    for record in _read_jsonl(company / "normalized-records.jsonl"):
-        if record.get("company") != ticker:
-            raise ValueError("lite_record_company_mismatch")
-        record = dict(record)
-        record["_projection_role"] = role
-        record["_projection_priority"] = priority
-        record["_projection_path"] = str(company.resolve())
-        records.append(record)
-    coverage = list(_read_jsonl(company / "question-coverage.jsonl"))
-    work_path = company / "next-work.json"
-    work = json.loads(work_path.read_text(encoding="utf-8")).get("items", []) if work_path.is_file() else []
     return {
         "root": str(root.resolve()),
         "company_path": str(company.resolve()),
@@ -354,6 +453,7 @@ def _discover_projection(root: Path, ticker: str, role: str, priority: int) -> d
         "records": records,
         "coverage": coverage,
         "work": work,
+        "events": events,
     }
 
 
@@ -364,7 +464,8 @@ def _merge_items(
     conflicts = []
     for projection in projections:
         for item in projection[key_name]:
-            identity = _fact_id(item) if key_name == "facts" else str(item.get("record_id") or "")
+            identity = (_fact_id(item) if key_name == "facts" else
+                        str(item.get("event_id") if key_name == "events" else item.get("record_id") or ""))
             if not identity:
                 continue
             previous = by_id.get(identity)
@@ -374,6 +475,44 @@ def _merge_items(
                 continue
             by_id[identity] = dict(item)
     return list(by_id.values()), conflicts
+
+
+def _selected_records_at(records: Sequence[Mapping[str, Any]], as_of: date,
+                         conflicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Only explicit ordered revisions replace source rows; conflicts stay visible."""
+    cutoff = datetime.combine(as_of, time.max, tzinfo=timezone(timedelta(hours=8)))
+    eligible = []
+    for record in records:
+        raw = record.get("available_at")
+        if not raw:
+            continue
+        available = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        if available.tzinfo is None:
+            raise ValueError("lite_record_availability_timezone_missing")
+        if available <= cutoff:
+            eligible.append(dict(record))
+    grouped = defaultdict(list)
+    for row in eligible:
+        grouped[(row.get("storage_namespace_id"), row.get("dataset_id"),
+                 row.get("source_definition_id"), row.get("source_definition_version"),
+                 row.get("row_key") or row["record_id"])].append(row)
+    selected = []
+    for key, values in grouped.items():
+        by_id = {row["record_id"]: row for row in values}
+        superseded = set()
+        for row in values:
+            parent = by_id.get(row.get("supersedes_record_version_id"))
+            if parent and (datetime.fromisoformat(parent["available_at"].replace("Z", "+00:00"))
+                           < datetime.fromisoformat(row["available_at"].replace("Z", "+00:00"))):
+                superseded.add(parent["record_id"])
+        leaves = [row for row in values if row["record_id"] not in superseded]
+        if len({canonical_sha256(row.get("fields") or {}) for row in leaves}) > 1:
+            conflict = {"kind": "source_record_revision_conflict", "dataset_id": key[1],
+                        "row_key": key[-1], "record_ids": sorted(row["record_id"] for row in leaves),
+                        "resolved": False, "reason": "no_explicit_ordered_revision_chain"}
+            conflicts.append({**conflict, "conflict_id": "record-conflict-" + canonical_sha256(conflict)[:20]})
+        selected.extend(leaves)
+    return selected
 
 
 def _logical_fact_key(fact: Mapping[str, Any]) -> tuple[Any, ...]:
@@ -1532,17 +1671,10 @@ def _peer_payload(
         company = input_root / peer
         if not company.is_dir():
             continue
-        facts_path = company / "coverage-facts.jsonl"
-        if not facts_path.is_file():
-            continue
-        inputs.append(
-            {
-                "ticker": peer,
-                "path": str(facts_path.resolve()),
-                "sha256": _hash_file(facts_path),
-            }
-        )
-        facts = list(_read_jsonl(facts_path))
+        projection = _discover_projection(input_root, peer, "peer", 0)
+        descriptor = {"ticker": peer, "files": projection["files"], "manifests": projection["manifests"]}
+        inputs.append({**descriptor, "sha256": canonical_sha256(descriptor)})
+        facts, _ = _merge_items([projection], "facts")
         lookup = _fact_lookup(facts)
         metrics = []
         conflicts: list[dict[str, Any]] = []
@@ -1615,8 +1747,14 @@ def build_lite_pack(
         raise FileNotFoundError("primary_lite_projection_missing")
     facts, _ = _merge_items(projections, "facts")
     records, _ = _merge_items(projections, "records")
+    events, _ = _merge_items(projections, "events")
     periods = lite_periods(as_of, profile)
     conflicts: list[dict[str, Any]] = []
+    records = _selected_records_at(records, as_of, conflicts)
+    cutoff = datetime.combine(as_of, time.max, tzinfo=timezone(timedelta(hours=8)))
+    events = [event for event in events
+              if datetime.fromisoformat(event["available_at"].replace("Z", "+00:00")) <= cutoff
+              and datetime.fromisoformat(event["announced_at"].replace("Z", "+00:00")) <= cutoff]
     metrics = _select_metric_entries(facts, periods, profile, conflicts)
     fact_refs = {
         fact_id: f"F{index:03d}"
@@ -1634,7 +1772,10 @@ def build_lite_pack(
     business = _business_payload(facts, records, periods, ticker, profile, conflicts)
     all_evidence, documents, catalogs = _load_evidence(roots, ticker, as_of)
     evidence, evidence_coverage = _evidence_payload(all_evidence, documents, profile, periods)
-    coverage_rows = [row for projection in projections for row in projection["coverage"]]
+    from .research_coverage import build_question_coverage
+    detailed = build_question_coverage(ticker=ticker, facts=facts, records=records,
+        evidence=all_evidence, profile=profile, periods=periods, as_of=as_of)
+    coverage_rows = detailed["rows"]
     question_routes = _question_routes(coverage_rows, profile, periods)
     catalog = _catalog_status(documents, catalogs, periods)
     governance = _latest_records(
@@ -1742,7 +1883,7 @@ def build_lite_pack(
         },
     ]
     coverage_requirements = metric_coverage + evidence_coverage + context_coverage
-    question_work = _full_work_items(projections, profile, periods)
+    question_work = _full_work_items([{"work": detailed["work_items"]}], profile, periods)
     next_work = _next_work(metrics, evidence_coverage, context_coverage, question_work, catalog, ticker, profile)
     source_inputs = [
         {
@@ -1767,6 +1908,7 @@ def build_lite_pack(
         "selected_evidence_ids": sorted(item["evidence_id"] for item in evidence),
         "selection_version": PACK_VERSION,
         "formula_version": FORMULA_VERSION,
+        "question_coverage": detailed["summary"],
         "token_budget": int(max_tokens or profile["budget"]["default_max_tokens"]),
     }
     identity_hash = canonical_sha256(identity)
@@ -1805,6 +1947,7 @@ def build_lite_pack(
         "business": business,
         "metrics": metrics,
         "governance": governance,
+        "events": events,
         "peers": peers,
         "evidence": evidence,
         "coverage_requirements": coverage_requirements,
@@ -1868,18 +2011,21 @@ def build_lite_pack(
         ),
         "question_count": len(question_routes),
         "route_counts": dict(Counter(item["scope_route"] for item in question_routes)),
-        "full_coverage_preserved": True,
+        "full_coverage_preserved": bool(detailed["summary"]["full_coverage_preserved"]),
+        "full_coverage_summary": detailed["summary"],
     }
     pack_dir.mkdir(parents=True, exist_ok=True)
     _write_text(pack_dir / "core-pack.md", markdown)
     _write_json(pack_dir / "core-pack.json", payload)
     _write_json(pack_dir / "core-coverage.json", coverage)
+    _write_jsonl(pack_dir / "question-coverage.jsonl", coverage_rows)
     _write_jsonl(pack_dir / "evidence-index.jsonl", evidence)
     _write_json(pack_dir / "next-work.json", next_work)
     output_names = (
         "core-pack.md",
         "core-pack.json",
         "core-coverage.json",
+        "question-coverage.jsonl",
         "evidence-index.jsonl",
         "next-work.json",
     )

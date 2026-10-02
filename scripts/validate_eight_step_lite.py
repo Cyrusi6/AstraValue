@@ -51,16 +51,55 @@ def load_pack(output_root,ticker,as_of):
 
 
 def source_fact_map(manifest):
-    result={}
+    result={}; immutable={}
     for source in manifest['source_inputs']:
-        item=source['files'].get('coverage-facts.jsonl')
-        if not item:continue
-        path=Path(item['path'])
-        if file_hash(path)!=item['sha256']:raise AssertionError(f'source_projection_changed:{path}')
-        for fact in read_jsonl(path):
-            identity=fact.get('fact_id') or fact.get('dimensional_fact_id')
-            if identity in result and result[identity]!=fact:raise AssertionError(f'immutable_fact_conflict:{identity}')
-            result[identity]=fact
+        files={Path(item['path']).resolve():item for item in source['files'].values()}
+        manifests={Path(item['path']).resolve():item for item in source.get('manifests',[])}
+        selected_by_directory={}
+        for path,item in files.items():
+            if path.name not in {'coverage-facts.jsonl','facts.jsonl','dimensional-facts.jsonl'}:continue
+            if not path.is_file() or file_hash(path)!=item['sha256']:
+                raise AssertionError(f'source_projection_changed:{path}')
+            selected=None
+            if path.name!='coverage-facts.jsonl':
+                if path.parent not in selected_by_directory:
+                    manifest_path=path.parent/'manifest.json'
+                    descriptor=manifests.get(manifest_path)
+                    if descriptor is None:raise AssertionError(f'source_materialization_manifest_missing:{manifest_path}')
+                    if not manifest_path.is_file() or file_hash(manifest_path)!=descriptor['sha256']:
+                        raise AssertionError(f'source_projection_changed:{manifest_path}')
+                    materialization=json.loads(manifest_path.read_text(encoding='utf8'))
+                    if not materialization.get('materialization_version'):
+                        raise AssertionError(f'source_materialization_version_missing:{manifest_path}')
+                    selections={}
+                    for filename,id_key,selection_key,count_key in (
+                        ('facts.jsonl','fact_id','selected_fact_ids','fact_count'),
+                        ('dimensional-facts.jsonl','dimensional_fact_id','selected_dimensional_fact_ids','dimensional_fact_count'),
+                    ):
+                        fact_path=path.parent/filename
+                        bound=files.get(fact_path)
+                        if bound is None or not fact_path.is_file():
+                            raise AssertionError(f'source_materialization_file_missing:{fact_path}')
+                        if file_hash(fact_path)!=bound['sha256']:
+                            raise AssertionError(f'source_projection_changed:{fact_path}')
+                        identities=[fact.get(id_key) for fact in read_jsonl(fact_path)]
+                        chosen=materialization.get(selection_key)
+                        if not isinstance(chosen,list) or len(set(chosen))!=len(chosen):
+                            raise AssertionError(f'source_materialization_selection_invalid:{selection_key}')
+                        if (None in identities or len(set(identities))!=len(identities)
+                                or materialization.get(count_key)!=len(identities)
+                                or not set(chosen).issubset(identities)):
+                            raise AssertionError(f'source_materialization_incomplete:{fact_path}')
+                        selections[filename]=set(chosen)
+                    selected_by_directory[path.parent]=selections
+                selected=selected_by_directory[path.parent][path.name]
+            for fact in read_jsonl(path):
+                identity=fact.get('fact_id') or fact.get('dimensional_fact_id')
+                if not identity:raise AssertionError(f'source_fact_identity_missing:{path}')
+                if identity in immutable and immutable[identity]!=fact:
+                    raise AssertionError(f'immutable_fact_conflict:{identity}')
+                immutable[identity]=fact
+                if selected is None or identity in selected:result[identity]=fact
     return result
 
 
@@ -70,6 +109,8 @@ def verify_derived(payload,sources):
     def verify_fact(fact):
         identity=fact['fact_id']
         if identity.startswith('lite-derived-'):
+            missing=set(fact['derived_from_fact_ids'])-sources.keys()
+            if missing:raise AssertionError('source_fact_missing:'+','.join(sorted(missing)))
             left,right=(sources[source_id] for source_id in fact['derived_from_fact_ids'])
             a,b=decimal_value(left),decimal_value(right)
             operation=DERIVATIONS[fact['metric_id']]

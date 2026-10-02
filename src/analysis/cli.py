@@ -194,6 +194,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     structured_materialize.add_argument("--legacy-contract-replay", action="store_true", help="显式重放旧范围；不启动采集")
     structured_materialize.add_argument("--no-persist", action="store_true")
+    structured_materialize.add_argument("--output-dir", type=Path, help="导出正式 JSONL 和消费清单；可配合 --no-persist 离线回放")
     structured_materialize.add_argument("--summary", action="store_true", help="仅输出计数、缺口汇总和投影定位")
     _add_bound_storage_arguments(structured_materialize)
 
@@ -388,6 +389,7 @@ def _run_structured_command(args: argparse.Namespace) -> int:
                 research_profile_id=args.research_profile,
                 persist=not bool(args.no_persist),
                 include_records=not bool(args.summary),
+                output_dir=args.output_dir,
             )
         elif command == "repair-plan":
             value = service.repair_plan(

@@ -9,7 +9,7 @@ FIELD_METRICS={'CONTRACT_ASSET':'contract_assets','GOODWILL':'goodwill'}
 STATEMENT_FIELDS={'CREDIT_IMPAIRMENT_LOSS':'信用减值损失','ASSET_IMPAIRMENT_LOSS':'资产减值损失'}
 
 
-def reconcile(data,pack):
+def reconcile(data,pack,dataset_fact_ids=None):
     data=deepcopy(data)
     items=data['items']
     for r in items:
@@ -66,6 +66,15 @@ def reconcile(data,pack):
                             'read_entry':{'tool':'read_material','material_id':target['material_id']}})
         elif r['reader']=='missing':
             ds=r['payload'].get('dataset_id')
+            admitted=set((dataset_fact_ids or {}).get(ds,()))
+            for m in pack['metrics']:
+                fact=m.get('fact') or {}
+                if m.get('state')!='ready' or fact.get('fact_id') not in admitted:continue
+                target=metric_items.get(m['metric_id'])
+                if not target:continue
+                routes.append({'metric_id':m['metric_id'],'period':m['period'],'period_type':m['period_type'],
+                    'state':'ready','value':fact['value'],'unit':fact['unit'],'fact_ref':m['fact_ref'],
+                    'read_entry':{'tool':'read_material','material_id':target['material_id'],'period':m['period']}})
             if ds=='goodwill':
                 routes.extend(resolutions.get('goodwill',[]))
             elif ds in {'guarantee','litigation','seo','allotment','bond_issuance','unlock_peer','customers_peer','pledge','violation','audit_opinion'}:

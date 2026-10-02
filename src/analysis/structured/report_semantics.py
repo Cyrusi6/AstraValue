@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+import hashlib
 from pathlib import Path
 
 from analysis.models import ClaimKind, ClaimRecord, EvidenceSpan, EventRecord, PeerSetVersion, SourceRecord
@@ -21,17 +22,30 @@ SLOTS = {
 }
 
 
-def full_coverage(manifest, read_rows):
+def full_coverage(manifest, read_rows, pack_dir=None):
     """按完整 requirement/期间保留状态；不同投影出现不一致时保守留缺口。"""
     grouped = defaultdict(list)
-    for source in manifest.get("source_inputs", []):
-        descriptor = source.get("files", {}).get("question-coverage.jsonl")
-        if descriptor:
-            for row in read_rows(Path(descriptor["path"])):
-                if row.get("company") != manifest["ticker"]:
-                    raise ValueError("report_coverage_company_mismatch")
-                if _period_relevant(row.get("period"), manifest["periods"]):
-                    grouped[(row["requirement_id"], row["period"])].append(row)
+    name = "question-coverage.jsonl"
+    expected = manifest.get("output_hashes", {}).get(name)
+    if expected:
+        if pack_dir is None:
+            raise ValueError("report_coverage_pack_dir_required")
+        path = Path(pack_dir) / name
+        if not path.is_file():
+            raise FileNotFoundError(f"report_coverage_input_missing:{path}")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError("report_coverage_input_hash_mismatch")
+        paths = [path]
+    else:
+        paths = [Path(descriptor["path"]) for source in manifest.get("source_inputs", [])
+                 for filename, descriptor in source.get("files", {}).items()
+                 if Path(filename).name == name and "history" not in Path(filename).parts]
+    for path in paths:
+        for row in read_rows(path):
+            if row.get("company") != manifest["ticker"]:
+                raise ValueError("report_coverage_company_mismatch")
+            if _period_relevant(row.get("period"), manifest["periods"]):
+                grouped[(row["requirement_id"], row["period"])].append(row)
     result = []
     for key, rows in sorted(grouped.items()):
         states = {r["state"] for r in rows}
@@ -40,8 +54,15 @@ def full_coverage(manifest, read_rows):
             "requirement_id": key[0], "period": key[1], "question_id": rows[0]["question_id"],
             "state": state, "reason": "; ".join(sorted({str(r.get("reason") or "") for r in rows})),
             "fact_ids": sorted({i for r in rows for i in r.get("fact_ids", [])}),
+            "conflicting_fact_ids": sorted({i for r in rows for i in r.get("conflicting_fact_ids", [])}),
+            "period_mismatch_fact_ids": sorted({i for r in rows for i in r.get("period_mismatch_fact_ids", [])}),
+            "record_ids": sorted({i for r in rows for i in r.get("record_ids", [])}),
+            "source_ids": sorted({i for r in rows for i in r.get("source_ids", [])}),
             "text_evidence_ids": sorted({i for r in rows for i in r.get("text_evidence_ids", [])}),
             "next_actions": sorted({str(r.get("next_action")) for r in rows if r.get("next_action")}),
+            **{field: rows[0][field] for field in (
+                "input", "requiredness", "registry_id", "registry_sha256", "field_registry_sha256", "scope_sha256",
+                "profile_id", "analysis_status", "active_in_profile", "required_for_active_coverage") if field in rows[0]},
         })
     return result
 
@@ -114,6 +135,10 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
               + "。这是市场定价快照，不是合理价值；缺少确认的预测和折现假设，暂不估值。",
               facts=[m["fact"]["fact_id"] for m in market], unknowns=["历史估值分位、可比调整和前瞻盈利假设未完成。"])
 
+    materialized_record_ids = {
+        (item.get("metadata") or {}).get("structured_record_version_id")
+        for item in core.get("events", [])
+    }
     for item in core.get("governance", []):
         available = datetime.fromisoformat(item["available_at"].replace("Z", "+00:00"))
         if available > as_of:
@@ -128,7 +153,7 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
         category = "capital" if item["dataset_id"] == "dividend" else "governance"
         claim(category, text + "。记录时间与所标报告期分列；名册本身不证明任职期间的履职质量。" if category == "governance" else text + "。预披露不作为已支付分红；每十股口径不直接当每股金额。",
               evidence=[item["record_id"]], source_ids=[sid], unknowns=["精确公告时间、后续变更与独立原件仍需核对。"])
-        if category == "capital":
+        if category == "capital" and item["record_id"] not in materialized_record_ids:
             state = str(fields.get("ASSIGN_PROGRESS") or "unknown")
             events.append(EventRecord(event_id="report-event-" + item["record_id"], ticker=ticker,
                 event_type="dividend", announced_at=available, available_at=available,

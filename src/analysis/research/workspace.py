@@ -6,10 +6,11 @@ import sqlite3
 import uuid
 from collections import Counter
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from difflib import get_close_matches
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import Field
 
@@ -45,6 +46,29 @@ def sha(path: Path) -> str:
 
 class ResearchError(ValueError):
     pass
+
+
+def event_reading_rows(pack: dict, ticker: str, as_of: str) -> list[dict]:
+    """Route existing EventRecords without deriving conclusions or changing their terms."""
+    from analysis.event_state import load_event_taxonomy
+    from analysis.models import EventRecord, aware_utc
+    if not pack.get('events'):
+        return []
+    taxonomy = load_event_taxonomy()['event_types']
+    cutoff = datetime.combine(date.fromisoformat(as_of), time.max, ZoneInfo('Asia/Shanghai'))
+    rows = []
+    for record in pack['events']:
+        event = EventRecord.model_validate(record)
+        if event.ticker != ticker:
+            raise ResearchError('event_company_mismatch')
+        if aware_utc(event.available_at) > cutoff:
+            continue
+        definition = taxonomy.get(event.event_type, {})
+        group = 'D' if 4 in definition.get('report_steps', []) else 'C'
+        rows.append({'event_id': event.event_id, 'group': group,
+            'period': record.get('period_end') or event.announced_at.date().isoformat(),
+            'event': record, 'read_entry': {'tool': 'read_evidence', 'evidence_id': event.event_id}})
+    return rows
 
 
 def validate_integer_parameter(value, field: str, code: str, maximum: int | None = None):
@@ -124,8 +148,24 @@ class ResearchWorkspace:
 
     def _verify_pack(self, directory: Path) -> dict:
         manifest = read_json(directory / "manifest.json")
-        for name in ("core-pack.md", "core-pack.json", "core-coverage.json", "evidence-index.jsonl", "next-work.json"):
-            if manifest.get("output_hashes", {}).get(name) != sha(directory / name):
+        outputs = manifest.get("output_hashes", {})
+        if not isinstance(outputs, dict):
+            raise ResearchError("pack_manifest_outputs_invalid")
+        required = ("core-pack.md", "core-pack.json", "core-coverage.json", "evidence-index.jsonl", "next-work.json")
+        for name in required:
+            if name not in outputs:
+                raise ResearchError("pack_integrity_failed:" + name)
+        root = directory.resolve()
+        for name, expected in outputs.items():
+            relative = Path(name)
+            output = (root / relative).resolve()
+            if relative.is_absolute() or PureWindowsPath(name).drive or '..' in name.replace('\\','/').split('/') or output == root or not output.is_relative_to(root):
+                raise ResearchError("pack_output_path_invalid:" + name)
+            try:
+                actual = sha(output)
+            except OSError as exc:
+                raise ResearchError("pack_integrity_failed:" + name) from exc
+            if expected != actual:
                 raise ResearchError("pack_integrity_failed:" + name)
         return manifest
 
@@ -265,6 +305,7 @@ class ResearchWorkspace:
 
         period_type filters the reading view without changing it. Current market rows use
         current, not instant; their actual observation date is fact.period_end, not row.period.
+        Governance/capital/evidence rows also expose frozen EventRecords in rows[].event.
         Follow next_page with the same filters and page_size.
         """
         if topic not in TOPICS and topic not in {"peers", "evidence", "gaps"}:
@@ -290,6 +331,9 @@ class ResearchWorkspace:
         elif topic == "evidence" or topic in {"business", "governance", "capital", "industry"}:
             rows = [{k: i.get(k) for k in ("evidence_id", "group", "period", "locator", "excerpt", "source_url")}
                     for i in payload["evidence"] + payload.get("supplemental_evidence", []) if topic == "evidence" or i.get("group") in TOPICS[topic]]
+            if topic in {"evidence", "governance", "capital"}:
+                rows.extend(row for row in event_reading_rows(payload,state['ticker'],state['as_of'])
+                            if topic == 'evidence' or row['group'] in TOPICS[topic])
         else:
             if period_type not in {"cumulative", "single_quarter", "instant", "current", "ttm", "ratio", "all"}:
                 raise ResearchError("unknown_period_type:period_type must be cumulative, single_quarter, instant, current, ttm, ratio or all")
@@ -343,6 +387,21 @@ class ResearchWorkspace:
             return {**{k:v for k,v in item.items() if k not in {"content", "selection"}},
                     "content":chunks[page-1], "page":page,"next_page":page+1 if page<len(chunks) else None,
                     "original_hash_verified":True,"research_id":research_id,"snapshot_id":state["snapshot_id"]}
+        event = next((row for row in event_reading_rows(payload,state['ticker'],state['as_of'])
+                      if row['event_id'] == evidence_id), None)
+        if event:
+            from analysis.structured.research_lite import _split_utf8
+            chunks = _split_utf8(encode(event['event']), max_tokens * 2)
+            if page > len(chunks):
+                raise ResearchError(f"text_page_out_of_range:page must be 1..{len(chunks)} for max_tokens={max_tokens}; received {page}")
+            proof = self.artifact(research_id,'evidence_read',{
+                'event_id':evidence_id,'source_record':event['event'],'source_role':'structured_event_record',
+                'source_ids':event['event']['source_ids'],'data_snapshot_id':event['event']['data_snapshot_id'],
+                'content':chunks[page-1],'locator':'event:'+evidence_id,'source_url':None,
+                'original_path':str(path/'core-pack.json'),'original_sha256':sha(path/'core-pack.json'),
+                'original_hash_verified':True,'numeric_admission':False})
+            return {k:v for k,v in proof.items() if k not in {'artifact_id','source_record'}} | {
+                'evidence_id':proof['artifact_id'],'page':page,'next_page':page+1 if page<len(chunks) else None}
         result = read_evidence(pack_dir=path, evidence_id=evidence_id, page=page, max_tokens=max_tokens)
         if not result["original_hash_verified"]:
             raise ResearchError("original_evidence_integrity_failed")

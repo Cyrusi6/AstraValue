@@ -11,6 +11,7 @@
 $env:PYTHONPATH=(Resolve-Path src).Path
 python -m analysis.cli structured plan 600519 `
   --mode baseline --company-scope company-only `
+  --as-of 2026-09-27T00:00:00+00:00 `
   --research-profile eight-step-lite-v1.0.0 `
   --db tmp/moutai/analysis.db --data-root tmp/moutai/data --json
 ```
@@ -35,6 +36,8 @@ python -m analysis.cli structured resume <run_id> `
 ```powershell
 python -m analysis.cli structured materialize <run_id> `
   --research-profile eight-step-lite-v1.0.0 `
+  --as-of 2026-09-27T00:00:00+00:00 --no-persist --summary `
+  --output-dir tmp/moutai/materialized/600519/runs/<run_id> `
   --db tmp/moutai/analysis.db --data-root tmp/moutai/data --json
 
 python -m analysis.research lite `
@@ -45,17 +48,42 @@ python -m analysis.research lite `
 
 `core-pack.md` 是模型首包；`core-pack.json`、`manifest.json` 和 `evidence-index.jsonl` 保存事实、期间、单位、来源哈希和缺口。轻量包不把普通日线或未触发原文作为默认研究输入。
 
+`--output-dir` 导出正式 `facts.jsonl`、`dimensional-facts.jsonl`、来源、事件、研究记录及 `manifest.json`，在 `exports` 中返回文件清单和哈希；绝对本地路径可能被 CLI 脱敏，文件位于指定输出目录。上例 `--no-persist` 不写报告事实与时序投影；导出的 JSONL 是本地文件输出，不产生采集请求。去掉该参数会同时持久化报告投影。每个 baseline、incremental 或 reconcile 运行分别导出到自己的 `runs/<run_id>`，再统一构建研究包，避免只导出一次增量而遗漏历史期间。
+
+轻量包直接读取各清单的选中版本及 `runs/*` 当前运行；`history/` 不作当前输入。文件或消费清单缺失时应报错，不能解释成供应商无数据。旧研究包保持冻结，修复后通过新的包版本和独立研究状态恢复；本轮实例见 [茅台衔接修复](moutai-projection-bridge-repair-20261002.md)。
+
 按证据 ID 读取原文：
 
 ```powershell
 python -m analysis.research evidence `
-  --pack tmp/moutai/packs/600519/<pack-id> `
+  --pack tmp/moutai/packs/600519/2026-09-27/<pack-id> `
   --evidence-id <evidence-id> --page 1 --max-tokens 2000
 ```
 
 ## 3. 研究工作区与报告
 
 研究任务先调用 `ResearchWorkspace.prepare_research` 建立冻结快照，再按问题调用 `query_research`、`read_evidence` 和 `request_materials`。补充材料只有在问题、影响和材料类型明确时执行；缓存复用、空响应、失败和未实现能力分别记录。
+
+新回采验收使用独立配置 `tmp/moutai/workspace-config.json`，从 `config/research_workspace.json` 复制后核实以下绑定，再执行工作区入口。默认配置包含历史缓存位置，不能据此证明新回采已接通；所有配置相对路径均相对项目根目录。
+
+| 配置项 | 本次验收绑定 |
+| --- | --- |
+| `state_root` | `tmp/moutai/workspace-state`，建立新研究状态 |
+| `pack_roots` | `["tmp/moutai/packs"]`，不同时登记旧包根目录 |
+| `projection_roots` | `["tmp/moutai/materialized"]` |
+| `identity_file` | 实际取得并核验的官方证券主数据 JSON 路径 |
+| `evidence_roots` | 本次已保存的原文与目录证据路径；未取得则保留缺口 |
+| `valuation_caches` | 已核验具备所需历史行情的绑定数据库和数据根；未取得则保留缺口 |
+
+```powershell
+python -m analysis.research.cli prepare_research `
+  --config tmp/moutai/workspace-config.json `
+  --arguments '{"company":"贵州茅台","as_of":"2026-09-27"}'
+```
+
+后续工作区命令使用同一个 `--config`，并核对返回研究任务的 pack 路径和输入哈希。已经冻结的旧任务不会因新导出自动切换输入。
+
+`next-work.json` 同时包含采集、计算、阅读和解释任务。`scripts/run_research_gap.py` 只处理当前 profile 下具有 `dataset_id`、`stage=acquisition` 且 `acquire_allowed=true` 的选定数据集任务；无数据集身份的任务记录跳过原因，交由研究工作区 `request_materials` 解析。脚本保留执行失败及未完成窗口，返回非零退出码；跳过任务不表示这些研究缺口已经解决。
 
 报告只能由冻结研究包调用 `POST /api/structured/reports` 或 `structured report` CLI 生成。生成后的 `ReportVersion` 可通过只读报告查询和导出接口读取；旧的 `/api/reports` 写入口、假设修改、重算、重分析和审阅入口不存在。
 

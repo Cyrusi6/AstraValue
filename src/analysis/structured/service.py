@@ -275,6 +275,7 @@ class StructuredDataService:
         interpretation_contract: str | None = None,
         research_scope: bool = True,
         research_profile_id: str | None = None,
+        output_dir: Path | str | None = None,
     ) -> dict[str, Any]:
         """Turn committed structured rows into the report fact projection.
 
@@ -318,6 +319,17 @@ class StructuredDataService:
             "persisted": persist,
             "projection": projection,
         }
+        if output_dir is not None:
+            from .materialization_replay import _export_result
+            from .research_projection import build_research_projection
+            output = Path(output_dir).resolve()
+            source_root = Path(self.acquisition_runtime.data_root).resolve()
+            if output.is_relative_to(source_root) or self.storage.db_path.resolve().is_relative_to(output):
+                raise ValueError("projection output must be separate from the source cache")
+            research = build_research_projection(self.storage, self.runtime.repository, run_id,
+                as_of=as_of, strict_historical=strict_historical, research_profile_id=research_profile_id)
+            summary["exports"] = _export_result(result, output, self.storage.storage_namespace_id,
+                                                research_projection=research)
         if not include_records:
             return summary
         return {

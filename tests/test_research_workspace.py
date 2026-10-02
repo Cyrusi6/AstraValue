@@ -68,6 +68,30 @@ def test_snapshot_integrity_and_query_isolation(workspace):
         workspace.get_task(rid)
 
 
+@pytest.mark.parametrize('failure',['changed','missing'])
+def test_pack_verifies_new_declared_outputs(workspace,failure):
+    pack=workspace.root/'packs/600519/2025-01-01/lite-pack-test'
+    output=pack/'question-coverage.jsonl';output.write_text('{}\n',encoding='utf8')
+    manifest=json.loads((pack/'manifest.json').read_text('utf8'))
+    manifest['output_hashes'][output.name]=hashlib.sha256(output.read_bytes()).hexdigest()
+    dump(pack/'manifest.json',manifest)
+    workspace._verify_pack(pack)
+    if failure=='changed':output.write_text('changed',encoding='utf8')
+    else:output.unlink()
+    with pytest.raises(ResearchError,match='pack_integrity_failed:question-coverage.jsonl'):
+        workspace._verify_pack(pack)
+
+
+@pytest.mark.parametrize('name',['../outside.json','..\\outside.json','C:drive-relative.json','/absolute.json','.'])
+def test_pack_rejects_escaping_declared_output_paths(workspace,name):
+    pack=workspace.root/'packs/600519/2025-01-01/lite-pack-test'
+    manifest=json.loads((pack/'manifest.json').read_text('utf8'))
+    manifest['output_hashes'][name]='untrusted-hash'
+    dump(pack/'manifest.json',manifest)
+    with pytest.raises(ResearchError,match='pack_output_path_invalid'):
+        workspace._verify_pack(pack)
+
+
 def test_gap_summary_counts_dependencies_not_files(workspace):
     rid = workspace.prepare_research("贵州茅台", "2025-01-01")["research_id"]
     result = workspace.query_research(rid, topic="gaps")

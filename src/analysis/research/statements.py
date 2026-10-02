@@ -4,6 +4,7 @@ import re
 from collections import Counter
 from pathlib import Path
 from .workspace import ResearchError, sha, digest, read_json
+from .pack_outputs import output_hashes, read_pack_outputs
 
 TITLES = {'balance_sheet':'合并资产负债表','income_statement':'合并利润表','cash_flow_statement':'合并现金流量表'}
 LABELS = {'accounts_receivable':'应收账款','contract_assets':'合同资产','goodwill':'商誉'}
@@ -94,6 +95,8 @@ class Statements:
     def prepare_statements(self,research_id:str,document_sources:list[dict]):
         """Index verified cached filings and resolve blank balance-sheet rows into a new snapshot candidate."""
         s,old,p=self.w.pack(research_id)
+        manifest=read_json(old/'manifest.json')
+        inherited=read_pack_outputs(old,manifest)
         statements=[]
         for source in document_sources:
             statements.extend(extract_statements(source,s['ticker'],s['as_of']))
@@ -121,7 +124,9 @@ class Statements:
                 'period':r['period'],'group':'C','content':r['content'],'excerpt':r['content'][:200],
                 'original_path':r['path'],'original_sha256':r['sha256'],'source_url':r['source_url'],
                 'locator':'pages:'+','.join(map(str,r['pages'])),'boundary':'完整合并报表原文；空白不自动作为零','numeric_admission':False})
-        ident='lite-pack-'+digest({'parent':s['snapshot_id'],'sources':document_sources,'version':'statements-v1'})[:24]
+        identity={'parent':s['snapshot_id'],'sources':document_sources,'version':'statements-v2',
+                  'parent_manifest_sha256':sha(old/'manifest.json')}
+        ident='lite-pack-'+digest(identity)[:24]
         p['pack_id']=ident
         coverage=read_json(old/'core-coverage.json')
         for rows in (coverage['requirements'],p['coverage_requirements']):
@@ -142,19 +147,25 @@ class Statements:
         target=self.w.state/'processing-packs'/s['ticker']/s['as_of']/ident
         outputs={'core-pack.json':json.dumps(p,ensure_ascii=False,indent=2),'core-pack.md':md,
             'core-coverage.json':json.dumps(coverage,ensure_ascii=False,indent=2),
-            'next-work.json':json.dumps(work,ensure_ascii=False,indent=2),'evidence-index.jsonl':(old/'evidence-index.jsonl').read_text('utf8'),
+            'next-work.json':json.dumps(work,ensure_ascii=False,indent=2),
             'processing-audit.json':json.dumps(p['processing_audit'],ensure_ascii=False,indent=2)}
         from analysis.structured.research_lite import _count_tokens
         count=_count_tokens(md)
         if count['count']>p['token_budget']:raise ResearchError('statement_core_budget_exceeded')
         p['token_count']=count;outputs['core-pack.json']=json.dumps(p,ensure_ascii=False,indent=2)
-        manifest=read_json(old/'manifest.json');manifest.update(pack_id=ident,parent_snapshot_id=s['snapshot_id'],token_count=count,
-            statement_sources=document_sources,pack_identity_hash=digest({'parent':s['snapshot_id'],'sources':document_sources,'version':'statements-v1'}))
-        if target.exists():self.w._verify_pack(target)
+        outputs=inherited | {name:text.encode('utf8') for name,text in outputs.items()}
+        manifest.update(pack_id=ident,parent_snapshot_id=s['snapshot_id'],token_count=count,
+            statement_sources=document_sources,pack_identity_hash=digest(identity),output_hashes=output_hashes(outputs))
+        if target.exists():
+            self.w._verify_pack(target)
+            if read_json(target/'manifest.json')['output_hashes']!=manifest['output_hashes']:
+                raise ResearchError('immutable_statement_pack_conflict')
         else:
             target.mkdir(parents=True)
-            for name,text in outputs.items():(target/name).write_text(text,encoding='utf8')
-            manifest['output_hashes']={name:sha(target/name) for name in outputs}
+            for name,content in outputs.items():
+                destination=target/name
+                destination.parent.mkdir(parents=True,exist_ok=True)
+                destination.write_bytes(content)
             (target/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf8')
         return self.w.artifact(research_id,'snapshot_candidate',{'candidate_pack_path':str(target),'candidate_snapshot_id':ident,
             'build_status':'ready','reason':'三类财务空值核对及完整三大报表目录；原表留空不填零',
