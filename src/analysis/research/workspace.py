@@ -98,6 +98,40 @@ class ResearchWorkspace:
     def path(self, value: str) -> Path:
         return (self.root / value).resolve()
 
+    def material_input_roots(self, cutoff: date) -> tuple[list[Path], list[Path]]:
+        """Resolve registered inputs, including reusable earlier document indexes."""
+        projections = list(dict.fromkeys(self.path(p) for p in self.config.get("projection_roots", [])))
+        evidence = []
+        for value in self.config.get("evidence_roots", []):
+            root = self.path(value)
+            # Accept a concrete evidence directory as well as a dated collection.
+            # Only immediate ISO-date children are eligible; archives are not searched.
+            candidates = [root]
+            if root.is_dir():
+                for child in sorted(root.iterdir(), reverse=True):
+                    if not child.is_dir():
+                        continue
+                    try:
+                        recorded_date = date.fromisoformat(child.name)
+                    except ValueError:
+                        continue
+                    if recorded_date <= cutoff:
+                        candidates.append(child)
+            for candidate in candidates:
+                try:
+                    if date.fromisoformat(candidate.name) > cutoff:
+                        continue
+                except ValueError:
+                    pass
+                if any((candidate / name).is_file() for name in
+                       ("document-evidence.jsonl", "live-documents.json", "official-table-facts.jsonl")):
+                    evidence.append(candidate)
+        return projections, list(dict.fromkeys(evidence))
+
+    def peer_input_roots(self) -> list[Path]:
+        """Peer-only inputs must not inject stale target-company facts."""
+        return list(dict.fromkeys(self.path(p) for p in self.config.get("peer_projection_roots", [])))
+
     @contextmanager
     def connect(self):
         con = sqlite3.connect(self.db, timeout=30)
@@ -108,14 +142,17 @@ class ResearchWorkspace:
         finally:
             con.close()
 
-    def _save(self, state: dict, expected_revision: int):
-        with self.connect() as con:
-            changed = con.execute(
-                "UPDATE research_tasks SET state_json=?,revision=revision+1 WHERE id=? AND revision=?",
-                (encode(state), state["research_id"], expected_revision),
-            ).rowcount
-            if not changed:
-                raise ResearchError("concurrent_task_update:reload_and_retry")
+    def _save(self, state: dict, expected_revision: int, *, connection: sqlite3.Connection | None = None):
+        if connection is None:
+            with self.connect() as con:
+                self._save(state, expected_revision, connection=con)
+            return
+        changed = connection.execute(
+            "UPDATE research_tasks SET state_json=?,revision=revision+1 WHERE id=? AND revision=?",
+            (encode(state), state["research_id"], expected_revision),
+        ).rowcount
+        if not changed:
+            raise ResearchError("concurrent_task_update:reload_and_retry")
 
     def task(self, research_id: str) -> tuple[dict, int]:
         with self.connect() as con:
@@ -225,16 +262,17 @@ class ResearchWorkspace:
         try:
             pack = self._select_pack(identity.security_code, cutoff)
             if pack is None:
-                roots = [self.path(p) for p in self.config["projection_roots"]]
+                roots, evidence_roots = self.material_input_roots(cutoff)
                 existing = [p for p in roots if (p / identity.security_code).is_dir()]
                 if not existing:
                     current.update(status="acquisition_required", reason="registered_projection_missing")
                     self._save(current, revision)
                     return self.get_task(current["research_id"])
-                supplements = existing[1:] + [self.path(p) / cutoff.isoformat() for p in self.config["evidence_roots"]]
+                supplements = [p for p in roots if p != existing[0]]
                 result = build_lite_pack(input_root=existing[0], ticker=identity.security_code, as_of=cutoff,
                                          output_root=self.state / "packs", supplements=supplements,
-                                         profile_id=self.config["profile_id"])
+                                         profile_id=self.config["profile_id"], peer_roots=self.peer_input_roots(),
+                                         evidence_roots=evidence_roots)
                 pack = Path(result["pack_dir"])
             manifest = self._verify_pack(pack)
             current.update(snapshot_id=manifest["pack_id"], pack_path=str(pack),

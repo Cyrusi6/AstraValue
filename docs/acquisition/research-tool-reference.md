@@ -25,6 +25,12 @@ python -m analysis.research.cli calculate --config '<任务配置路径>' --desc
 
 prepare_research在核心包就绪后自动准备申万替代分类，supplement_preparation返回后台任务或已登记结果。需要审计或治理补充资料时，调用request_materials(research_id,question,impact,material_types=[...])；可选sw_industry、audit_opinion、regulatory_records、customers_peer、guarantee、litigation、seo、allotment、bond_issuance、pledge、unlock_peer。框架自动查询、校验和登记，模型不选择供应商或文件。get_task读取返回的task_id，checkpointed用resume_task继续；completed后重新展开目录。接口空记录只表示该来源无记录，已有原文核查结论仍按披露范围使用。旧requirement_ids路径仍按任务指引调用，不与material_types混用。技术状态不写进正文。
 
+原文、同行和估值行情也通过同一 `request_materials` 请求：`report_documents` 复用有效原件，缺失时只取最新完整中文年报和最新中报并生成定位证据；`peer_facts` 补画像登记同行的缺失年度比较指标与估值字段；`market_quote` 查询截止日前 14 天内的价格、市值、股本及 PE/PB/PS，并保留实际行情日期。这三类任务返回候选快照，检查结果后用 `adopt_snapshot` 采用。`checkpointed` 可继续同一检查点，`partial` 保留未完成项和已取得成果；重复已完成请求不再联网。原文可读仍需模型阅读分析。
+
+同一请求可包含上述核心材料与原有 API 补充类型；运行中的子任务会继续保留进度，已达到重试上限的子任务返回原因。采用新候选时，同一公司和截止日下已核验的 API 补充资料、行业分类继续可读；正文和计算仍需结合新快照审阅。
+
+配置中 `projection_roots` 提供主体事实，`peer_projection_roots` 只提供同行，`evidence_roots` 只提供原文与辅助证据；后两类目录中的旧主体行情不会混入当前包。原文根可直接指向索引目录，也可指向包含日期子目录的父目录，工作区只读取截止日之前的有效资料。已采用快照的输入会在下一次补采候选中保留，离线配置不会启动网络任务。
+
 ## 计算、保存和图表引用
 
 所有工具使用同一research_id；保存正文和结论必须绑定当前snapshot_id。引用使用工具给出的真实ID。

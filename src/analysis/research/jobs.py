@@ -39,7 +39,9 @@ class MaterialJobs:
                           requirement_ids: list[str] | None = None, topic: str = "financials",
                           execute: bool | None = None, material_types: list[str] | None = None, refresh: bool = False):
         """Request materials. material_types supports sw_industry, audit_opinion, regulatory_records,
-        customers_peer, guarantee, litigation, seo, allotment, bond_issuance, pledge, unlock_peer.
+        customers_peer, guarantee, litigation, seo, allotment, bond_issuance, pledge, unlock_peer,
+        market_quote (bounded current valuation), peer_facts (registered peers), report_documents
+        (latest complete Chinese annual/interim reports and located passages).
         These complete fetch/verify/register automatically (execute defaults to true for this path).
         get_task reads progress; resume_task continues checkpoints. Empty API is not proof of no event.
         Legacy requirement_ids retains planned/execute behavior. refresh forces one bounded new attempt chain."""
@@ -49,18 +51,21 @@ class MaterialJobs:
         if material_types:
             if requirement_ids:raise ResearchError('choose_material_types_or_requirement_ids')
             from .supplements import MATERIAL_TYPES, existing
+            from .core_materials import CORE_MATERIAL_TYPES
             kinds=sorted(set(material_types))
-            if set(kinds)-set(MATERIAL_TYPES):
-                return {'status':'capability_gap','supported_material_types':list(MATERIAL_TYPES)}
+            if set(kinds)-set(MATERIAL_TYPES)-set(CORE_MATERIAL_TYPES):
+                return {'status':'capability_gap','supported_material_types':list(MATERIAL_TYPES)+list(CORE_MATERIAL_TYPES)}
             if self.w.config.get('offline',False):
                 # Offline reuse may register nothing new; it never starts a network worker.
-                return {'status':'offline','materials':{k:existing(self.w,research_id,k) for k in kinds}}
+                return {'status':'offline','materials':{k:existing(self.w,research_id,k) for k in kinds if k in MATERIAL_TYPES},
+                        'read_entry':{'tool':'get_research_brief','research_id':research_id}}
             ident='j_'+digest({'research_id':research_id,'snapshot_id':state['snapshot_id'],
                               'material_types':kinds,'refresh':refresh})[:24]
             try:job=self.get(ident)
             except ResearchError:
                 job={'task_id':ident,'research_id':research_id,'snapshot_id':state['snapshot_id'],
-                     'topic':'supplements','question':question,'impact':impact,'material_types':kinds,
+                     'topic':'core_materials' if set(kinds)&set(CORE_MATERIAL_TYPES) else 'supplements',
+                     'question':question,'impact':impact,'material_types':kinds,
                      'refresh':refresh,'state':'planned','attempts':0,'run_ids':{},'result':None}
                 self.save(job)
             return job if execute is False else self.resume_task(ident)
@@ -77,12 +82,17 @@ class MaterialJobs:
         known = {x.get("requirement_id") for x in selected}
         if set(requirement_ids or []) - known:
             raise ResearchError("unknown_requirement_id")
-        blocked = [x for x in selected if not x.get("acquire_allowed") or not x.get("dataset_id")]
+        from .core_materials import CORE_MATERIAL_TYPES
+        core_types = sorted({kind for x in selected for kind in x.get("material_types", [])
+                             if kind in CORE_MATERIAL_TYPES})
+        blocked = [x for x in selected if not x.get("acquire_allowed") or
+                   not (x.get("dataset_id") or set(x.get("material_types", [])) & set(CORE_MATERIAL_TYPES))]
         if blocked:
             return {"status": "processing_or_research_gap", "items": blocked,
                     "reason": "not_a_routable_acquisition_gap; existing_data_not_downloaded_again"}
         request = {"research_id": research_id, "snapshot_id": state["snapshot_id"], "question": question,
-                   "impact": impact, "topic": topic, "requirements": selected}
+                   "impact": impact, "topic": "core_materials" if core_types else topic,
+                   "requirements": selected, "material_types": core_types}
         # Wording changes must not bypass a failed acquisition's retry budget.
         ident = "j_" + digest({"research_id": research_id, "snapshot_id": state["snapshot_id"],
             "topic": topic, "requirement_ids": sorted(set(requirement_ids or []))})[:24]
@@ -106,6 +116,8 @@ class MaterialJobs:
 
     def resume_task(self, task_id: str):
         """Execute one bounded round. Reuses the same provider run and checkpoint."""
+        if self.w.config.get("offline", False):
+            return {"task_id": task_id, "state": self.get(task_id)["state"], "status": "offline"}
         with self.w.connect() as con:
             con.execute("BEGIN IMMEDIATE")
             row = con.execute("SELECT payload FROM material_jobs WHERE id=?", (task_id,)).fetchone()
@@ -141,6 +153,12 @@ class MaterialJobs:
 
     def execute_round(self, task_id):
         job=self.get(task_id)
+        if self.w.config.get("offline", False):
+            return
+        if job['topic']=='core_materials':
+            from .core_materials import execute
+            execute(self,job)
+            return
         if job['topic']=='supplements':
             from .supplements import execute
             execute(self,job)
@@ -154,16 +172,18 @@ class MaterialJobs:
         )
         from analysis.structured.scope import load_research_profile
         job = self.get(task_id)
-        state, _, _ = self.w.pack(job["research_id"])
+        state, pack_path, _ = self.w.pack(job["research_id"])
+        profile_id = read_json(pack_path / "manifest.json").get("profile_id") or self.w.config["profile_id"]
         if state["snapshot_id"] != job["snapshot_id"]:
             raise ResearchError("material_task_snapshot_no_longer_active")
         output = self.w.state / "jobs" / task_id
         cutoff = date.fromisoformat(state["as_of"])
-        roots = [self.w.path(p) for p in self.w.config["projection_roots"]]
-        supplements = roots[1:] + [self.w.path(p) / state["as_of"] for p in self.w.config["evidence_roots"]]
+        from .core_materials import bound_roots
+        roots, evidence_roots, peer_roots = bound_roots(self.w, state, pack_path)
+        supplements = roots[1:]
         if job["topic"] == "catalog":
             refresh_lite_catalog(output_root=output, ticker=state["ticker"], as_of=cutoff)
-            supplements.append(output)
+            evidence_roots.append(output)
         else:
             identity = self.w.resolve(state["canonical_ticker"], cutoff).identity
             datasets = sorted({x["dataset_id"] for x in job["requirements"]})
@@ -177,7 +197,7 @@ class MaterialJobs:
                         and not any(prior.get(key) for key in ("pending", "retryable", "partial"))):
                         plan = runtime.plan([identity], mode="reconcile", company_scope="company-only",
                             dataset_ids=[dataset], parent_run_id=job["run_ids"][dataset],
-                            research_profile_id=self.w.config["profile_id"],
+                            research_profile_id=profile_id,
                             as_of=datetime.combine(cutoff, time.min, tzinfo=timezone.utc))
                         job["run_ids"][dataset] = plan.run_ids[0]
                         self.save(job)
@@ -185,7 +205,7 @@ class MaterialJobs:
                         periods = sorted({x["period"] for x in job["requirements"]
                                           if x["dataset_id"] == dataset and len(x.get("period", "")) == 10})
                         plan = runtime.plan([identity], mode="incremental", company_scope="company-only",
-                            dataset_ids=[dataset], report_periods=periods, research_profile_id=self.w.config["profile_id"],
+                            dataset_ids=[dataset], report_periods=periods, research_profile_id=profile_id,
                             as_of=datetime.combine(cutoff, time.min, tzinfo=timezone.utc))
                         job["run_ids"][dataset] = plan.run_ids[0]
                         self.save(job)
@@ -204,16 +224,23 @@ class MaterialJobs:
                 job.update(state="checkpointed", reason="bounded_round_completed; resume_same_run", failures=0)
                 self.save(job)
                 return
-            materialize_cache(output / "analysis.db", output / "data", output / "materialized", cutoff,
-                              tickers=[state["ticker"]], research_profile_id=self.w.config["profile_id"])
-            supplements.append(output / "materialized")
+            job["publication_round"] = job.get("publication_round", 0) + 1
+            self.save(job)
+            materialized = output / "rounds" / str(job["publication_round"]) / "materialized"
+            materialize_cache(output / "analysis.db", output / "data", materialized, cutoff,
+                              tickers=[state["ticker"]], research_profile_id=profile_id, finalized_only=True)
+            supplements.append(materialized)
         built = build_lite_pack(input_root=roots[0], ticker=state["ticker"], as_of=cutoff,
                                output_root=self.w.state / "packs", supplements=supplements,
-                               profile_id=self.w.config["profile_id"])
+                               profile_id=profile_id, peer_roots=peer_roots,
+                               evidence_roots=evidence_roots)
+        from .snapshot_materials import inherit_snapshot_materials
+        built = inherit_snapshot_materials(parent_pack=pack_path, built=built, output_root=self.w.state / "material-packs")
         # A new snapshot is proposed, never silently adopted by the active research.
         artifact = self.w.artifact(job["research_id"], "snapshot_candidate", {
             "candidate_pack_path": built["pack_dir"], "candidate_snapshot_id": built["pack_id"],
-            "reason": job["impact"], "build_status": built["status"], "source_task": task_id})
+            "reason": job["impact"], "build_status": built["status"], "source_task": task_id},
+            expected_snapshot_id=job["snapshot_id"])
         if job.get("unfinished_datasets"):
             job.update(state="partial", result=artifact, reason="available_data_updated; unfinished_windows_preserved",
                        failures=job.get("failures", 0)+1)
@@ -223,23 +250,37 @@ class MaterialJobs:
 
     def adopt_snapshot(self, research_id: str, candidate_id: str):
         """Explicitly adopt a verified candidate and reopen analysis; old artifacts stay frozen."""
+        state, revision = self.w.task(research_id)
         candidates = self.w.artifacts(research_id, "snapshot_candidate")
         candidate = next((x for x in candidates if x["artifact_id"] == candidate_id), None)
         if not candidate:
             raise ResearchError("candidate_not_in_active_snapshot")
+        old = state["snapshot_id"]
+        if candidate["snapshot_id"] != old:
+            raise ResearchError("candidate_not_in_active_snapshot")
         path = Path(candidate["candidate_pack_path"])
         manifest = self.w._verify_pack(path)
-        state, revision = self.w.task(research_id)
         if manifest["ticker"] != state["ticker"] or manifest["as_of"] != state["as_of"]:
             raise ResearchError("candidate_identity_mismatch")
+        if manifest["pack_id"] != candidate["candidate_snapshot_id"]:
+            raise ResearchError("candidate_snapshot_mismatch")
+        from .snapshot_artifacts import inherit_material_artifacts
         from .workspace import sha
-        old = state["snapshot_id"]
         state.update(pack_path=str(path), snapshot_id=manifest["pack_id"], manifest_sha256=sha(path / "manifest.json"),
                      status="analysis_pending", adopted_from=old)
         state["stages"].update(analysis="needs_review", rendering="pending", processing=manifest["status"])
-        self.w._save(state, revision)
-        return {"research_id": research_id, "previous_snapshot": old, "snapshot_id": manifest["pack_id"],
-                "review_required": True, "reason": candidate["reason"]}
+        result = {"research_id": research_id, "previous_snapshot": old, "snapshot_id": manifest["pack_id"],
+                  "review_required": True, "reason": candidate["reason"]}
+        with self.w.connect() as con:
+            con.execute("BEGIN IMMEDIATE")
+            live = con.execute("SELECT state_json,revision FROM research_tasks WHERE id=?", (research_id,)).fetchone()
+            if live is None or json.loads(live["state_json"])["snapshot_id"] != old:
+                raise ResearchError("candidate_not_in_active_snapshot")
+            if live["revision"] != revision:
+                raise ResearchError("concurrent_task_update:reload_and_retry")
+            inherit_material_artifacts(con, research_id, old, manifest["pack_id"])
+            self.w._save(state, revision, connection=con)
+        return result
 
 
 def main():

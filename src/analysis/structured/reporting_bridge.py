@@ -273,6 +273,13 @@ def _selected_records(
 def _candidate_sources(manifest: Mapping[str, Any]) -> dict[str, SourceRecord]:
     candidates: dict[str, SourceRecord] = {}
     paths: set[Path] = set()
+    # Current exports bind sources explicitly, including nested run directories
+    # and text-only observations that have no admitted numeric fact.
+    for group in ("source_inputs", "auxiliary_inputs", "peer_inputs"):
+        for index, source_input in enumerate(manifest.get(group, ())):
+            for name, descriptor in (source_input.get("files") or {}).items():
+                if Path(name).name == "sources.jsonl":
+                    paths.add(_verify_descriptor(descriptor, label=f"{group}[{index}].files.{name}"))
     for source_input in manifest.get("source_inputs", ()):
         company_path = source_input.get("company_path")
         if company_path:
@@ -359,6 +366,7 @@ def _sources(
     dimensions: list[DimensionalFactRecord],
     source_lookup: Callable[[str], SourceRecord] | None,
     events: Iterable[EventRecord] = (),
+    supplemental_source_ids: Iterable[str] = (),
 ) -> list[SourceRecord]:
     events = tuple(events)
     required = sorted(
@@ -366,7 +374,7 @@ def _sources(
             source_id
             for item in (*facts, *dimensions, *events)
             for source_id in item.source_ids
-        }
+        } | set(supplemental_source_ids)
     )
     candidates = _candidate_sources(manifest)
     result: list[SourceRecord] = []
@@ -533,7 +541,6 @@ def build_report_request(
     for event in events:
         if event.ticker != ticker:
             raise ValueError("report_pack_event_company_mismatch")
-    sources = _sources(manifest, selected, dimensions, source_lookup, events)
 
     as_of_date = date.fromisoformat(str(manifest["as_of"]))
     china_tz = timezone(timedelta(hours=8))
@@ -560,6 +567,20 @@ def build_report_request(
     supported = profile.get("industry_profile", {}).get("supported_tickers", {})
     resolved_industry = industry or ("消费" if ticker in supported else "未知")
     report_coverage = _coverage_projection(manifest, coverage, pack_path)
+    referenced_sources = {
+        source_id
+        for row in report_coverage["requirements"]
+        for source_id in row.get("source_ids", ())
+    } | {
+        source_id
+        for peer in core.get("peers", ())
+        for metric in peer.get("metrics", ())
+        for source_id in metric.get("source_ids", ())
+    }
+    sources = _sources(
+        manifest, selected, dimensions, source_lookup, events,
+        supplemental_source_ids=referenced_sources,
+    )
     coverage_hash = canonical_sha256(report_coverage)
     from .report_semantics import semantic_inputs
     semantic = semantic_inputs(pack_path, manifest, core, as_of, _read_jsonl)

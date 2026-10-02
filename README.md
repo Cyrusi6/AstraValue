@@ -127,6 +127,8 @@ foreach ($runId in $planned.run_ids) {
 
 报告原文不再随结构化数据全量下载或归档。研究工作区只针对当前问题请求公告、事件或重要报告正文；采集结果保留来源身份、快照、页码或文本定位，并可在内容变化时生成新版本。公告目录、事件分类和文档解析属于 acquisition 链，不能绕过研究问题触发全量正文抓取。
 
+工作区 `request_materials` 支持 `report_documents`（最新完整中文年报、中报及定位章节）、`peer_facts`（已登记同行的缺失比较指标）、`market_quote`（截至研究日期的有界估值行情）。任务复用有效资料，缺失时联网补采，生成新候选后通过 `adopt_snapshot` 采用；中断后用 `resume_task` 继续。配置可分别登记主体、同行和原文目录，详见[工具说明](docs/acquisition/research-tool-reference.md)及[贵州茅台本轮恢复验收](docs/acquisition/moutai-input-restoration-20261002.md)。
+
 可用 `python -m analysis.cli acquire ...` 创建、执行、增量更新或 reconcile 采集运行；结构化字段使用上文 `/api/structured/*` 接口。资料包完成后只能通过 `POST /api/structured/reports` 进入 reporting bridge，生成的 `ReportVersion` 通过只读报告接口和导出接口读取。
 
 ## 已有模块与历史兼容能力（不等于端到端验收）

@@ -139,6 +139,18 @@ def test_cache_upgrades_once_and_rebuilds_missing_required_artifact_without_new_
     assert len(calls) == 3
     assert calls[-1][1]["as_of"].date() == date(2026, 9, 14)
 
+    # A pending peer financial query must not hide a completed valuation run.
+    from types import SimpleNamespace
+    finalized_events = [SimpleNamespace(event_type=e["event_type"]) for e in fixture.list_run_events("run-1")]
+    fixture.list_run_events = lambda run_id: finalized_events if run_id == "run-1" else []
+    with sqlite3.connect(db) as connection:
+        connection.execute("INSERT INTO structured_run_contexts VALUES ('open-run','000858')")
+    partial = materialize_cache(db, tmp_path / "data", tmp_path / "partial", date(2026, 9, 14),
+                                research_profile_id=LITE_PROFILE_ID, finalized_only=True)
+    assert [row["run_id"] for row in partial["companies"]] == ["run-1"]
+    assert partial["unfinished_runs"] == [{"ticker": "000858", "run_id": "open-run", "reason": "run_not_finalized"}]
+    assert not (tmp_path / "partial/000858").exists()
+
 
 def test_fact_only_formal_export_does_not_reuse_legacy_raw_records(tmp_path):
     fixture = source_fixture()

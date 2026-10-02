@@ -1,11 +1,27 @@
 {
   "version": "research-workspace-v1",
-  "valuation_caches": [{"db": "D:/估值模型-worktrees/business-model-cninfo-direct-empty/var/pilots/cninfo-content-archive-20260905/runtime/analysis.db", "data_root": "D:/估值模型-worktrees/business-model-cninfo-direct-empty/var/pilots/cninfo-content-archive-20260905/runtime/data"}],
+  "valuation_caches": [
+    {
+      "db": "tmp/moutai-api-final-20261002/analysis.db",
+      "data_root": "tmp/moutai-api-final-20261002/data"
+    }
+  ],
   "state_root": "var/research-workspace",
   "identity_file": "tmp/data-layer-evidence/cninfo-stock-list.json",
-  "pack_roots": ["tmp/moutai-golden-v1/lite", "tmp/eight-step-lite-v1"],
-  "projection_roots": ["tmp/research-data-layer-v1", "tmp/research-data-layer-live-v1/materialized"],
-  "evidence_roots": ["tmp/eight-step-lite-v1/network-audit"],
+  "pack_roots": [
+    "tmp/moutai-input-restoration-20261002/state/packs",
+    "tmp/moutai-golden-v1/lite",
+    "tmp/eight-step-lite-v1"
+  ],
+  "projection_roots": [
+    "tmp/moutai-report-astra-medium-20261002/projections-repaired-v3/incremental",
+    "tmp/moutai-report-astra-medium-20261002/projections-repaired-v3/baseline",
+    "tmp/moutai-input-restoration-20261002/state/jobs/j_0a47ac3c7dad18f8c09ebb90/rounds/1/materialized"
+  ],
+  "evidence_roots": [
+    "tmp/research-data-layer-v1",
+    "tmp/eight-step-lite-v1/network-audit/2026-09-13"
+  ],
   "knowledge_catalog": "config/methods/knowledge/catalog.v1.json",
   "knowledge_store": "var/research/knowledge-store",
   "knowledge_bundle_id": null,
@@ -13,5 +29,9 @@
   "business_evidence_sources": [],
   "governance_sources": [],
   "max_tool_seconds": 120,
-  "max_attempts": 3
+  "max_attempts": 3,
+  "offline": false,
+  "peer_projection_roots": [
+    "tmp/research-data-layer-v1"
+  ]
 }

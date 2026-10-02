@@ -14,8 +14,9 @@ from .scope import LITE_PROFILE_ID, ROOT, load_research_profile, load_scope
 from .storage import canonical_json, canonical_sha256
 
 
-PACK_VERSION = "eight-step-lite-pack-v1.0.6"
+PACK_VERSION = "eight-step-lite-pack-v1.0.7"
 FORMULA_VERSION = "eight-step-lite-formulas-v1.0.0"
+PEER_METRICS = ("operating_income", "gross_margin", "eastmoney_pe_ttm", "eastmoney_pb_mrq")
 STOCK_METRICS = {
     "cash",
     "total_assets",
@@ -94,6 +95,7 @@ def materialize_cache(
     tickers: Sequence[str] | None = None,
     recompute: bool = False,
     research_profile_id: str | None = None,
+    finalized_only: bool = False,
 ) -> dict[str, Any]:
     """Materialize structured runs into the lite projection used by research.
 
@@ -137,10 +139,16 @@ def materialize_cache(
         storage = StructuredStorage(db, namespace, initialize=False)
         repository = AcquisitionRepository(db, initialize=False)
         results: list[dict[str, Any]] = []
+        unfinished_runs: list[dict[str, str]] = []
         seen_tickers: set[str] = set()
         for run in runs:
             ticker = str(run["ticker"])
             if tickers and ticker not in set(tickers):
+                continue
+            if finalized_only and not any(getattr(event.event_type, "value", event.event_type) == "finalized"
+                    for event in repository.list_run_events(str(run["run_id"]))):
+                unfinished_runs.append({"ticker": ticker, "run_id": str(run["run_id"]),
+                                        "reason": "run_not_finalized"})
                 continue
             folder = output / ticker
             if ticker in seen_tickers:
@@ -206,6 +214,7 @@ def materialize_cache(
         "source_database_unchanged": True,
         "source_db_sha256": source_db_sha256,
         "companies": results,
+        "unfinished_runs": unfinished_runs,
         "cache_replay": True,
         "current_network": False,
         "manual_acceptance": "pending",
@@ -278,6 +287,19 @@ def _fact_value(fact: Mapping[str, Any]) -> Decimal | None:
 def _available_at(value: Mapping[str, Any]) -> str:
     metadata = value.get("metadata") or {}
     return str(metadata.get("available_at") or value.get("available_at") or value.get("as_of") or "")
+
+
+def _available_by(raw: Any, cutoff: datetime, *, optional: bool = False) -> bool:
+    if not raw:
+        return optional
+    try:
+        value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    # Filing catalogs can supply a date without a clock or time zone.
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone(timedelta(hours=8)))
+    return value <= cutoff
 
 
 def _public_fact(fact: Mapping[str, Any]) -> dict[str, Any]:
@@ -876,10 +898,44 @@ def _load_evidence(
     evidence: dict[str, dict[str, Any]] = {}
     documents: dict[str, dict[str, Any]] = {}
     catalogs = []
+    cutoff = datetime.combine(as_of, time.max, tzinfo=timezone(timedelta(hours=8)))
+    original_hashes: dict[Path, str | None] = {}
+    # Resolve originals first so an evidence index can use a verified original
+    # registered by a different supplement root.
+    for root in roots:
+        live = root / "live-documents.json"
+        if live.is_file():
+            payload = json.loads(live.read_text(encoding="utf-8"))
+            catalogs.extend(item for item in payload.get("catalogs", []) if item.get("ticker") == ticker)
+            for document in payload.get("documents", []):
+                period = str(document.get("period") or "")
+                if (document.get("ticker") != ticker
+                    or not document.get("original_sha256")
+                    or not document.get("original_path")
+                    or period > as_of.isoformat()
+                    or not _available_by(document.get("published_at"), cutoff, optional=True)):
+                    continue
+                original = Path(document["original_path"])
+                original = (original if original.is_absolute() else root / original).resolve()
+                if original not in original_hashes:
+                    try:
+                        original_hashes[original] = _hash_file(original) if original.is_file() else None
+                    except OSError:
+                        original_hashes[original] = None
+                if original_hashes[original] != document["original_sha256"]:
+                    continue
+                documents[str(document["original_sha256"])] = {
+                    **document, "original_path": str(original), "original_hash_verified": True,
+                    "_source_document_root": str(root.resolve()),
+                }
     for priority, root in enumerate(roots):
         evidence_path = root / "document-evidence.jsonl"
         for item in _read_jsonl(evidence_path):
-            if item.get("company") != ticker or str(item.get("period") or "9999") > as_of.isoformat():
+            if (item.get("company") != ticker
+                or str(item.get("period") or "9999") > as_of.isoformat()
+                or str(item.get("original_sha256") or "") not in documents
+                or not str(item.get("text") or "").strip()
+                or not _available_by(item.get("published_at"), cutoff, optional=True)):
                 continue
             value = dict(item)
             value["_source_evidence_path"] = str(evidence_path.resolve())
@@ -888,24 +944,12 @@ def _load_evidence(
             if previous and _payload_without_internal(previous) != _payload_without_internal(value):
                 raise ValueError("conflicting_immutable_evidence_payload")
             evidence[str(value["evidence_id"])] = value
-        live = root / "live-documents.json"
-        if live.is_file():
-            payload = json.loads(live.read_text(encoding="utf-8"))
-            catalogs.extend(item for item in payload.get("catalogs", []) if item.get("ticker") == ticker)
-            for document in payload.get("documents", []):
-                period = str(document.get("period") or "")
-                published_at = str(document.get("published_at") or "")[:10]
-                if (
-                    document.get("ticker") == ticker
-                    and document.get("original_sha256")
-                    and (not period or period <= as_of.isoformat())
-                    and (not published_at or published_at <= as_of.isoformat())
-                ):
-                    documents[str(document["original_sha256"])] = document
     return list(evidence.values()), documents, catalogs
 
 
-def _auxiliary_inputs(roots: Sequence[Path]) -> list[dict[str, Any]]:
+def _auxiliary_inputs(
+    roots: Sequence[Path], documents: Mapping[str, Mapping[str, Any]]
+) -> list[dict[str, Any]]:
     values = []
     for priority, root in enumerate(roots):
         files = {}
@@ -921,6 +965,11 @@ def _auxiliary_inputs(roots: Sequence[Path]) -> list[dict[str, Any]]:
                 requests = payload.get("requests", [])
                 source_requests += len(requests)
                 uncached_requests += sum(not item.get("cache_reused", False) for item in requests)
+        for digest, document in documents.items():
+            if document.get("_source_document_root") == str(root.resolve()):
+                files["original:" + digest] = {
+                    "path": document["original_path"], "sha256": digest,
+                }
         if files:
             values.append(
                 {
@@ -1158,6 +1207,8 @@ def _evidence_payload(
                 "document_class": item.get("document_class"),
                 "original_sha256": item.get("original_sha256"),
                 "original_path": document.get("original_path"),
+                "original_hash_verified": bool(document.get("original_hash_verified")),
+                "published_at": item.get("published_at") or document.get("published_at"),
                 "source_url": item.get("original_url"),
                 "locator": item.get("locator"),
                 "parser_version": item.get("parser_version") or document.get("parser_version"),
@@ -1282,6 +1333,7 @@ def _catalog_status(
         ]
         statuses[label] = {
             "period": period,
+            "document_class": category,
             "state": "parsed" if any(item.get("parse_status") == "parsed" for item in matches) else "pending",
             "resource_ids": [item.get("resource_id") for item in matches],
         }
@@ -1355,27 +1407,47 @@ def _next_work(
     ticker: str,
     profile: Mapping[str, Any],
 ) -> dict[str, Any]:
-    items = list(question_work)
+    items = [dict(item) for item in question_work]
+    reports = [dict(item, document_class=item.get("document_class") or category)
+               for name, category in (("latest_annual", "D01"), ("latest_interim", "D02"))
+               if (item := catalog["required_reports"].get(name))]
+    missing_reports = [item for item in reports if item["state"] != "parsed"]
+
+    def report_hint(action: str, selected: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        return {"action": action,
+                "document_classes": sorted({str(item["document_class"]) for item in selected}),
+                "report_periods": sorted({str(item["period"]) for item in selected})}
+
+    current_metrics = {item["metric_id"] for item in profile["core_metrics"]
+                       if item["period_scope"] == "current"}
+    for item in items:
+        if item.get("dataset_id") == "market_cap" and item.get("acquire_allowed"):
+            item.update(material_types=["market_quote"], task_hint={
+                "action": "acquire", "as_of": item.get("period"),
+            })
     for entry in metric_entries:
         if entry["state"] == "ready" or not entry["required"]:
             continue
-        items.append(
-            {
-                "company": ticker,
-                "requirement_id": entry["requirement_id"],
-                "period": entry["period"],
-                "stage": (
-                    "deterministic_calculation"
-                    if entry["metric_id"] in RATIO_DEPENDENCIES
-                    else "acquisition"
-                ),
-                "metric_id": entry["metric_id"],
-                "reason": entry["reason"],
-                "acquire_allowed": entry["metric_id"] not in RATIO_DEPENDENCIES,
-                "profile_id": profile["profile_id"],
-                "trigger": "missing_required_core_metric",
-            }
-        )
+        item = {
+            "company": ticker,
+            "requirement_id": entry["requirement_id"],
+            "period": entry["period"],
+            "stage": (
+                "deterministic_calculation"
+                if entry["metric_id"] in RATIO_DEPENDENCIES
+                else "acquisition"
+            ),
+            "metric_id": entry["metric_id"],
+            "reason": entry["reason"],
+            "acquire_allowed": entry["metric_id"] not in RATIO_DEPENDENCIES,
+            "profile_id": profile["profile_id"],
+            "trigger": "missing_required_core_metric",
+        }
+        if entry["metric_id"] in current_metrics:
+            item.update(dataset_id="market_cap", material_types=["market_quote"], task_hint={
+                "action": "acquire", "metric_ids": [entry["metric_id"]], "as_of": entry["period"],
+            })
+        items.append(item)
     for slot in evidence_coverage:
         if slot["state"] == "source_text_available":
             items.append(
@@ -1385,6 +1457,9 @@ def _next_work(
                     "stage": "document_reading",
                     "reason": slot["reason"],
                     "evidence_ids": slot["evidence_ids"],
+                    "material_types": ["report_documents"],
+                    "task_hint": {"action": "read_evidence", "route_ids": slot["routes"],
+                                  "evidence_ids": slot["evidence_ids"]},
                     "acquire_allowed": False,
                     "profile_id": profile["profile_id"],
                     "trigger": "source_text_requires_question_review",
@@ -1395,9 +1470,15 @@ def _next_work(
                 {
                     "company": ticker,
                     "requirement_id": slot["requirement_id"],
-                    "stage": "document_reading",
+                    "stage": "acquisition" if missing_reports else "document_reading",
                     "reason": slot["reason"],
-                    "acquire_allowed": False,
+                    "acquire_allowed": bool(missing_reports),
+                    "material_types": ["report_documents"],
+                    "task_hint": {
+                        **report_hint("acquire_and_parse" if missing_reports else "extract_evidence",
+                                      missing_reports or reports),
+                        "route_ids": slot["routes"],
+                    },
                     "profile_id": profile["profile_id"],
                     "trigger": "required_evidence_slot_missing",
                 }
@@ -1405,18 +1486,31 @@ def _next_work(
     for item in context_coverage:
         if item["state"] in {"ready", "not_applicable"}:
             continue
-        items.append(
-            {
-                "company": ticker,
-                "requirement_id": item["requirement_id"],
-                "stage": item.get("stage", "semantic_processing"),
-                "reason": item.get("reason"),
-                "record_ids": item.get("record_ids", []),
-                "acquire_allowed": bool(item.get("acquire_allowed", False)),
-                "profile_id": profile["profile_id"],
-                "trigger": "active_lite_context_requirement",
-            }
-        )
+        work = {
+            "company": ticker,
+            "requirement_id": item["requirement_id"],
+            "stage": item.get("stage", "semantic_processing"),
+            "reason": item.get("reason"),
+            "record_ids": item.get("record_ids", []),
+            "acquire_allowed": bool(item.get("acquire_allowed", False)),
+            "profile_id": profile["profile_id"],
+            "trigger": "active_lite_context_requirement",
+        }
+        for key in ("period", "metric_id", "dataset_id", "material_types", "task_hint"):
+            if key in item:
+                work[key] = item[key]
+        report_name = {
+            "lite.context.latest_annual_original": "latest_annual",
+            "lite.context.latest_interim_original": "latest_interim",
+        }.get(item["requirement_id"])
+        if report_name:
+            report = catalog["required_reports"][report_name]
+            category = "D01" if report_name == "latest_annual" else "D02"
+            work.update(period=report["period"], material_types=["report_documents"],
+                        task_hint=report_hint("review_report" if report["state"] == "parsed"
+                                              else "acquire_and_parse",
+                                              [dict(report, document_class=category)]))
+        items.append(work)
     if catalog["post_annual_event_catalog_state"] != "ready":
         items.append(
             {
@@ -1659,31 +1753,44 @@ def _render_markdown(payload: Mapping[str, Any], *, compact: bool = False) -> st
 
 
 def _peer_payload(
-    input_root: Path,
+    roots: Sequence[Path],
     ticker: str,
     profile: Mapping[str, Any],
     periods: Mapping[str, Any],
+    conflicts: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     result = []
     inputs = []
-    wanted = ("operating_income", "gross_margin", "eastmoney_pe_ttm", "eastmoney_pb_mrq")
+    as_of = date.fromisoformat(periods["current"])
+    cutoff = datetime.combine(as_of, time.max, tzinfo=timezone(timedelta(hours=8)))
+    roots = list(dict.fromkeys(root.resolve() for root in roots))
     for peer in profile["peer_sets"].get(ticker, ()):
-        company = input_root / peer
-        if not company.is_dir():
+        projections = [
+            _discover_projection(root, peer, "peer" if priority == 0 else f"peer_supplement_{priority}", priority)
+            for priority, root in enumerate(roots) if (root / peer).is_dir()
+        ]
+        if not projections:
             continue
-        projection = _discover_projection(input_root, peer, "peer", 0)
-        descriptor = {"ticker": peer, "files": projection["files"], "manifests": projection["manifests"]}
-        inputs.append({**descriptor, "sha256": canonical_sha256(descriptor)})
-        facts, _ = _merge_items([projection], "facts")
-        lookup = _fact_lookup(facts)
+        for projection in projections:
+            descriptor = {"ticker": peer, **{key: projection[key] for key in
+                          ("root", "role", "priority", "files", "manifests")}}
+            inputs.append({**descriptor, "sha256": canonical_sha256(descriptor)})
+        facts, _ = _merge_items(projections, "facts")
+        lookup = _fact_lookup([
+            fact for fact in facts
+            if _available_by(_available_at(fact), cutoff)
+            and str(fact.get("period_end") or "9999") <= periods["current"]
+            and _fact_value(fact) is not None
+        ])
         metrics = []
-        conflicts: list[dict[str, Any]] = []
-        for metric in wanted:
+        for metric in PEER_METRICS:
+            metric_conflicts: list[dict[str, Any]] = []
             if metric.startswith("eastmoney_"):
-                fact = _current_metric(lookup, metric, date.fromisoformat(periods["current"]), conflicts)
+                fact = _current_metric(lookup, metric, as_of, metric_conflicts)
             else:
-                fact = _select_metric(lookup, metric, periods["annual"][-1], "cumulative", conflicts)
-            if fact is not None:
+                fact = _select_metric(lookup, metric, periods["annual"][-1], "cumulative", metric_conflicts)
+            conflicts.extend(dict(item, ticker=peer) for item in metric_conflicts)
+            if fact is not None and not any(not item.get("resolved") for item in metric_conflicts):
                 public = _public_fact(fact)
                 metrics.append(
                     {
@@ -1692,9 +1799,14 @@ def _peer_payload(
                         "value": public["value"],
                         "unit": public["unit"],
                         "period": public["period_end"],
+                        "period_type": public["period_type"],
                         "fact_id": public["fact_id"],
+                        "available_at": public["available_at"],
+                        "source_ids": public["source_ids"],
                     }
                 )
+        if not metrics:
+            continue
         result.append(
             {
                 "ticker": peer,
@@ -1728,6 +1840,8 @@ def build_lite_pack(
     as_of: date,
     output_root: Path,
     supplements: Sequence[Path] = (),
+    peer_roots: Sequence[Path] = (),
+    evidence_roots: Sequence[Path] = (),
     profile_id: str = LITE_PROFILE_ID,
     max_tokens: int | None = None,
 ) -> dict[str, Any]:
@@ -1735,8 +1849,10 @@ def build_lite_pack(
     if ticker not in profile["industry_profile"]["supported_tickers"]:
         raise ValueError(profile["industry_profile"]["unsupported_message"])
     roots = [input_root, *supplements]
+    document_roots = list(dict.fromkeys(root.resolve() for root in [*roots, *evidence_roots]))
     output_resolved = output_root.resolve()
-    if any(output_resolved.is_relative_to(root.resolve()) for root in roots):
+    if any(output_resolved.is_relative_to(root.resolve())
+           for root in [*roots, *peer_roots, *evidence_roots]):
         raise ValueError("lite_output_must_be_outside_input_projection")
     projections = [
         _discover_projection(root, ticker, "primary" if index == 0 else f"supplement_{index}", index)
@@ -1770,7 +1886,7 @@ def build_lite_pack(
         else:
             item["fact_ref"] = None
     business = _business_payload(facts, records, periods, ticker, profile, conflicts)
-    all_evidence, documents, catalogs = _load_evidence(roots, ticker, as_of)
+    all_evidence, documents, catalogs = _load_evidence(document_roots, ticker, as_of)
     evidence, evidence_coverage = _evidence_payload(all_evidence, documents, profile, periods)
     from .research_coverage import build_question_coverage
     detailed = build_question_coverage(ticker=ticker, facts=facts, records=records,
@@ -1793,7 +1909,7 @@ def build_lite_pack(
         },
         limit=12,
     )
-    peers, peer_inputs = _peer_payload(input_root, ticker, profile, periods)
+    peers, peer_inputs = _peer_payload([*roots, *peer_roots], ticker, profile, periods, conflicts)
     metric_coverage = [
         {
             key: item[key]
@@ -1860,8 +1976,18 @@ def build_lite_pack(
             "state": "ready" if len(peers) >= 2 else "pending",
             "reason": None if len(peers) >= 2 else "two_comparable_baijiu_peers_missing",
             "peer_tickers": [item["ticker"] for item in peers],
-            "stage": "research_context",
-            "acquire_allowed": False,
+            "period": periods["annual"][-1],
+            "stage": "research_context" if len(peers) >= 2 else "acquisition",
+            "acquire_allowed": len(peers) < 2,
+            "material_types": ["peer_facts"],
+            "task_hint": {
+                "action": "acquire",
+                "peer_tickers": list(profile["peer_sets"].get(ticker, ())),
+                "report_periods": [periods["annual"][-1]],
+                "metric_ids": list(PEER_METRICS),
+                "dependency_metric_ids": ["operating_cost"],
+                "as_of": periods["current"],
+            },
         },
         {
             "requirement_id": "lite.context.latest_annual_original",
@@ -1892,7 +2018,7 @@ def build_lite_pack(
         }
         for projection in projections
     ]
-    auxiliary_inputs = _auxiliary_inputs(roots)
+    auxiliary_inputs = _auxiliary_inputs(document_roots, documents)
     identity = {
         "pack_version": PACK_VERSION,
         "profile_id": profile_id,

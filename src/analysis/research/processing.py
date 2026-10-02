@@ -162,16 +162,24 @@ class Processing:
         state, old_path, _ = self.w.pack(research_id)
         manifest = read_json(old_path / "manifest.json")
         inherited = read_pack_outputs(old_path, manifest)
-        roots = list(dict.fromkeys(x["root"] for x in manifest["source_inputs"] + manifest.get("auxiliary_inputs",[]) if x.get("root")))
+        roots = list(dict.fromkeys(x["root"] for x in manifest["source_inputs"] if x.get("root")))
+        evidence_roots = list(dict.fromkeys(Path(x["root"]) for x in manifest.get("auxiliary_inputs", []) if x.get("root")))
+        peer_roots = list(dict.fromkeys(
+            Path(x["root"]) if x.get("root") else Path(x["path"]).parent.parent
+            for x in manifest.get("peer_inputs", []) if x.get("root") or x.get("path")))
         # Verify every frozen descriptor before reusing inputs.
-        for group in ("source_inputs", "auxiliary_inputs"):
+        for group in ("source_inputs", "auxiliary_inputs", "peer_inputs"):
             for row in manifest.get(group, []):
-                for d in list(row.get("files",{}).values()) + row.get("manifests",[]):
+                descriptors = list(row.get("files",{}).values()) + row.get("manifests",[])
+                if row.get("path"):
+                    descriptors.append(row)
+                for d in descriptors:
                     if sha(Path(d["path"])) != d["sha256"]:
                         raise ResearchError("processing_source_changed")
         built = build_lite_pack(input_root=Path(roots[0]), ticker=state["ticker"], as_of=date.fromisoformat(state["as_of"]),
                                 output_root=self.w.state/"processing-base", supplements=[Path(r) for r in roots[1:]],
-                                profile_id=STANDARD_PROFILE_ID)
+                                profile_id=STANDARD_PROFILE_ID, evidence_roots=evidence_roots,
+                                peer_roots=peer_roots)
         base = Path(built["pack_dir"])
         base_manifest = read_json(base/"manifest.json")
         # Standard-profile rebuilding intentionally replaces matching outputs;
