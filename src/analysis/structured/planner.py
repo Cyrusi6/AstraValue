@@ -65,6 +65,7 @@ class DatasetWork:
     parameters: Mapping[str, Any]
     ordinal: int
     reason_code: str | None = None
+    reconciles_job_id: str | None = None
 
     @property
     def scope_key(self) -> str:
@@ -413,6 +414,11 @@ class StructuredDatasetPlanner:
                     "query_pack_hash": context.query_pack_hash,
                     "source_registry_hash": context.source_registry_hash,
                     "policy_version": context.policy_version,
+                    # A company deferral changes the frozen execution scope;
+                    # do not bind its jobs to an older full-scope run.
+                    **({"acquisition_deferral": context.frozen_config["acquisition_deferral"]}
+                       if context.frozen_config.get("acquisition_deferral") else {}),
+                    **({"reconcile_run_id": run_id} if work.reconciles_job_id else {}),
                 }
             )
             jobs.append(
@@ -442,6 +448,8 @@ class StructuredDatasetPlanner:
                         )
                     ),
                     "ordinal": work.ordinal,
+                    **({"reconciles_job_id": work.reconciles_job_id}
+                       if work.reconciles_job_id else {}),
                     "created_at": _aware_utc(
                         _value(run, "created_at", default=datetime.now(timezone.utc))
                     ).isoformat(),

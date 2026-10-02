@@ -31,5 +31,6 @@ def test_cache_miss_lists_identity_prerequisite_and_known_sync_is_durably_queued
     assert preview["runnable"] is False
     assert preview["identity_prerequisites"] == ["B08", "C01"]
 
-    with pytest.raises(ValueError, match="incremental需要每个适用数据集都有安全coverage"):
-        service.plan("600519", mode="incremental")
+    planned = service.plan("600519", mode="incremental")
+    assert planned["created"]
+    assert planned["performed_network_io"] is False

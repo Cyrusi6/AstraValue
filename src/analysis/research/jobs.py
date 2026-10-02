@@ -168,9 +168,19 @@ class MaterialJobs:
             identity = self.w.resolve(state["canonical_ticker"], cutoff).identity
             datasets = sorted({x["dataset_id"] for x in job["requirements"]})
             completed = True
+            unfinished = []
             with AcquisitionRuntime.create(output / "analysis.db", output / "data") as acquisition:
                 runtime = StructuredDataRuntime(acquisition)
                 for dataset in datasets:
+                    prior = job.get("dataset_status", {}).get(dataset, {})
+                    if (dataset in job["run_ids"] and (prior.get("failed") or prior.get("blocked"))
+                        and not any(prior.get(key) for key in ("pending", "retryable", "partial"))):
+                        plan = runtime.plan([identity], mode="reconcile", company_scope="company-only",
+                            dataset_ids=[dataset], parent_run_id=job["run_ids"][dataset],
+                            research_profile_id=self.w.config["profile_id"],
+                            as_of=datetime.combine(cutoff, time.min, tzinfo=timezone.utc))
+                        job["run_ids"][dataset] = plan.run_ids[0]
+                        self.save(job)
                     if dataset not in job["run_ids"]:
                         periods = sorted({x["period"] for x in job["requirements"]
                                           if x["dataset_id"] == dataset and len(x.get("period", "")) == 10})
@@ -183,13 +193,13 @@ class MaterialJobs:
                     round_result = runtime.execute(run, max_jobs_per_round=1)
                     status = round_result["status"]
                     job.setdefault("dataset_status", {})[dataset] = status
-                    if status["failed"] or status["retryable"] or status["partial"]:
-                        job.update(state="failed", reason="dataset_incomplete:"+dataset,
-                                   failures=job.get("failures", 0)+1)
-                        self.save(job)
-                        return
-                    if status["pending"]:
+                    if status["failed"] or status.get("blocked", 0):
+                        unfinished.append({"dataset_id": dataset, "run_id": run,
+                                           "recovery": status.get("summary", {}).get("unfinished", []),
+                                           "next_action": "incremental_or_reconcile"})
+                    if status["pending"] or status["retryable"] or status["partial"]:
                         completed = False
+            job["unfinished_datasets"] = unfinished
             if not completed:
                 job.update(state="checkpointed", reason="bounded_round_completed; resume_same_run", failures=0)
                 self.save(job)
@@ -204,7 +214,11 @@ class MaterialJobs:
         artifact = self.w.artifact(job["research_id"], "snapshot_candidate", {
             "candidate_pack_path": built["pack_dir"], "candidate_snapshot_id": built["pack_id"],
             "reason": job["impact"], "build_status": built["status"], "source_task": task_id})
-        job.update(state="completed", result=artifact, reason=None)
+        if job.get("unfinished_datasets"):
+            job.update(state="partial", result=artifact, reason="available_data_updated; unfinished_windows_preserved",
+                       failures=job.get("failures", 0)+1)
+        else:
+            job.update(state="completed", result=artifact, reason=None)
         self.save(job)
 
     def adopt_snapshot(self, research_id: str, candidate_id: str):

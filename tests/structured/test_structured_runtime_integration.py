@@ -117,8 +117,9 @@ def test_plan_is_durable_idempotent_and_empty_dataset_list_means_all(tmp_path):
     all_runtime, all_client = _acquisition_runtime(tmp_path / "all")
     try:
         all_service = StructuredDataService.from_runtime(all_runtime)
-        with pytest.raises(ValueError, match="incremental需要每个适用数据集都有安全coverage"):
-            all_service.plan("600519", mode="incremental", as_of=NOW)
+        initial = all_service.plan("600519", mode="incremental", as_of=NOW)
+        assert initial["created"]
+        assert initial["dataset_count"] == 22
     finally:
         all_runtime.close()
         all_client.close()
@@ -532,6 +533,10 @@ def test_em_f_empty_envelope_is_no_data_and_records_absent_periods(tmp_path):
         assert terminal.protocol_summary["absent_periods"] == sorted(catalog_dates)
         assert coverage["status"] == "no_data"
         assert coverage["absent_periods"] == sorted(catalog_dates)
+        assert coverage["query_complete"] is True
+        assert coverage["safe_through"] is not None
+        service.plan("600519", mode="incremental", datasets=("income_quarter",),
+                     as_of=NOW + timedelta(days=1))
     finally:
         acquisition_runtime.close()
         client.close()
@@ -930,7 +935,7 @@ def test_incremental_cursor_advances_and_event_overlap_stays_bounded(tmp_path):
         client.close()
 
 
-def test_incremental_rejects_a_failed_coverage_window(tmp_path):
+def test_incremental_schedules_failed_window_without_advancing_it(tmp_path):
     def handler(_request):
         return httpx.Response(503, json={"error": "temporary"})
 
@@ -946,14 +951,401 @@ def test_incremental_rejects_a_failed_coverage_window(tmp_path):
         )["run_ids"][0]
         service.run(baseline)
         service.resume(baseline)
-        with pytest.raises(ValueError, match="incremental需要每个适用数据集都有安全coverage"):
-            service.plan(
+        incremental = service.plan(
                 "600519",
                 mode="incremental",
                 company_scope="company-only",
                 datasets=("company_basic",),
                 as_of=NOW + timedelta(days=1),
             )
+        new_job = service.storage.list_jobs(incremental["run_ids"][0], limit=None)[0]
+        original = service.storage.list_jobs(baseline, limit=None)[0]
+        assert new_job["reconciles_job_id"] == original["job_id"]
+        assert (new_job["time_start"], new_job["time_end"]) == (original["time_start"], original["time_end"])
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_default_deferral_is_company_scoped_and_explicit_selection_is_distinct(tmp_path):
+    from analysis.structured.scope import load_scope
+
+    runtime, client = _acquisition_runtime(tmp_path)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        planned = service.plan('600519', as_of=NOW, company_scope='company-with-peers')
+        deferred = set(load_scope()['company_acquisition_deferrals']['600519.SH']['dataset_ids'])
+        assert len(deferred) == 9
+        assert set(planned['deferred_datasets_by_ticker']) == {'600519.SH'}
+        for run in planned['runs']:
+            jobs = service.storage.list_jobs(run['run_id'], limit=None)
+            actual = {job['dataset_id'] for job in jobs}
+            if run['ticker'] == '600519.SH':
+                moutai = run
+                assert len(actual) == 22
+                assert not actual & deferred
+                assert set(service.status(run['run_id'])['acquisition_deferral']['dataset_ids']) == deferred
+                assert runtime.repository.get_run(run['run_id']).request_scope == 'ad_hoc'
+            else:
+                assert deferred <= actual
+                assert run['acquisition_deferral'] is None
+        repeated = service.plan('600519', as_of=NOW, company_scope='company-with-peers')
+        assert not repeated['created']
+        assert repeated['run_ids'] == planned['run_ids']
+        explicit = service.plan('600519', as_of=NOW, datasets=moutai['dataset_ids'])
+        assert explicit['run_ids'][0] != moutai['run_id']
+        assert explicit['deferred_datasets_by_ticker'] == {}
+        later_supplement = service.plan('600519', as_of=NOW, datasets=['goodwill'])
+        assert later_supplement['dataset_ids'] == ['goodwill']
+        assert later_supplement['deferred_datasets_by_ticker'] == {}
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_deferred_empty_allows_incremental_new_rows_and_reopen_resume(tmp_path, monkeypatch):
+    from copy import deepcopy
+    from analysis.structured import scope
+    from analysis.structured.storage import canonical_sha256
+
+    # Exercise real planning, snapshots and coverage with controlled upstream
+    # changes. The historical empty result must survive the scope adjustment.
+    current_scope = deepcopy(scope.load_scope())
+    for dataset_id, rule in current_scope['datasets'].items():
+        if rule['selection'] == 'required' and dataset_id not in {'company_basic', 'controller', 'goodwill'}:
+            rule['selection'] = 'conditional'
+    current_scope['content_sha256'] = canonical_sha256({k: v for k, v in current_scope.items() if k != 'content_sha256'})
+    monkeypatch.setattr(scope, 'load_scope', lambda: current_scope)
+    phase = 0
+    calls = []
+
+    def handler(request):
+        name = request.url.params['reportName']
+        calls.append(name)
+        if name == 'RPT_GOODWILL_STOCKDETAILS':
+            return httpx.Response(200, json={'success': False, 'code': 9201, 'message': '返回数据为空', 'result': None})
+        rows = [{'SECUCODE': '600519.SH', 'ORG_CODE': '1000', 'ORG_NAME': 'company'}]
+        assert name in {'RPT_F10_ORG_BASICINFO', 'RPT_F10_EH_RELATION'}
+        if name == 'RPT_F10_EH_RELATION':
+            rows = [{'SECUCODE': '600519.SH', 'HOLDER_NAME': holder, 'HOLD_RATIO': 10} for holder in (['A'] if phase == 0 else ['A', 'B'])]
+        return httpx.Response(200, json={'success': True, 'code': 0, 'result': {'data': rows, 'pages': 1, 'count': len(rows)}})
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    service = StructuredDataService.from_runtime(runtime)
+    try:
+        base = service.plan('600519', as_of=NOW, datasets=['company_basic', 'controller', 'goodwill'])['run_ids'][0]
+        _run_all_rounds(service, base)
+        assert service.status(base)['no_data'] == 1
+        original_empty = service.storage.list_acquisition_coverage(company_id=service.storage.get_run_context(base).company_id, dataset_id='goodwill', limit=None)
+        phase = 1
+        before = len(calls)
+        cutoff = NOW + timedelta(days=1)
+        plan = service.plan('600519', mode='incremental', as_of=cutoff)
+        run_id = plan['run_ids'][0]
+        assert set(plan['dataset_ids']) == {'company_basic', 'controller'}
+        first_round = service.run(run_id)
+        assert first_round['status']['pending'] == 1
+        completed_jobs = set(first_round['attempted_job_ids'])
+    finally:
+        runtime.close()
+        client.close()
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        resumed = service.resume(run_id)
+        assert not completed_jobs & set(resumed['attempted_job_ids'])
+        assert service.status(run_id)['succeeded'] == 2
+        controller = next(job for job in service.storage.list_jobs(run_id, limit=None) if job['dataset_id'] == 'controller')
+        records = service.storage.list_records(job_id=controller['job_id'], limit=None)
+        assert {row['raw_row']['HOLDER_NAME'] for row in records} == {'A', 'B'}
+        assert 'RPT_GOODWILL_STOCKDETAILS' not in calls[before:]
+        assert service.storage.list_acquisition_coverage(company_id=service.storage.get_run_context(base).company_id, dataset_id='goodwill', limit=None) == original_empty
+        call_count = len(calls)
+        repeated = service.plan('600519', mode='incremental', as_of=cutoff)
+        assert not repeated['created']
+        assert service.run(run_id)['attempted_job_ids'] == []
+        assert len(calls) == call_count
+        explicit = service.plan('600519', mode='incremental', as_of=cutoff, datasets=['goodwill'])
+        _run_all_rounds(service, explicit['run_ids'][0])
+        assert service.status(explicit['run_ids'][0])['completed_empty_jobs'] == 1
+    finally:
+        runtime.close()
+        client.close()
+
+
+def _empty_response():
+    return httpx.Response(200, json={
+        "success": False, "code": 9201, "message": "返回数据为空", "result": None,
+    })
+
+
+def _litigation_response():
+    return httpx.Response(200, json={
+        "success": True, "code": 0,
+        "result": {"data": [{
+            "SECUCODE": "600519.SH", "NOTICE_DATE": "2026-09-10",
+            "ORG_CODE": "1000", "CASE_NAME": "new case",
+            "DEFENCE": "defence", "CASE_PROFILE": "profile",
+        }], "count": 1, "pages": 1},
+    })
+
+
+@pytest.mark.parametrize("interruption", ["coverage", "outcome"])
+def test_resume_saved_terminal_finishes_without_requesting_an_extra_page(tmp_path, monkeypatch, interruption):
+    calls = []
+    def handler(request):
+        calls.append(int(request.url.params["pageNumber"]))
+        return _litigation_response()
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        run = service.plan("600519", datasets=["litigation"], as_of=NOW)["run_ids"][0]
+        name = "_append_acquisition_coverage" if interruption == "coverage" else "_append_attempt_outcome"
+        original = getattr(service.runtime, name)
+        def crash(*args, **kwargs):
+            raise KeyboardInterrupt("after saving terminal page")
+        monkeypatch.setattr(service.runtime, name, crash)
+        with pytest.raises(KeyboardInterrupt):
+            service.run(run)
+        assert calls == [1]
+        assert service.status(run)["summary"]["unfinished"][0]["resume_action"] == "finish_saved_terminal"
+        monkeypatch.setattr(service.runtime, name, original)
+        service.resume(run)
+        assert calls == [1]
+        assert service.status(run)["succeeded"] == 1
+        bundles = list(service.storage.iter_committed_record_bundles(run))
+        assert len(bundles) == 1
+        assert bundles[0][0]["_committed_attempt_outcome"] == "success"
+    finally:
+        runtime.close()
+        client.close()
+
+
+@pytest.mark.parametrize("recovery_path", ["resume", "incremental"])
+def test_resume_retries_saved_duplicate_page_and_preserves_original_evidence(tmp_path, recovery_path):
+    calls = []
+    def handler(request):
+        number = int(request.url.params["pageNumber"])
+        calls.append(number)
+        ranks = [1, 2] if number == 1 else [2] if calls.count(2) == 1 else [3]
+        return httpx.Response(200, json={"success": True, "code": 0, "result": {
+            "data": [{"SECUCODE": "600519.SH", "TRADE_DATE": "2020-01-02", "DAILY_RANK": rank} for rank in ranks],
+            "count": 3, "pages": 2,
+        }})
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        run = service.plan("600519", datasets=["block_trade"], as_of=NOW)["run_ids"][0]
+        service.run(run)
+        assert calls == [1, 2]
+        assert service.status(run)["partial"] == 1
+        assert service.status(run)["summary"]["unfinished"][0]["resume_page"] == 2
+        job = service.storage.list_jobs(run, limit=None)[0]
+        old_pages = service.storage.list_pages(job["job_id"], include_history=True)
+        original_job = job
+        if recovery_path == "incremental":
+            run = service.plan("600519", mode="incremental", datasets=["block_trade"],
+                               as_of=NOW + timedelta(days=1))["run_ids"][0]
+            job = service.storage.list_jobs(run, limit=None)[0]
+        service.resume(run)
+        assert calls == [1, 2, 2]
+        assert service.status(run)["succeeded"] == 1
+        history = service.storage.list_pages(job["job_id"], include_history=True)
+        original_history = service.storage.list_pages(original_job["job_id"], include_history=True)
+        assert all(page in original_history for page in old_pages)
+        assert len(history) == (3 if recovery_path == "resume" else 2)
+        assert len(service.storage.list_pages(job["job_id"])) == 2
+        records = service.storage.list_records(job_id=job["job_id"], limit=None)
+        assert sorted(row["raw_row"]["DAILY_RANK"] for row in records) == [1, 2, 3]
+        bundles = list(service.storage.iter_committed_record_bundles(run))
+        assert len(bundles) == 3
+        assert all(row[0]["_committed_attempt_outcome"] == "success" for row in bundles)
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_failed_dataset_does_not_stop_healthy_incremental_and_reports_recovery(tmp_path):
+    def handler(request):
+        if request.url.params.get("reportName") == "RPT_F10_ORG_BASICINFO":
+            return httpx.Response(200, json={"success": True, "code": 0,
+                "result": {"data": [{"SECUCODE": "600519.SH", "ORG_CODE": "1000"}], "count": 1, "pages": 1}})
+        return httpx.Response(503, json={"error": "temporarily unavailable"})
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        args = {"datasets": ["company_basic", "litigation"]}
+        baseline = service.plan("600519", as_of=NOW, **args)["run_ids"][0]
+        _run_all_rounds(service, baseline)
+        assert service.status(baseline)["succeeded"] == 1
+        assert service.status(baseline)["failed"] == 1
+        incremental = service.plan("600519", mode="incremental", as_of=NOW + timedelta(days=1), **args)["run_ids"][0]
+        _run_all_rounds(service, incremental)
+        status = service.status(incremental)
+        assert status["succeeded"] == 1
+        assert status["failed"] == 1
+        assert status["summary"]["runnable_finished"] is True
+        unfinished = status["summary"]["unfinished"]
+        assert len(unfinished) == 1
+        assert unfinished[0]["dataset_id"] == "litigation"
+        assert unfinished[0]["resume_page"] == 1
+        old = next(job for job in service.storage.list_jobs(baseline, limit=None) if job["dataset_id"] == "litigation")
+        assert unfinished[0]["time_end"] == old["time_end"]
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_only_tasks_missing_company_type_are_deferred(tmp_path):
+    runtime, client = _acquisition_runtime(tmp_path, handler=lambda request:
+        httpx.Response(503, json={"error": "unavailable"}) if request.url.path.endswith("/Index")
+        else _empty_response())
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        run = service.plan("600519", datasets=["income_quarter", "litigation"], as_of=NOW)["run_ids"][0]
+        _run_all_rounds(service, run)
+        status = service.status(run)
+        assert status["failed"] == 1
+        assert status["blocked"] == 1
+        assert status["completed_empty_jobs"] == 1
+        waiting = next(row for row in status["summary"]["unfinished"] if row["state"] == "blocked")
+        assert waiting["missing_prerequisite_job_ids"]
+        assert waiting["resume_action"] == "wait_for_prerequisite"
+        assert status["summary"]["runnable_finished"] is True
+    finally:
+        runtime.close()
+        client.close()
+
+
+@pytest.mark.parametrize("baseline_has_data", [False, True])
+def test_complete_empty_query_allows_future_network_updates_and_keeps_records(tmp_path, baseline_has_data):
+    phase = "baseline"
+    calls = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        if phase == "new_data" or (phase == "baseline" and baseline_has_data):
+            return _litigation_response()
+        return _empty_response()
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        args = {"datasets": ["litigation"], "company_scope": "company-only"}
+        def records(run_id):
+            return [record for job in service.storage.list_jobs(run_id, limit=None)
+                    for record in service.storage.list_records(job_id=job["job_id"], limit=None)]
+
+        baseline = service.plan("600519", as_of=NOW, **args)["run_ids"][0]
+        _run_all_rounds(service, baseline)
+        old_records = records(baseline)
+        phase = "empty"
+        cutoff = NOW + timedelta(days=1)
+        empty_run = service.plan("600519", mode="incremental", as_of=cutoff, **args)["run_ids"][0]
+        _run_all_rounds(service, empty_run)
+        assert service.status(empty_run)["no_data"] == 1
+        assert service.status(empty_run)["completed_empty_jobs"] == 1
+        coverage = service.storage.list_acquisition_coverage(run_id=empty_run, limit=None)[-1]
+        assert coverage["status"] == "no_data"
+        assert coverage["query_complete"] is True
+        assert coverage["returned_row_count"] == 0
+        assert coverage["safe_through"] == service.storage.list_jobs(empty_run, limit=None)[0]["time_end"]
+        assert coverage["pagination_audit"]["complete"] is True
+        assert records(baseline) == old_records
+        assert records(empty_run) == []
+        count = len(calls)
+        assert not service.plan("600519", mode="incremental", as_of=cutoff, **args)["created"]
+        assert service.run(empty_run)["attempted_job_ids"] == []
+        assert len(calls) == count
+        phase = "new_data"
+        future = service.plan("600519", mode="incremental", as_of=NOW + timedelta(days=2), **args)["run_ids"][0]
+        _run_all_rounds(service, future)
+        assert len(calls) > count
+        assert service.status(future)["succeeded"] == 1
+        assert len(records(future)) == 1
+    finally:
+        runtime.close()
+        client.close()
+
+
+@pytest.mark.parametrize("failure", ["timeout", "http_error", "business_error", "missing_page"])
+def test_incomplete_incremental_keeps_recovery_window_after_empty_baseline(tmp_path, failure):
+    phase = "baseline"
+
+    def handler(request):
+        if phase == "baseline":
+            return _empty_response()
+        if failure == "timeout":
+            raise httpx.ReadTimeout("test timeout", request=request)
+        if failure == "http_error":
+            return httpx.Response(503, json={"error": "temporary"})
+        if failure == "business_error":
+            return httpx.Response(200, json={"success": False, "code": 9501, "result": None})
+        if request.url.params["pageNumber"] == "1":
+            payload = _litigation_response().json()
+            payload["result"].update(count=2, pages=2)
+            return httpx.Response(200, json=payload)
+        return _empty_response()
+
+    runtime, client = _acquisition_runtime(tmp_path, handler=handler)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        args = {"datasets": ["litigation"], "company_scope": "company-only"}
+        baseline = service.plan("600519", as_of=NOW, **args)["run_ids"][0]
+        _run_all_rounds(service, baseline)
+        phase = "failure"
+        failed = service.plan("600519", mode="incremental", as_of=NOW + timedelta(days=1), **args)["run_ids"][0]
+        _run_all_rounds(service, failed)
+        coverage = service.storage.list_acquisition_coverage(run_id=failed, limit=None)[-1]
+        assert coverage["safe_through"] is None
+        assert coverage["query_complete"] is False
+        assert service.status(failed)["completed_empty_jobs"] == 0
+        recovery = service.plan("600519", mode="incremental",
+                                    as_of=NOW + timedelta(days=2), **args)["run_ids"][0]
+        old_job = service.storage.list_jobs(failed, limit=None)[0]
+        new_job = service.storage.list_jobs(recovery, limit=None)[0]
+        assert (new_job["time_start"], new_job["time_end"]) == (old_job["time_start"], old_job["time_end"])
+        phase = "baseline"
+        _run_all_rounds(service, recovery)
+        assert service.status(recovery)["completed_empty_jobs"] == 1
+        service.plan("600519", mode="incremental", as_of=NOW + timedelta(days=3), **args)
+    finally:
+        runtime.close()
+        client.close()
+
+
+def test_reconcile_old_empty_coverage_appends_proof_and_unblocks_future_incremental(tmp_path, monkeypatch):
+    runtime, client = _acquisition_runtime(tmp_path, handler=lambda _: _empty_response())
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        args = {"datasets": ["litigation"], "company_scope": "company-only"}
+        # Load a pre-rule empty result through the old persistence contract.
+        original_append = service.storage.append_acquisition_coverage
+
+        def legacy_append(value):
+            legacy = {k: v for k, v in value.items() if k not in {"query_complete", "completion_rule"}}
+            legacy["safe_through"] = None
+            original_append(legacy)
+
+        monkeypatch.setattr(service.storage, "append_acquisition_coverage", legacy_append)
+        baseline = service.plan("600519", as_of=NOW, **args)["run_ids"][0]
+        _run_all_rounds(service, baseline)
+        original = service.storage.list_acquisition_coverage(run_id=baseline, limit=None)
+        monkeypatch.setattr(service.storage, "append_acquisition_coverage", original_append)
+        reconcile = service.plan("600519", mode="reconcile", parent_run_id=baseline,
+                                 as_of=NOW + timedelta(days=1), **args)["run_ids"][0]
+        _run_all_rounds(service, reconcile)
+        assert service.status(reconcile)["completed_empty_jobs"] == 1
+        assert service.storage.list_acquisition_coverage(run_id=baseline, limit=None) == original
+        recovered = service.storage.list_acquisition_coverage(run_id=reconcile, limit=None)[-1]
+        assert recovered["reconciles_scope_key"] == original[0]["scope_key"]
+        future = service.plan("600519", mode="incremental", as_of=NOW + timedelta(days=2), **args)
+        _run_all_rounds(service, future["run_ids"][0])
+        assert service.status(future["run_ids"][0])["completed_empty_jobs"] == 1
+        with pytest.raises(ValueError, match="reconcile没有"):
+            service.plan("600519", mode="reconcile", parent_run_id=reconcile,
+                         as_of=NOW + timedelta(days=3), **args)
     finally:
         runtime.close()
         client.close()

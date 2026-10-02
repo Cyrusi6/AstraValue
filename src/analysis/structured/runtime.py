@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from contextlib import ExitStack
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -108,6 +108,10 @@ class StructuredPlanResult:
             "dataset_ids": list(self.dataset_ids),
             "dataset_count": len(self.dataset_ids),
             "company_count": len(self.run_ids),
+            "deferred_datasets_by_ticker": {
+                item["ticker"]: item["acquisition_deferral"]
+                for item in self.runs if item.get("acquisition_deferral")
+            },
             "created": self.created,
             "persisted": True,
             "performed_network_io": False,
@@ -310,7 +314,7 @@ class StructuredDataRuntime:
         if mode != "reconcile" and (parent_run_id or from_latest):
             raise ValueError("只有reconcile可以指定parent_run_id或from_latest")
         # Empty selects the versioned required research set, never all capabilities.
-        from .scope import selected_datasets, load_scope, scope_start
+        from .scope import acquisition_deferral, selected_datasets, load_scope, scope_start
         selected_ids = selected_datasets(dataset_ids, research_profile_id)
         known_ids = {item.dataset_id for item in self.bundle.datasets.datasets}
         unknown = set(selected_ids or ()) - known_ids
@@ -318,22 +322,37 @@ class StructuredDataRuntime:
             raise ValueError(
                 "unknown structured datasets: " + ", ".join(sorted(unknown))
             )
-        datasets = tuple(
+        requested_datasets = tuple(
             item
             for item in self.bundle.datasets.datasets
             if selected_ids is None or item.dataset_id in selected_ids
         )
-        effective_ids = tuple(item.dataset_id for item in datasets)
-        providers = {item.provider for item in datasets}
-        sources = {
-            key: item
-            for key, item in self._sources.items()
-            if item.upstream_identity in providers
-        }
+        all_effective_ids: set[str] = set()
         summaries: list[dict[str, Any]] = []
         run_ids: list[str] = []
         created_flags: list[bool] = []
         for identity in identities:
+            deferral = acquisition_deferral(
+                identity.canonical_ticker, selected_ids,
+                explicit_selection=bool(dataset_ids),
+            )
+            deferred_ids = set(deferral["dataset_ids"] if deferral else ())
+            datasets = tuple(
+                item for item in requested_datasets if item.dataset_id not in deferred_ids
+            )
+            if not datasets:
+                raise StructuredPlanningError("all_selected_datasets_deferred")
+            effective_ids = tuple(item.dataset_id for item in datasets)
+            all_effective_ids.update(effective_ids)
+            providers = {item.provider for item in datasets}
+            sources = {
+                key: item for key, item in self._sources.items()
+                if item.upstream_identity in providers
+            }
+            selection_summary = {
+                "dataset_ids": list(effective_ids),
+                "acquisition_deferral": deferral,
+            }
             reconcile_parent_id: str | None = None
             reconcile_target: dict[str, Any] | None = None
             if mode == "reconcile":
@@ -355,6 +374,7 @@ class StructuredDataRuntime:
                     "dataset_registry_hash": self.bundle.content_hashes["datasets"],
                     "field_registry_hash": self.bundle.content_hashes["fields"],
                     "research_scope_hash": load_scope()["content_sha256"],
+                    **({"acquisition_deferral": deferral} if deferral else {}),
                     **({"research_profile_id": research_profile_id} if research_profile_id else {}),
                     "selected_report_periods": selected_periods,
                     **({"valuation_start": valuation_start.isoformat()} if valuation_start else {}),
@@ -363,7 +383,7 @@ class StructuredDataRuntime:
                        if mode == "reconcile" else {}),
                 },
             )
-            complete_baseline = mode == "baseline" and not dataset_ids and not research_profile_id
+            complete_baseline = mode == "baseline" and not dataset_ids and not research_profile_id and not deferral
             run = AcquisitionRun(
                 run_id=run_id,
                 ticker=identity.security_code,
@@ -424,6 +444,8 @@ class StructuredDataRuntime:
                 activated_on_demand_ids=activated_on_demand_ids,
                 research_profile_id=research_profile_id,
             )
+            if deferral:
+                frozen["acquisition_deferral"] = deferral
             peer_set = self.bundle.peer_sets.peer_sets[0]
             frozen["selected_report_periods"] = list(selected_periods)
             if reconcile_target is not None:
@@ -492,16 +514,19 @@ class StructuredDataRuntime:
                         "job_count": len(self.storage.list_jobs(run_id, limit=None)),
                         "coverage_entry_count": len(self.repository.list_coverage_entries(run_id)),
                         "created": False,
+                        **selection_summary,
                     }
                 )
                 continue
             incremental_starts: dict[str, date] = {}
+            recovery_works: tuple[DatasetWork, ...] = ()
             if mode == "incremental":
                 incremental_starts = self._incremental_starts(
                     identity,
                     datasets,
                     activated_on_demand_ids=activated_on_demand_ids,
                 )
+                recovery_works = self._incremental_recovery_works(identity, datasets)
             target = CompanyPlanTarget(
                 company_id=identity.company_id,
                 ticker=identity.security_code,
@@ -517,7 +542,7 @@ class StructuredDataRuntime:
                     if selected_periods and "REPORT_DATE" in item.date_fields
                     else scope_start(cutoff.date(), research_profile_id)
                 )
-                if mode == "incremental":
+                if mode == "incremental" and item.dataset_id in incremental_starts:
                     configured = max(
                         configured,
                         incremental_starts[item.dataset_id],
@@ -555,6 +580,10 @@ class StructuredDataRuntime:
                     activated_dataset_ids=activated_on_demand_ids,
                 )
             )
+            if recovery_works:
+                recovering = {work.dataset_id for work in recovery_works}
+                works = tuple(work for work in works if work.dataset_id not in recovering) + recovery_works
+                works = tuple(replace(work, ordinal=index) for index, work in enumerate(works))
             composed = self.planner.compose_shared_plan(
                 run=run,
                 context=context,
@@ -583,6 +612,7 @@ class StructuredDataRuntime:
                         composed.shared_plan.coverage_entries
                     ),
                     "created": created,
+                    **selection_summary,
                 }
             )
         return StructuredPlanResult(
@@ -598,7 +628,10 @@ class StructuredDataRuntime:
             company_scope=company_scope,
             run_ids=tuple(run_ids),
             runs=tuple(summaries),
-            dataset_ids=effective_ids,
+            dataset_ids=tuple(
+                item.dataset_id for item in requested_datasets
+                if item.dataset_id in all_effective_ids
+            ),
             created=any(created_flags),
         )
 
@@ -611,9 +644,9 @@ class StructuredDataRuntime:
     ) -> dict[str, date]:
         """Resolve conservative per-dataset incremental floors.
 
-        Structured coverage is the checkpoint for this runtime.  A failed,
-        empty, or partial latest partition has no safe upper bound and must
-        force a baseline/reconcile instead of silently re-running history.
+        Structured coverage is the checkpoint for this runtime.  A proven
+        empty query is complete; failed or partial partitions still require
+        recovery so their unfinished windows cannot be skipped.
         """
 
         activated = set(activated_on_demand_ids)
@@ -629,23 +662,9 @@ class StructuredDataRuntime:
                 dataset_id=dataset_id,
                 limit=None,
             )
-            latest_by_scope: dict[str, dict[str, Any]] = {}
-            for row in rows:
-                scope_key = str(row.get("scope_key") or "")
-                current = latest_by_scope.get(scope_key)
-                version = int(row.get("version", 0) or 0)
-                if current is None or (
-                    version,
-                    str(row.get("recorded_at") or ""),
-                ) > (
-                    int(current.get("version", 0) or 0),
-                    str(current.get("recorded_at") or ""),
-                ):
-                    latest_by_scope[scope_key] = row
-            safe_rows = tuple(latest_by_scope.values())
+            safe_rows = _effective_coverage(rows)
             if not safe_rows or any(
-                row.get("status") != "complete" or not row.get("safe_through")
-                for row in safe_rows
+                not _query_complete(row) for row in safe_rows
             ):
                 missing.append(dataset_id)
                 continue
@@ -694,13 +713,30 @@ class StructuredDataRuntime:
                 max(floor_dates) - timedelta(days=overlap_days),
                 _SUPPLIER_QUERY_FLOORS.get(str(getattr(item, "provider", "")), date(1990, 1, 1)),
             )
-        if missing:
-            raise ValueError(
-                "incremental需要每个适用数据集都有安全coverage；"
-                "请先执行baseline或reconcile: "
-                + ", ".join(sorted(set(missing)))
-            )
         return starts
+
+    def _incremental_recovery_works(
+        self, identity: SecurityIdentity, datasets: Sequence[Any],
+    ) -> tuple[DatasetWork, ...]:
+        """Recover unfinished windows independently of healthy datasets."""
+        selected = {str(item.dataset_id) for item in datasets}
+        jobs = self.storage.list_jobs(company_id=identity.company_id, limit=None)
+        rows = self.storage.list_acquisition_coverage(company_id=identity.company_id, limit=None)
+        effective = {row["scope_key"]: row for row in _effective_coverage(rows)}
+        replaced_jobs = {job["reconciles_job_id"] for job in jobs if job.get("reconciles_job_id")}
+        targets = []
+        for job in jobs:
+            if job["dataset_id"] not in selected or job["job_id"] in replaced_jobs:
+                continue
+            row = effective.get(job["scope_key"])
+            if row is not None and _query_complete(row):
+                continue
+            targets.append({
+                "job_id": job["job_id"], "dataset_id": job["dataset_id"],
+                "scope_key": job["scope_key"], "status": (row or {}).get("status", "unfinished"),
+                "reason_code": (row or {}).get("reason_code", "resume_unfinished_window"),
+            })
+        return self._reconcile_works(identity, datasets, {"items": targets}) if targets else ()
 
     def _resolve_reconcile_target(
         self,
@@ -783,7 +819,7 @@ class StructuredDataRuntime:
                 latest[key] = row
         unsafe = [
             row for row in latest.values()
-            if str(row.get("status") or "") != "complete" or not row.get("safe_through")
+            if not _query_complete(row)
         ]
         # A transport/parser failure can terminate before a structured
         # coverage row is appended.  Treat that missing row as an explicit
@@ -850,8 +886,22 @@ class StructuredDataRuntime:
             str(item.get("dataset_id") if isinstance(item, Mapping) else item.dataset_id)
             for item in datasets
         }
+        selected_items = list(target.get("items") or ())
+        target_jobs = {item["job_id"] for item in selected_items}
+        prerequisites = []
+        for selected in selected_items:
+            original = self.storage.get_job(str(selected["job_id"]))
+            if original["purpose"] not in {"report_catalog", "report_period"}:
+                continue
+            for job in self.storage.list_jobs(original["run_id"], limit=None):
+                if (job["dataset_id"] == original["dataset_id"] and job["purpose"] == "company_type"
+                    and job["job_id"] not in target_jobs):
+                    target_jobs.add(job["job_id"])
+                    prerequisites.append({"job_id": job["job_id"], "dataset_id": job["dataset_id"],
+                                          "scope_key": job["scope_key"], "status": "prerequisite"})
+        selected_items = prerequisites + selected_items
         works: list[DatasetWork] = []
-        for ordinal, selected in enumerate(target.get("items") or ()):
+        for ordinal, selected in enumerate(selected_items):
             dataset_id = str(selected.get("dataset_id") or "")
             if dataset_id not in dataset_ids:
                 continue
@@ -884,6 +934,7 @@ class StructuredDataRuntime:
                     partition_key=str(plan_item.partition_key or selected["scope_key"]),
                     parameters=dict(plan_item.normalized_parameters or {}),
                     ordinal=ordinal,
+                    reconciles_job_id=str(job["job_id"]),
                     reason_code=(
                         f"reconcile:{selected.get('status')}:"
                         f"{selected.get('reason_code') or 'unsafe_coverage'}"
@@ -900,12 +951,13 @@ class StructuredDataRuntime:
         context = self.bridge.prepare_execution(run_id)
         candidates = self.bridge.resume_candidates(run_id)[:max_jobs_per_round]
         if not candidates:
+            self._finalize_if_terminal(run_id, self.bridge.status(run_id))
             return {
                 "run_id": run_id,
                 "single_round": True,
                 "attempted_job_ids": [],
                 "frozen_context_hash": context.content_hash,
-                "status": _status_mapping(self.bridge.status(run_id)),
+                "status": self.status(run_id),
             }
         lease, owner_token = self.bridge.claim_lease(
             run_id,
@@ -950,7 +1002,7 @@ class StructuredDataRuntime:
             "single_round": True,
             "attempted_job_ids": attempted,
             "frozen_context_hash": context.content_hash,
-            "status": _status_mapping(status),
+            "status": self.status(run_id),
         }
 
     def resume(self, run_id: str) -> dict[str, Any]:
@@ -958,9 +1010,50 @@ class StructuredDataRuntime:
 
     def status(self, run_id: str) -> dict[str, Any]:
         context = self.bridge.prepare_execution(run_id)
+        status = self.bridge.status(run_id)
+        jobs = {job["job_id"]: job for job in self.storage.list_jobs(run_id, limit=None)}
+        datasets = {item["dataset_id"]: item for item in context.frozen_config["datasets"]}
+        coverage = _effective_coverage(
+            self.storage.list_acquisition_coverage(run_id=run_id, limit=None)
+        )
+        coverage_by_job = {row["job_id"]: row for row in coverage}
+        unfinished = []
+        for item in status.jobs:
+            if item.state in {"succeeded", "no_data"}:
+                continue
+            job = jobs[item.job_id]
+            next_page, finish_saved = None, False
+            if not item.blocked_by:
+                try:
+                    next_page, _, terminal, _ = self._resume_checkpoint(context, job, datasets[item.dataset_id])
+                    finish_saved = terminal is not None
+                except (ValueError, OSError, StructuredRuntimeError):
+                    pass
+            unfinished.append({
+                "job_id": item.job_id, "dataset_id": item.dataset_id, "state": item.state,
+                "reason": (coverage_by_job.get(item.job_id) or {}).get("reason_code"),
+                "missing_prerequisite_job_ids": list(item.blocked_by),
+                "time_start": job.get("time_start"), "time_end": job.get("time_end"),
+                "resume_page": next_page,
+                "resume_action": "wait_for_prerequisite" if item.blocked_by else
+                    "finish_saved_terminal" if finish_saved else
+                    "incremental_or_reconcile" if item.state == "failed" else "resume",
+            })
         return {
-            **_status_mapping(self.bridge.status(run_id)),
+            **_status_mapping(status),
+            "summary": {
+                "updated": [item.job_id for item in status.jobs if item.state == "succeeded"],
+                "empty": [item.job_id for item in status.jobs if item.state == "no_data"],
+                "unfinished": unfinished,
+                "runnable_finished": not any(item.state in {"pending", "retryable", "partial"} for item in status.jobs),
+            },
+            "completed_empty_jobs": sum(
+                row.get("status") == "no_data" and _query_complete(row)
+                for row in coverage
+            ),
             "frozen_context_hash": context.content_hash,
+            "dataset_ids": [item["dataset_id"] for item in context.frozen_config["datasets"]],
+            "acquisition_deferral": context.frozen_config.get("acquisition_deferral"),
             "frozen_versions": {
                 "datasets": context.dataset_registry_version,
                 "fields": context.field_registry_version,
@@ -1193,6 +1286,58 @@ class StructuredDataRuntime:
                 dataset["research_scope_profile_id"] = research_profile_id
         return frozen
 
+    def _resume_checkpoint(
+        self, context: StructuredRunContext, job: Mapping[str, Any], dataset: Mapping[str, Any],
+    ) -> tuple[int, list[dict[str, Any]], Any, bool]:
+        """Verify the saved prefix; replay a valid terminal or retry a bad page."""
+        pages = self.storage.list_pages(job["job_id"])
+        if not pages:
+            return 1, [], None, False
+        plan = self.repository.get_physical_query_plan_item(job["plan_item_id"])
+        records = self.storage.list_records(job_id=job["job_id"], limit=None)
+        manifest = PageManifest(dataset_id=str(dataset["dataset_id"]))
+        paginated = dataset["history_enumeration"] in {"complete_pagination", "on_demand_complete_pagination"}
+        prefix: list[dict[str, Any]] = []
+        for expected, saved in enumerate(pages, start=1):
+            if int(saved.get("page_number") or 0) != expected:
+                return expected, prefix, None, True
+            params = _bind_parameters(
+                dataset, context.frozen_config["identity"], job, page_number=expected,
+                plan_parameters=plan.normalized_parameters,
+                selected_report_periods=context.frozen_config.get("selected_report_periods", ()),
+                resolved_company_type=(None if job["purpose"] == "company_type"
+                                       else self._load_em_f_company_type(context, dataset)),
+            )
+            try:
+                page, observed_at = self._replay_snapshot(
+                    job, dataset, params, snapshot_id=saved["snapshot_id"], page_number=expected,
+                )
+            except (ValueError, OSError, StructuredRuntimeError):
+                return expected, prefix, None, True
+            keys = tuple(str(record["row_key"]) for record in records if record["page_id"] == saved["page_id"])
+            if (page.status not in {ResultStatus.SUCCESS, ResultStatus.EMPTY}
+                or len(keys) != len(page.rows) or saved.get("row_count") != len(page.rows)):
+                return expected, prefix, None, True
+            if paginated:
+                manifest.add(PageSlice(
+                    page_number=expected, row_keys=keys, response_sha256=page.response_sha256,
+                    status=PageStatus.EMPTY if page.status is ResultStatus.EMPTY else PageStatus.SUCCESS,
+                    declared_total=page.declared_total, declared_pages=page.declared_pages,
+                    terminal=page.terminal,
+                ))
+                audit = manifest.audit()
+                defects = tuple(issue for issue in audit.issues if issue not in {
+                    "terminal_page_missing", "declared_page_count_mismatch", "declared_record_count_mismatch",
+                })
+                if defects or (page.terminal and not audit.complete):
+                    if any(issue in audit.issues for issue in ("declared_total_drift", "declared_pages_drift")):
+                        return 1, [], None, True
+                    return expected, prefix, None, True
+            if page.terminal:
+                return expected, prefix, (page, observed_at, saved), False
+            prefix.append(saved)
+        return len(prefix) + 1, prefix, None, False
+
     def _execute_job(
         self,
         context: StructuredRunContext,
@@ -1203,10 +1348,18 @@ class StructuredDataRuntime:
     ) -> None:
         job = self.storage.get_job(candidate.job_id)
         plan_item = self.repository.get_physical_query_plan_item(job["plan_item_id"])
-        pages = self.storage.list_pages(candidate.job_id)
-        page_number = max(
-            (int(item.get("page_number") or 0) for item in pages), default=0
-        ) + 1
+        frozen = _validate_frozen_config(context.frozen_config)
+        dataset = next(item for item in frozen["datasets"] if item["dataset_id"] == job["dataset_id"])
+        page_number, pages, saved_terminal, retry_invalid = self._resume_checkpoint(context, job, dataset)
+        inherited_pages: dict[int, dict[str, Any]] = {}
+        original_job = None
+        if job.get("reconciles_job_id"):
+            original_job = self.storage.get_job(job["reconciles_job_id"])
+            original_context = self.storage.get_run_context(original_job["run_id"])
+            _, prefix, original_terminal, _ = self._resume_checkpoint(original_context, original_job, dataset)
+            if original_terminal:
+                prefix = prefix + [original_terminal[2]]
+            inherited_pages = {int(page["page_number"]): page for page in prefix}
         retry_ordinal = int(candidate.next_retry_ordinal or 0)
         attempt_id = stable_structured_id(
             "structured-attempt",
@@ -1255,6 +1408,8 @@ class StructuredDataRuntime:
         )
         terminal_written = False
         snapshot_ids: list[str] = []
+        validated_page_ids = [str(item["page_id"]) for item in pages]
+        guard = self._lease_guard(context.run_id, owner_token=owner_token, lease_epoch=lease_epoch)
         try:
             frozen = _validate_frozen_config(context.frozen_config)
             dataset = next(
@@ -1362,14 +1517,24 @@ class StructuredDataRuntime:
                         else self._load_em_f_company_type(context, dataset)
                     ),
                 )
-                reusable_id = self._find_reusable_snapshot(
+                reusable_id = None if retry_invalid else self._find_reusable_snapshot(
                     job,
                     dataset,
                     params,
                     page_number=page_number,
                 )
-                if reusable_id is None:
-                    if dataset["provider"] == "eastmoney":
+                if saved_terminal is not None:
+                    execution_page, observed_at, saved_page = saved_terminal
+                    snapshot_id = str(saved_page["snapshot_id"])
+                    saved_terminal = None
+                elif reusable_id is None:
+                    inherited = inherited_pages.get(page_number)
+                    if inherited is not None and original_job is not None:
+                        execution_page, _ = self._replay_snapshot(
+                            original_job, dataset, params,
+                            snapshot_id=inherited["snapshot_id"], page_number=page_number,
+                        )
+                    elif dataset["provider"] == "eastmoney":
                         execution_page = self._execute_http(
                             context.run_id,
                             dataset,
@@ -1413,6 +1578,8 @@ class StructuredDataRuntime:
                                 request_summary={
                                     "dataset_id": job["dataset_id"],
                                     "page_number": page_number,
+                                    **({"reused_from_job_id": original_job["job_id"]}
+                                       if inherited is not None and original_job is not None else {}),
                                 },
                                 response_summary={
                                     "status": execution_page.status.value,
@@ -1443,6 +1610,9 @@ class StructuredDataRuntime:
                     )
                 snapshot_ids.append(snapshot_id)
                 if execution_page.status is ResultStatus.FAILED:
+                    self._append_acquisition_coverage(
+                        context, job, execution_page, snapshot_id, observed_at
+                    )
                     self._append_attempt_outcome(
                         attempt_id,
                         lease_epoch,
@@ -1524,13 +1694,13 @@ class StructuredDataRuntime:
                     page_payload["absent_periods"] = list(absent_periods)
                 if pagination_audit is not None and not pagination_audit.complete:
                     page_payload["pagination_issues"] = list(pagination_audit.issues)
-                self.bridge.commit_page_bundle(
-                    page=page_payload,
-                    records=records,
-                    fields=fields,
-                    owner_token=owner_token,
-                    lease_epoch=lease_epoch,
-                )
+                if not any(item["page_id"] == page_payload["page_id"]
+                           for item in self.storage.list_pages(job["job_id"], include_history=True)):
+                    self.bridge.commit_page_bundle(
+                        page=page_payload, records=records, fields=fields,
+                        owner_token=owner_token, lease_epoch=lease_epoch,
+                    )
+                validated_page_ids.append(page_payload["page_id"])
                 guard(force=True)
                 self._append_acquisition_coverage(
                     context,
@@ -1540,6 +1710,8 @@ class StructuredDataRuntime:
                     observed_at,
                     pagination_audit=pagination_audit,
                     absent_periods=absent_periods,
+                    validated_page_ids=validated_page_ids,
+                    completion_attempt_id=attempt_id,
                 )
                 if (
                     job["purpose"] == "report_catalog"
@@ -1612,6 +1784,12 @@ class StructuredDataRuntime:
                 else AcquisitionOutcome.NETWORK_FAILED
                 if isinstance(exc, httpx.RequestError)
                 else AcquisitionOutcome.PARSE_FAILED
+            )
+            guard(force=True)
+            self._append_acquisition_coverage(
+                context, job, None, snapshot_ids[-1] if snapshot_ids else None,
+                self.acquisition_runtime.clock(),
+                failure_reason=f"{type(exc).__name__}:{str(exc)[:200]}",
             )
             self._append_attempt_outcome(
                 attempt_id,
@@ -1775,7 +1953,6 @@ class StructuredDataRuntime:
             if str(observation.response_summary.get("status")) in {
                 ResultStatus.SUCCESS.value,
                 ResultStatus.EMPTY.value,
-                ResultStatus.PARTIAL.value,
             }:
                 return snapshot_id
         return None
@@ -2213,11 +2390,14 @@ class StructuredDataRuntime:
         self,
         context: StructuredRunContext,
         job: Mapping[str, Any],
-        page: ExecutionPage,
-        snapshot_id: str,
+        page: ExecutionPage | None,
+        snapshot_id: str | None,
         recorded_at: datetime,
         pagination_audit: PageAudit | None = None,
         absent_periods: Sequence[str] = (),
+        failure_reason: str | None = None,
+        validated_page_ids: Sequence[str] = (),
+        completion_attempt_id: str | None = None,
     ) -> None:
         previous = self.storage.list_acquisition_coverage(
             run_id=context.run_id,
@@ -2229,14 +2409,16 @@ class StructuredDataRuntime:
         links = self.repository.list_physical_query_coverage_links(
             plan_item_id=job["plan_item_id"]
         )
-        status = (
-            "no_data"
-            if page.status is ResultStatus.EMPTY
-            else "complete"
-            if page.status is ResultStatus.SUCCESS and page.terminal
-            else "partial"
+        row_count = (
+            pagination_audit.unique_row_count if pagination_audit is not None
+            else len(page.rows) if page is not None else 0
         )
-        reason_code = page.diagnostic
+        status = "failed"
+        if page is not None and page.status is not ResultStatus.FAILED:
+            status = "partial"
+            if page.terminal and page.status in {ResultStatus.SUCCESS, ResultStatus.EMPTY}:
+                status = "no_data" if row_count == 0 else "complete"
+        reason_code = failure_reason or (page.diagnostic if page else None)
         if pagination_audit is not None and not pagination_audit.complete:
             status = "partial"
             pagination_reason = "pagination_incomplete:" + ",".join(
@@ -2276,7 +2458,14 @@ class StructuredDataRuntime:
             "scope_key": job["scope_key"],
             "status": status,
             "version": version,
-            "safe_through": job.get("time_end") if status == "complete" else None,
+            "safe_through": job.get("time_end") if status in {"complete", "no_data"} else None,
+            "query_complete": status in {"complete", "no_data"},
+            "completion_rule": "structured-query-completion-v1",
+            "response_status": page.status.value if page else "failed",
+            "returned_row_count": row_count,
+            "snapshot_id": snapshot_id,
+            "validated_page_ids": list(validated_page_ids) if status in {"complete", "no_data"} else [],
+            "completion_attempt_id": completion_attempt_id,
             "reason_code": reason_code,
             "supersedes_coverage_record_id": (
                 previous[-1]["coverage_record_id"] if previous else None
@@ -2285,6 +2474,12 @@ class StructuredDataRuntime:
         }
         if absent_periods:
             coverage["absent_periods"] = [str(item) for item in absent_periods]
+        if pagination_audit is not None:
+            coverage["pagination_audit"] = asdict(pagination_audit)
+        if job.get("reconciles_job_id"):
+            original = self.storage.get_job(str(job["reconciles_job_id"]))
+            coverage["reconciles_job_id"] = original["job_id"]
+            coverage["reconciles_scope_key"] = original["scope_key"]
         self.storage.append_acquisition_coverage(
             coverage
         )
@@ -2322,7 +2517,7 @@ class StructuredDataRuntime:
             return
         result = (
             AcquisitionRunResult.SUCCEEDED
-            if status.failed == 0
+            if status.failed == 0 and not getattr(status, "blocked", 0)
             else AcquisitionRunResult.FAILED
             if status.succeeded == 0 and status.no_data == 0
             else AcquisitionRunResult.PARTIAL
@@ -2337,7 +2532,7 @@ class StructuredDataRuntime:
                 occurred_at=self.acquisition_runtime.clock(),
                 result=result,
                 coverage_accounted=True,
-                material_gap_count=status.failed,
+                material_gap_count=status.failed + getattr(status, "blocked", 0),
                 default_consume_eligible=False,
                 reason_code="human_acceptance_independent",
                 metadata={"structured": True},
@@ -2582,6 +2777,39 @@ def _page_id(job_id: str, page: ExecutionPage) -> str:
     )
 
 
+def _query_complete(coverage: Mapping[str, Any]) -> bool:
+    """Record availability and completion of a query are independent."""
+    return bool(coverage.get("safe_through")) and (
+        coverage.get("status") == "complete"
+        or (
+            coverage.get("status") == "no_data"
+            and coverage.get("query_complete") is True
+        )
+    )
+
+
+def _effective_coverage(rows: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    latest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = str(row.get("scope_key") or "")
+        current = latest.get(key)
+        # Versions are local to a run; cross-run recovery is ordered by time.
+        marker = (str(row.get("recorded_at") or ""), int(row.get("version", 0)))
+        if current is None or marker > (
+            str(current.get("recorded_at") or ""), int(current.get("version", 0))
+        ):
+            latest[key] = row
+    # Reconcile appends its own evidence and explicitly replaces the original
+    # window in the cursor view.  The original rows and raw snapshots remain.
+    replaced = {
+        str(row["reconciles_scope_key"])
+        for row in latest.values()
+        if row.get("reconciles_scope_key")
+        and row["reconciles_scope_key"] != row.get("scope_key")
+    }
+    return tuple(row for key, row in latest.items() if key not in replaced)
+
+
 def _parse_datetime(value: Any) -> datetime | None:
     if value is None:
         return None
@@ -2611,6 +2839,7 @@ def _status_mapping(value: Any) -> dict[str, Any]:
         "retryable": value.retryable,
         "pending": value.pending,
         "partial": value.partial,
+        "blocked": getattr(value, "blocked", 0),
         "jobs": [_jsonable(asdict(item)) for item in value.jobs],
     }
 

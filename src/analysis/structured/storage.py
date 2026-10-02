@@ -30,6 +30,12 @@ MODULE_MIGRATION_ID = "structured_data_0001"
 MODULE_SCHEMA_VERSION = 1
 STRUCTURED_SCOPE = "structured_data"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
+_COMPLETION_CTE = (
+    "WITH completion AS (SELECT c.job_id,c.payload,json_extract(c.payload,'$.completion_attempt_id') AS attempt_id "
+    "FROM structured_acquisition_coverage c WHERE json_extract(c.payload,'$.query_complete')=1 "
+    "AND json_type(c.payload,'$.validated_page_ids')='array' AND NOT EXISTS ("
+    "SELECT 1 FROM structured_acquisition_coverage newer WHERE newer.job_id=c.job_id AND newer.rowid>c.rowid)) "
+)
 
 
 class StructuredStorageError(RuntimeError):
@@ -681,16 +687,23 @@ class StructuredStorage:
 
     def list_jobs(
         self,
-        run_id: str,
+        run_id: str | None = None,
         *,
+        company_id: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
+        filters, args = [], []
+        for name, value in (("run_id", run_id), ("company_id", company_id)):
+            if value is not None:
+                filters.append(f"{name}=?")
+                args.append(value)
+        where = "WHERE " + " AND ".join(filters) if filters else ""
         with self._connect(readonly=True) as connection:
             rows = connection.execute(
-                "SELECT payload FROM structured_jobs WHERE run_id=? "
+                f"SELECT payload FROM structured_jobs {where} "
                 "ORDER BY ordinal,job_id LIMIT ? OFFSET ?",
-                (run_id, -1 if limit is None else int(limit), int(offset)),
+                (*args, -1 if limit is None else int(limit), int(offset)),
             ).fetchall()
         return [json.loads(row["payload"]) for row in rows]
 
@@ -896,13 +909,24 @@ class StructuredStorage:
             payload,
         )
 
-    def list_pages(self, job_id: str) -> list[dict[str, Any]]:
+    def list_pages(self, job_id: str, *, include_history: bool = False) -> list[dict[str, Any]]:
         with self._connect(readonly=True) as connection:
             rows = connection.execute(
                 "SELECT payload FROM structured_pages WHERE job_id=? "
-                "ORDER BY committed_at,page_id", (job_id,)
+                "ORDER BY rowid", (job_id,)
             ).fetchall()
-        return [json.loads(row["payload"]) for row in rows]
+        values = [json.loads(row["payload"]) for row in rows]
+        if include_history:
+            return values
+        with self._connect(readonly=True) as connection:
+            row = connection.execute(_COMPLETION_CTE + "SELECT payload FROM completion WHERE job_id=?", (job_id,)).fetchone()
+        proof = json.loads(row[0]) if row else None
+        if proof is not None:
+            selected = set(proof["validated_page_ids"])
+            return sorted((page for page in values if page["page_id"] in selected),
+                          key=lambda item: int(item.get("page_number") or 0))
+        latest = {item["position_key"]: item for item in values}
+        return sorted(latest.values(), key=lambda item: int(item.get("page_number") or 0))
 
     def list_records(
         self,
@@ -910,13 +934,21 @@ class StructuredStorage:
         job_id: str | None = None,
         limit: int | None = None,
         offset: int = 0,
+        include_history: bool = False,
     ) -> list[dict[str, Any]]:
-        where = "WHERE job_id=?" if job_id is not None else ""
+        filters = ["r.job_id=?"] if job_id is not None else []
+        if not include_history:
+            filters.append("(EXISTS (SELECT 1 FROM json_each(c.payload,'$.validated_page_ids') ids "
+                           "WHERE ids.value=r.page_id) OR (c.job_id IS NULL AND NOT EXISTS (SELECT 1 FROM structured_pages old_page "
+                           "JOIN structured_pages newer ON newer.job_id=old_page.job_id "
+                           "AND newer.position_key=old_page.position_key AND newer.rowid>old_page.rowid "
+                           "WHERE old_page.page_id=r.page_id)))")
+        where = "WHERE " + " AND ".join(filters) if filters else ""
         args: tuple[Any, ...] = () if job_id is None else (job_id,)
         with self._connect(readonly=True) as connection:
             rows = connection.execute(
-                f"SELECT payload FROM structured_records {where} "
-                "ORDER BY job_id,row_key,available_at,record_version_id LIMIT ? OFFSET ?",
+                _COMPLETION_CTE + f"SELECT r.payload FROM structured_records r LEFT JOIN completion c ON c.job_id=r.job_id {where} "
+                "ORDER BY r.job_id,r.row_key,r.available_at,r.record_version_id LIMIT ? OFFSET ?",
                 (*args, -1 if limit is None else int(limit), int(offset)),
             ).fetchall()
         return [json.loads(row["payload"]) for row in rows]
@@ -1011,14 +1043,17 @@ class StructuredStorage:
                 dataset_filter = "AND j.dataset_id IN (" + ",".join("?" for _ in dataset_ids) + ") "
                 parameters.extend(dataset_ids)
             cursor = connection.execute(
-                "SELECT r.payload,p.attempt_id,(SELECT e.outcome FROM acquisition_attempt_events e "
-                "WHERE e.attempt_id=p.attempt_id AND e.event_type='outcome_terminal' "
+                _COMPLETION_CTE +
+                "SELECT r.payload,coalesce(c.attempt_id,p.attempt_id) AS attempt_id,(SELECT e.outcome FROM acquisition_attempt_events e "
+                "WHERE e.attempt_id=coalesce(c.attempt_id,p.attempt_id) AND e.event_type='outcome_terminal' "
                 "ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT 1) AS attempt_outcome "
                 "FROM structured_jobs j "
                 "JOIN structured_records r ON r.job_id=j.job_id "
                 "JOIN structured_pages p ON p.page_id=r.page_id AND p.job_id=j.job_id "
                 "AND p.snapshot_id=r.snapshot_id "
+                "LEFT JOIN completion c ON c.job_id=j.job_id "
                 "WHERE j.run_id=? AND j.storage_namespace_id=? "
+                "AND (c.job_id IS NULL OR EXISTS (SELECT 1 FROM json_each(c.payload,'$.validated_page_ids') ids WHERE ids.value=p.page_id)) "
                 + dataset_filter + "ORDER BY j.job_id,r.row_key,r.available_at,r.record_version_id",
                 parameters)
             while rows := cursor.fetchmany(batch_size):

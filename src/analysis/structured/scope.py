@@ -83,6 +83,20 @@ def selected_datasets(requested=None, research_profile_id=None):
     return tuple(chosen)
 
 
+def acquisition_deferral(ticker, dataset_ids, *, explicit_selection=False):
+    """Apply an approved company default without suppressing explicit requests."""
+    if explicit_selection:
+        return None
+    rule = load_scope().get("company_acquisition_deferrals", {}).get(ticker)
+    if not rule:
+        return None
+    unknown = set(rule["dataset_ids"]) - set(load_scope()["datasets"])
+    if unknown:
+        raise ValueError("unknown_deferred_datasets:" + ",".join(sorted(unknown)))
+    deferred = [name for name in dataset_ids if name in rule["dataset_ids"]]
+    return {**deepcopy(rule), "dataset_ids": deferred} if deferred else None
+
+
 def scope_start(as_of: date, research_profile_id=None) -> date:
     if research_profile_id:
         profile = load_research_profile(research_profile_id)

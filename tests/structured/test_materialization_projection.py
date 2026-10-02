@@ -136,6 +136,7 @@ def test_stream_reader_crosses_batches_without_including_other_runs_or_orphan_pa
         CREATE TABLE structured_pages(page_id TEXT,job_id TEXT,snapshot_id TEXT,attempt_id TEXT);
         CREATE TABLE acquisition_attempt_events(attempt_id TEXT,event_type TEXT,outcome TEXT,occurred_at TEXT,event_id TEXT);
         CREATE TABLE structured_record_fields(record_version_id TEXT,field_path TEXT,field_value_id TEXT,payload TEXT);
+        CREATE TABLE structured_acquisition_coverage(job_id TEXT,payload TEXT);
     """)
     connection.execute("INSERT INTO structured_jobs VALUES ('job','run','ns'),('foreign','other','ns')")
     connection.execute("INSERT INTO structured_pages VALUES ('page','job','snapshot','attempt')")

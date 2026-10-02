@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
@@ -51,6 +51,7 @@ class JobStatus:
     committed_record_count: int
     reusable_snapshot_ids: tuple[str, ...]
     next_retry_ordinal: int | None
+    blocked_by: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,7 @@ class StructuredRunStatus:
     pending: int
     partial: int
     jobs: tuple[JobStatus, ...]
+    blocked: int = 0
 
 
 def calculate_due_work(
@@ -374,6 +376,20 @@ class StructuredExecutionBridge:
                     next_retry,
                 )
             )
+        # EM-F needs a resolved company type.  Defer only dependent jobs;
+        # unrelated datasets remain runnable even if that query failed/was empty.
+        by_id = {item.job_id: item for item in statuses}
+        for index, job in enumerate(jobs):
+            if job.get("purpose") not in {"report_catalog", "report_period"}:
+                continue
+            prerequisites = [item for item in jobs if item.get("purpose") == "company_type"
+                             and item["dataset_id"] == job["dataset_id"]]
+            blocked = tuple(item["job_id"] for item in prerequisites
+                            if by_id[item["job_id"]].state != "succeeded"
+                            or by_id[item["job_id"]].committed_record_count == 0)
+            if blocked and statuses[index].state not in {"succeeded", "no_data"}:
+                statuses[index] = replace(statuses[index], state="blocked", blocked_by=blocked,
+                                          next_retry_ordinal=None)
         return StructuredRunStatus(
             run_id,
             len(statuses),
@@ -384,6 +400,7 @@ class StructuredExecutionBridge:
             sum(item.state == "pending" for item in statuses),
             sum(item.state == "partial" for item in statuses),
             tuple(statuses),
+            sum(item.state == "blocked" for item in statuses),
         )
 
     def resume_candidates(self, run_id: str) -> tuple[JobStatus, ...]:

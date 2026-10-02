@@ -121,6 +121,47 @@ def test_material_request_wording_cannot_reset_budget(workspace):
     assert a["task_id"] == b["task_id"]
 
 
+def test_material_collection_finishes_healthy_datasets_before_reporting_gaps(workspace, monkeypatch):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    from analysis.research.jobs import MaterialJobs
+
+    rid = workspace.prepare_research("600519", "2025-01-01")["research_id"]
+    jobs = MaterialJobs(workspace)
+    job = jobs.request_materials(rid, "补充数据", "影响估值", topic="catalog")
+    job.update(topic="financials", requirements=[{"dataset_id": "a_bad"}, {"dataset_id": "b_good"}],
+               run_ids={"a_bad": "failed-run", "b_good": "healthy-run"})
+    jobs.save(job)
+    calls = []
+    class Runtime:
+        def __init__(self, acquisition):
+            pass
+        def plan(self, identities, **kwargs):
+            calls.append((kwargs["mode"], kwargs["parent_run_id"]))
+            return SimpleNamespace(run_ids=["recovery-run"])
+        def execute(self, run_id, **kwargs):
+            calls.append(run_id)
+            failed = run_id == "failed-run"
+            return {"status": {"failed": int(failed), "succeeded": int(not failed),
+                "retryable": 0, "partial": 0, "pending": 0,
+                "summary": {"unfinished": [{"resume_page": 2}] if failed else []}}}
+    monkeypatch.setattr("analysis.acquisition.runtime.AcquisitionRuntime.create", lambda *a, **kw: nullcontext(object()))
+    monkeypatch.setattr("analysis.structured.runtime.StructuredDataRuntime", Runtime)
+    monkeypatch.setattr("analysis.structured.research_lite.materialize_cache", lambda *a, **kw: calls.append("materialized"))
+    monkeypatch.setattr("analysis.structured.research_lite.build_lite_pack", lambda **kw:
+        {"pack_dir": "candidate", "pack_id": "candidate-pack", "status": "partial"})
+    workspace.config["projection_roots"] = ["projection"]
+    jobs.execute_round(job["task_id"])
+    result = jobs.get(job["task_id"])
+    assert calls == ["failed-run", "healthy-run", "materialized"]
+    assert result["state"] == "partial"
+    assert result["result"]["candidate_snapshot_id"] == "candidate-pack"
+    assert result["unfinished_datasets"][0]["recovery"][0]["resume_page"] == 2
+    jobs.execute_round(job["task_id"])
+    assert ("reconcile", "failed-run") in calls
+    assert jobs.get(job["task_id"])["state"] == "completed"
+
+
 def test_successful_rounds_do_not_exhaust_and_expired_worker_recovers(workspace, monkeypatch):
     from analysis.research.jobs import MaterialJobs
     workspace.config.update(max_attempts=3, max_tool_seconds=120)

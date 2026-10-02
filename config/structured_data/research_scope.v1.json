@@ -1255,5 +1255,24 @@
       "basis": "ordinary adjusted price history excluded by research scope"
     }
   },
-  "content_sha256": "3fb53100f8e6c4b77eab5a4901337b0c23be2493972110ca3d24fa78f85b954d"
+  "content_sha256": "0304af1aa4b87018f5d02c18589432f9583ada0c077d2afa940c37ab32a43a02",
+  "company_acquisition_deferrals": {
+    "600519.SH": {
+      "decision_id": "moutai-empty-api-follow-up-20261002",
+      "reason": "user_deferred_empty_api_datasets",
+      "decision_date": "2026-10-02",
+      "decision_reference": "docs/project-cleanup-decisions.md",
+      "dataset_ids": [
+        "customers_peer",
+        "guarantee",
+        "litigation",
+        "seo",
+        "allotment",
+        "bond_issuance",
+        "goodwill",
+        "pledge",
+        "unlock_peer"
+      ]
+    }
+  }
 }
