@@ -850,10 +850,6 @@ def create_app(
     ) -> list[dict]:
         return [item.model_dump(mode="json") for item in _service(request).storage.list_reports(ticker, limit)]
 
-    @application.post("/api/reports", include_in_schema=False)
-    def removed_direct_report_entry() -> None:
-        raise HTTPException(status_code=404, detail="直接报告入口已移除；请使用结构化研究报告流程")
-
     @application.get("/api/reports/{report_id}")
     def get_report(report_id: str, request: Request) -> dict:
         return _service(request).storage.get_report(report_id).model_dump(mode="json")

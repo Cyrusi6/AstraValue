@@ -96,9 +96,7 @@ def test_draft_reverting_text_is_a_new_revision_and_survives_restart(workspace):
         drafts.save_section(**{**args, "evidence_refs": ["F999"]}, markdown="text")
 
 
-def test_business_profile_is_snapshot_bound_research_evidence(workspace):
-    from analysis.research.drafts import Drafts
-
+def test_business_profile_cannot_self_assert_verified_citations(workspace):
     state = workspace.prepare_research("600519", "2025-01-01")
     profile = {
         "profile_id": "profile-" + "a" * 64,
@@ -107,13 +105,9 @@ def test_business_profile_is_snapshot_bound_research_evidence(workspace):
         "manifest_id": "manifest-1",
         "facts": [],
     }
-    artifact = workspace.save_business_profile(state["research_id"], profile)
-    assert artifact["snapshot_id"] == state["snapshot_id"]
-    assert workspace.business_profiles(state["research_id"])[0]["profile_id"] == profile["profile_id"]
-    Drafts(workspace).save_section(
-        state["research_id"], state["snapshot_id"], 1, "画像证据。", "画像判断。",
-        [artifact["artifact_id"]],
-    )
+    with pytest.raises(ResearchError, match="business_profile_cutoff_required"):
+        workspace.save_business_profile(state["research_id"], profile)
+    assert workspace.business_profiles(state["research_id"]) == []
     with pytest.raises(ResearchError, match="business_profile_company_mismatch"):
         workspace.save_business_profile(state["research_id"], {**profile, "company_id": "000001"})
 
@@ -187,3 +181,22 @@ def test_detention_requires_risk_class_and_explicit_research_trigger():
     assert normal["document_class"] == "D16" and not normal["selected"]
     triggered = select_research_document(entry, as_of=date(2026,9,13),question_ids=["ES03.Q01"],trigger_reason="影响治理判断")
     assert triggered["selected"] and triggered["document_class"] == "D16"
+
+
+def test_default_workspace_requires_registered_governance_manifest(workspace):
+    from analysis.research.governance import Governance
+
+    state = workspace.prepare_research("600519", "2025-01-01")
+    governance = Governance(workspace)
+
+    listed = governance.list_governance_materials(state["research_id"])
+    assert listed == {
+        "status": "capability_gap",
+        "reason": "registered_governance_manifest_required",
+        "items": [],
+    }
+    built = governance.build_governance_snapshot(state["research_id"], [])
+    assert built == {
+        "status": "capability_gap",
+        "reason": "registered_governance_manifest_required",
+    }

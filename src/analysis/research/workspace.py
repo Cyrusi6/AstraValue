@@ -348,8 +348,10 @@ class ResearchWorkspace:
             raise ResearchError("original_evidence_integrity_failed")
         return {**result, "research_id": research_id, "snapshot_id": state["snapshot_id"]}
 
-    def artifact(self, research_id: str, kind: str, payload: dict) -> dict:
+    def artifact(self, research_id: str, kind: str, payload: dict, *, expected_snapshot_id: str | None = None) -> dict:
         state, _, _ = self.pack(research_id)
+        if expected_snapshot_id is not None and state["snapshot_id"] != expected_snapshot_id:
+            raise ResearchError("snapshot_changed_during_artifact_write")
         value = {**payload, "research_id": research_id, "snapshot_id": state["snapshot_id"]}
         with self.connect() as con:
             con.execute("BEGIN IMMEDIATE")
@@ -407,20 +409,14 @@ class ResearchWorkspace:
         Its source manifest and immutable fact identifiers remain in the payload so
         the reporting bridge can cite it as evidence when the host explicitly does so.
         """
-        if not isinstance(profile, dict) or not str(profile.get("profile_id", "")).startswith("profile-"):
-            raise ResearchError("business_profile_payload_invalid")
+        from .business_profile import BusinessProfiles
         state, _, _ = self.pack(research_id)
-        if profile.get("company_id") != state.get("ticker"):
-            raise ResearchError("business_profile_company_mismatch")
-        if not profile.get("manifest_id"):
-            raise ResearchError("business_profile_manifest_required")
-        profile_cutoff = str(profile.get("as_of", ""))[:10]
-        if profile_cutoff and profile_cutoff > str(state.get("as_of", ""))[:10]:
-            raise ResearchError("business_profile_future_cutoff")
-        if profile.get("acceptance", {}).get("citation_verification") != "passed":
-            raise ResearchError("business_profile_citations_not_verified")
-        return self.artifact(research_id, "business_profile", profile)
+        verified = BusinessProfiles(self).validate_for_save(research_id, profile)
+        return self.artifact(research_id, "business_profile", verified, expected_snapshot_id=state["snapshot_id"])
 
     def business_profiles(self, research_id: str) -> list[dict]:
         """Return profiles bound to the current snapshot in insertion order."""
-        return self.artifacts(research_id, "business_profile")
+        from .business_profile import BusinessProfiles
+        profiles = BusinessProfiles(self)
+        return [profiles.validate_saved(research_id, value)
+                for value in self.artifacts(research_id, "business_profile")]

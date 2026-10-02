@@ -40,6 +40,8 @@ prepare_research在核心包就绪后自动准备申万替代分类，supplement
 - 探索计算使用mode="calculation"，代码产出result对象，并提供definition、applicability、output_unit、output_period。初始结果为unverified；通过validate_python_analysis提交不同实现的复算代码、validation_reason和boundary_cases，验证重复运行、完整结果比较、正常及失败边界。验证通过后用{{explore:exploration_id.字段}}引用，自动注明探索性质，方法与适用限制放附录。get_python_analysis按需读取结果、代码和检查记录。成功运行不自动晋升标准指标；常用方法后续沉淀成正式公式。
 - build_report(research_id, formats=["md","html","xlsx","pdf"])：实际生成报告；view_report按页查看。报告存在不等于已经查看。
 
+修改已生成报告时，在同一研究工作区用save_section或save_conclusion保存修订，再调用build_report生成新版本。估值假设有变化时，先用calculate生成新的计算记录，再将新calculation_id绑定到结论。已有ReportVersion及其导出文件保持只读，可继续查看和核对。
+
 正文引用：{{value:事实ID}}、{{cite:事实或证据或计算ID}}、{{chart:图表ID}}、{{valuation:估值计算ID}}、{{explore:探索计算ID.字段}}。图表和估值块独立成段，不把相同图表和情景表在多章重复插入。
 
 calculate(method="financial_summary", bindings={})返回历史增速和杜邦分解。

@@ -125,7 +125,8 @@ def test_removed_legacy_sync_and_direct_report_entrypoints_are_not_available(ser
         "/api/reports",
         json={"ticker": "600519", "company_name": "贵州茅台", "industry": "消费"},
     )
-    assert direct_report.status_code == 404
+    assert direct_report.status_code == 405
+    assert "post" not in client.get("/openapi.json").json()["paths"]["/api/reports"]
 
 
 def test_structured_routes_expose_precise_error_statuses(service):

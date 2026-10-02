@@ -363,8 +363,15 @@ class Catalog:
         if reader=='evidence':return common|self.w.read_evidence(research_id,p['evidence_id'],page,max_tokens)
         if reader=='knowledge':
             from .knowledge import Knowledge
-            return common|Knowledge(self.w).search_knowledge(
-                card_id=p['card_id'], page=page, bundle_id=p.get('bundle_id'))
+            if not p.get('bundle_id'):
+                raise ResearchError('knowledge_version_missing:historical material has no frozen bundle identity')
+            result=Knowledge(self.w).search_knowledge(
+                card_id=p['card_id'], page=page, bundle_id=p['bundle_id'])
+            metadata=result.get('metadata',{})
+            if (p.get('content_sha256') and metadata.get('content_sha256')!=p['content_sha256']
+                    or p.get('version') and metadata.get('version')!=p['version']):
+                raise ResearchError('knowledge_material_identity_mismatch')
+            return common|result
         if reader=='pdf':
             import fitz
             if sha(Path(p['path']))!=p['sha256']:raise ResearchError('material_original_changed')

@@ -1,6 +1,6 @@
 # 项目精简与结构化 API 迁移历史
 
-更新时间：2026-09-28
+更新时间：2026-10-02（补充用户确认的编辑链与治理编排决策）
 
 这份记录保存本轮实施前的用户要求、Codex session 中形成的初始计划，以及当前实现证据，避免在后续分支收口时丢失上下文。它是历史和验收索引，不替代当前 OpenSpec 合同。
 
@@ -31,16 +31,13 @@
 
 已确认并已写入 `docs/project-cleanup-decisions.md` 的方向：完整知识产品和研究工作区纳入；知识同 ID 内容采用 `knowledge-content` 修订但保留严格发布门；治理接入主链；business-profile 只移植独有业务画像逻辑；旧 adapters、旧同步、旧历史读取和直接报告写入口删除；唯一物化/研究路径为 `StructuredFactMaterializer + research_lite`；报告主链为研究工作区到 reporting bridge；OpenSpec 统一到 `eight-step-production-pipeline-v1`。
 
-仍需用户决定、不得自动合并的知识分支冲突：
+以下知识分支冲突曾需用户决定，现已处理并保留历史记录：
 
-1. 是否接受 56 个方法按 `published/candidate` 状态整合。
-2. ES01.Q10 是否同时保留 `pricing_power` 和 `competitive_advantage` 两条互补路径。
-3. ES02.Q04 是否同时保留 `roic` 和 `roe_dupont` 两条互补路径。
-4. IFRS3 两个 source ID 是否合并为 canonical source。
-5. 来源元数据多个版本保留哪一套定位字段。
-6. `pilot_remaining.md` 删除、移入 history，还是原位保留。
-7. 1/54、pilot review、54/54 验收记录如何标记时间线。
-8. 旧 `research-cards` 知识入口是否迁移到新知识服务后删除。
+1. 56 个方法按 `published/candidate` 状态整合，保留严格发布门。
+2. ES01.Q10 的两条互补路径和 ES02.Q04 的两条互补路径均保留。
+3. IFRS3 source ID 使用 canonical source，旧 ID 作为历史 alias。
+4. `pilot_remaining.md` 移入 acceptance history 并标注 superseded；1/54、pilot review、54/54 时间线保留。
+5. 旧 `research-cards` 迁移到版本绑定的薄适配层，旧运行时正文入口删除。
 
 ## 当前证据边界
 
@@ -66,10 +63,15 @@
 - 知识适配层已迁移到 `KnowledgeService`：旧 `cashflow-definition` 只映射到 `knowledge.working_capital`，研究目录保存 bundle/version/hash，未发布时明确返回 `no_default_release`；旧 research-cards 不再是运行时正文来源。
 - business-profile 独有逻辑已选择性迁入 `business_evidence/profile.py` 与研究工作区 adapter，输出绑定当前 snapshot artifact，仍由 reporting bridge 生成 `ReportVersion`，没有新增独立报告入口。
 - IFRS3 重复来源已 canonicalize，旧 source ID 仅保留 version-scoped historical alias；因此 `knowledge.es04_q05` 的 4 条来源引用与旧 source/case review identity 已失效，当前 candidate 必须重新绑定审阅，未以旧 acceptance 冒充通过。
+- 2026-10-02 按需报告验收：只选 `cninfo:1225114741`（贵州茅台 2025 年报），新空 acquisition 根真实 HTTP 200，解析 143 页；同一目录重复执行后运行、attempt、正文 snapshot 和 derived artifact 数量不增加，复用同一 snapshot。详见 `docs/acquisition/moutai-on-demand-report-recapture-20261002.md`。
 - 真实 incremental 补充验收：`structured-run-096a85739296a0de6f6cffc2` 在 `income_fields` 安全窗口完成 3 个成功分区、106 条记录；整批仍被失败/空响应安全门禁拒绝。针对性研究/知识/画像回归通过，完整发布门仍因缺少新 Agent 样例和人工验收保持阻塞。
+- 用户已确认删除旧内部报告编辑方法（修改假设、重算、重分析、审阅）；历史报告读取和导出保留，后续修订回到研究工作区并经 reporting bridge 生成新 `ReportVersion`。
+- 用户已确认删除治理模块独立的报告生成、模型运行器和工具会话编排；保留治理取证、事件重建和快照，后续绑定共享 acquisition manifest、研究工作区和 reporting bridge。
+- 用户已确认删除历史治理模型及旧测试/文档；`CodexInputPack`、`CodexToolRead`、`CodexSessionManifest`、研究任务/结果包、快照采用、治理 findings/report 模型已从运行时代码和旧测试移除，退役治理 OpenSpec 目录已删除。保留的治理事实模型只服务取证、事件重建和快照。
 
 ## 交接约束
 
 - `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 是当前候选工作树未跟踪临时文件，未经确认不删除、不加入提交。
 - 未完成用户决策前，不删除知识分支、worktree 或远程分支；分支收口是最后一步。
 - 自动测试、真实 API、缓存重放和人工报告阅读分别报告，任何一种通过都不替代其他验收。
+- 本轮有效截止日回采证据见 `docs/acquisition/moutai-valid-cutoff-recapture-20260928.md`：baseline 和 `income_fields` incremental 均为真实 HTTP 响应；同参数重复 baseline/incremental 返回既有 run 且不新增 attempts。早期未来 cutoff 和旧 partial 按需报告记录只作历史证据，已标为 superseded，不能用于当前通过结论。

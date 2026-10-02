@@ -39,7 +39,7 @@ def test_pilot_has_three_distinct_method_paths_with_honest_remaining_scope(catal
 
 
 def test_verified_rules_have_versioned_primary_source_locations(catalog):
-    sources = by_id(catalog["sources"], "source_id")
+    sources = {(s["source_id"], s["version"]): s for s in catalog["sources"]}
     for m in catalog["methods"]:
         if m["content_status"] == "skeleton":
             continue
@@ -47,7 +47,7 @@ def test_verified_rules_have_versioned_primary_source_locations(catalog):
         for rule in m["rules"]:
             assert rule["source_refs"]
             for ref in rule["source_refs"]:
-                source = sources[ref["source_id"]]
+                source = sources[(ref["source_id"], ref["version"])]
                 assert ref["version"] == source["version"]
                 assert source["verification_status"] == "verified"
                 assert len(source["content_sha256"]) == 64
@@ -58,7 +58,8 @@ def test_ifrs3_duplicate_uses_canonical_source_and_historical_alias(catalog):
     sources = [s for s in catalog["sources"] if s["source_id"] in {
         "SRC-IFRS-IFRS3-OVERVIEW", "SRC-IFRS3-OVERVIEW"
     }]
-    assert [s["source_id"] for s in sources] == ["SRC-IFRS3-OVERVIEW"]
+    assert {s["source_id"] for s in sources} == {"SRC-IFRS3-OVERVIEW"}
+    assert {s["version"] for s in sources} == {"2026-09-19", "2026-09-28"}
     aliases = [a for a in catalog["source_aliases"] if a["alias_source_id"] == "SRC-IFRS-IFRS3-OVERVIEW"]
     assert aliases == [{
         "alias_source_id": "SRC-IFRS-IFRS3-OVERVIEW",

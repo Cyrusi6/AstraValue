@@ -264,6 +264,74 @@ def test_lite_pack_builds_report_request_with_selection_aliases_and_period_targe
     assert all(item.derived_from_fact_ids for item in revenue)
 
 
+def test_workspace_revision_rebuilds_report_without_mutating_prior_version(tmp_path):
+    """Synthetic documents exercise the supported edit -> bridge -> version path."""
+    from analysis.research.authoring import Authoring
+    from analysis.research.reports import Reports
+    from analysis.research.workspace import ResearchWorkspace
+    from analysis.storage import ReportStorage
+
+    base = tmp_path / "packs" / "600519" / "2026-09-13"
+    pack = _pack(base)
+    pack = pack.rename(base / "lite-pack-test")
+    core = json.loads((pack / "core-pack.json").read_text("utf-8"))
+    for index, row in enumerate(core["metrics"], 1):
+        fact = row["fact"]
+        row.update(metric_id=fact["metric_id"], label=fact["metric_id"], group="B",
+                   period=fact["period_end"], period_type=fact["period_type"],
+                   fact_ref=f"F{index}", required=True)
+    core.update(coverage_requirements=core["metrics"], evidence=[], peers=[],
+                token_count={"count": 100})
+    _write_json(pack / "core-pack.json", core)
+    _write_json(pack / "next-work.json", {"items": []})
+    (pack / "core-pack.md").write_text("软件回归夹具，非真实研究。\n", encoding="utf-8")
+    (pack / "evidence-index.jsonl").write_text("", encoding="utf-8")
+    manifest = json.loads((pack / "manifest.json").read_text("utf-8"))
+    manifest["pack_version"] = "eight-step-lite-pack-v1.0.4"
+    manifest["output_hashes"] = {name: _hash(pack / name) for name in (
+        "core-pack.json", "core-pack.md", "core-coverage.json", "next-work.json", "evidence-index.jsonl")}
+    _write_json(pack / "manifest.json", manifest)
+    frozen_manifest = (pack / "manifest.json").read_bytes()
+    _write_json(tmp_path / "identity.json", {"stockList": [
+        {"code": "600519", "zwjc": "贵州茅台", "orgId": "gssh0600519", "category": "A股"}]})
+    workspace = ResearchWorkspace(tmp_path, {
+        "state_root": "state", "identity_file": "identity.json", "pack_roots": ["packs"],
+        "projection_roots": [], "evidence_roots": [], "profile_id": LITE_PROFILE_ID})
+    state = workspace.prepare_research("600519", "2026-09-13")
+    rid, sid = state["research_id"], state["snapshot_id"]
+    author = Authoring(workspace)
+    for number in range(1, 9):
+        author.save_section(rid, sid, number, "初稿观点，依据冻结收入记录。{{cite:F1}}",
+                            "软件回归测试判断", ["F1"])
+    author.save_conclusion(rid, sid, "暂不评级", "初稿结论", ["仅验证编辑流程"],
+                           "测试材料不支持完整估值。", valuation_unavailable_reason="夹具没有盈利及股本数据")
+    reports = Reports(workspace)
+    first = reports.build_report(rid, ["md"])
+    first_output = Path(first["outputs"]["md"]["path"])
+    original_output = first_output.read_bytes()
+    storage = ReportStorage(workspace.state / "reports.sqlite")
+    original_report = storage.get_report(first["report_id"])
+
+    author.save_section(rid, sid, 1, "修订后观点，继续引用同一冻结记录。{{cite:F1}}",
+                        "修订后的软件测试判断", ["F1"])
+    author.save_conclusion(rid, sid, "暂不评级", "修订后结论", ["观点随正文修订"],
+                           "仍需盈利与股本证据。", valuation_unavailable_reason="夹具没有盈利及股本数据")
+    second = reports.build_report(rid, ["md", "html"])
+    current = storage.get_report(second["report_id"])
+    assert second["report_version"] == first["report_version"] + 1
+    assert second["report_id"] != first["report_id"]
+    # Report snapshots also include authored input metadata; the research pack
+    # and its facts stay frozen while the revised report gets a new identity.
+    assert current.request_metadata["lite_pack_id"] == original_report.request_metadata["lite_pack_id"]
+    assert current.facts == original_report.facts
+    assert "修订后观点" in Path(second["outputs"]["md"]["path"]).read_text("utf-8")
+    assert current.request_metadata["agent_summary"] == "修订后结论"
+    assert storage.get_report(first["report_id"]) == original_report
+    assert first_output.read_bytes() == original_output
+    assert (pack / "manifest.json").read_bytes() == frozen_manifest
+    assert workspace.get_task(rid)["latest_report_id"] == second["report_id"]
+
+
 def test_pack_hash_change_fails_closed(tmp_path):
     pack = _pack(tmp_path)
     with (pack / "core-coverage.json").open("a", encoding="utf-8") as stream:

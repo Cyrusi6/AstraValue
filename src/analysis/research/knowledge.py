@@ -24,17 +24,17 @@ class Knowledge:
         configured_catalog = root / config.get(
             "knowledge_catalog", "config/methods/knowledge/catalog.v1.json"
         )
-        # ResearchWorkspace tests and isolated snapshots may use a temporary
-        # root.  The versioned catalog is a code-owned input, so resolve it
-        # from the project root when the snapshot does not carry a copy.
         if not configured_catalog.is_file():
+            if "knowledge_catalog" in config:
+                raise ResearchError(f"knowledge_catalog_not_found:{configured_catalog}")
+            # Workspaces without an override use the catalog shipped with code.
             configured_catalog = Path(__file__).resolve().parents[3] / "config/methods/knowledge/catalog.v1.json"
         return KnowledgeService.from_catalog(
             configured_catalog,
             root / config.get("knowledge_store", "var/research/knowledge-store"),
         )
 
-    def _resolved(self, bundle_id: str | None = None):
+    def _resolved(self, bundle_id: str | None = None, historical: bool = False):
         service = self._service()
         configured_id = bundle_id or getattr(self.w, "config", {}).get("knowledge_bundle_id")
         coverage = service.coverage(configured_id)
@@ -43,7 +43,9 @@ class Knowledge:
             return service, None, coverage, []
         bundle = service.get_bundle(selected_id)
         available = {row["method_id"] for row in coverage["methods"]}
-        methods = [method for method in bundle["catalog"]["methods"] if method["method_id"] in available]
+        methods = [method for method in bundle["catalog"]["methods"]
+                   if method["method_id"] in available
+                   or (historical and method.get("content_status") == "published")]
         return service, bundle, coverage, methods
 
     def available_methods(self, bundle_id: str | None = None) -> dict:
@@ -68,7 +70,7 @@ class Knowledge:
         """Find published methods, or read a bounded page from one pinned version."""
         validate_integer_parameter(page, "page", "invalid_pagination")
         validate_integer_parameter(page_size, "page_size", "invalid_pagination", 10)
-        service, bundle, coverage, methods = self._resolved(bundle_id)
+        service, bundle, coverage, methods = self._resolved(bundle_id, historical=bool(card_id and bundle_id))
         if bundle is None:
             return {"status": "no_default_release", "bundle_id": None,
                     "gap": "No complete default knowledge release has passed acceptance."}
@@ -92,6 +94,8 @@ class Knowledge:
                              "source_refs": detail["source_refs"],
                              "sources": detail.get("sources", []),
                              "cases": detail.get("cases", []),
+                             "available": detail.get("available", True),
+                             "notices": detail.get("notices", []),
                              "applicability": detail.get("applicability"),
                              "required_inputs": detail.get("required_inputs", [])},
                 "content": chunks[page - 1],

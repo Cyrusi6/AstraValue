@@ -15,15 +15,9 @@ from analysis.governance.models import (
     AuditorEngagement,
     CommitmentRecord,
     CompensationRecord,
-    ContextualEvidenceItem,
-    ContextualFinding,
     ControlRelation,
     CorrectionRecord,
-    DeferredResearchItem,
     DirectionKind,
-    DiscoveryLead,
-    FactualFinding,
-    GOVERNANCE_FINDING_ADAPTER,
     GOVERNANCE_RECORD_ADAPTER,
     GOVERNANCE_SNAPSHOT_LINK_ADAPTER,
     GovernanceModel,
@@ -36,7 +30,6 @@ from analysis.governance.models import (
     OwnershipPosition,
     OwnershipSnapshot,
     PledgePositionSnapshot,
-    RESEARCH_RESULT_ITEM_ADAPTER,
     RegulatoryMatter,
     RelatedPartyRelation,
     RelatedPartyTransaction,
@@ -46,7 +39,6 @@ from analysis.governance.models import (
     SnapshotDeltaLink,
     SnapshotRecordLink,
     SourceRole,
-    UnresolvedResearchGap,
     VestingCondition,
     parse_governance_record_json,
 )
@@ -274,68 +266,6 @@ def test_snapshot_link_union_round_trip_and_discriminator_schema() -> None:
         assert parsed == link
     schema = GOVERNANCE_SNAPSHOT_LINK_ADAPTER.json_schema()
     assert schema["discriminator"]["propertyName"] == "kind"
-
-
-def test_research_and_finding_unions_round_trip() -> None:
-    research_items = (
-        models.AuthoritativeSourceCandidate(
-            item_id="govresearchitem:1",
-            source_role=SourceRole.OFFICIAL_DISCLOSURE,
-            source_locator="formal:1",
-            payload_hash=H,
-        ),
-        ContextualEvidenceItem(
-            item_id="govresearchitem:2",
-            source_locator="context:1",
-            summary="context",
-            payload_hash=H,
-        ),
-        DiscoveryLead(
-            item_id="govresearchitem:3",
-            provider="akshare",
-            locator="lead:1",
-            payload_hash=H,
-        ),
-        DeferredResearchItem(
-            item_id="govresearchitem:4",
-            source_family="court",
-            reason_code="deferred_v1",
-            payload_hash=H,
-        ),
-        UnresolvedResearchGap(
-            item_id="govresearchitem:5",
-            gap_id="govgap:1",
-            reason_code="not_found",
-            detail="not found",
-        ),
-    )
-    for item in research_items:
-        parsed = models.validate_canonical_json(
-            RESEARCH_RESULT_ITEM_ADAPTER, canonical_json_bytes(item)
-        )
-        assert parsed == item
-
-    findings = (
-        FactualFinding(
-            finding_id="govfinding:1", text="fact", citation_ids=("citation:1",)
-        ),
-        ContextualFinding(
-            finding_id="govfinding:2",
-            text="context",
-            citation_ids=("citation:1",),
-        ),
-        models.CodexJudgment(
-            finding_id="govfinding:3",
-            text="judgment",
-            citation_ids=("citation:1",),
-            uncertainty="limited evidence",
-        ),
-    )
-    for finding in findings:
-        parsed = models.validate_canonical_json(
-            GOVERNANCE_FINDING_ADAPTER, canonical_json_bytes(finding)
-        )
-        assert parsed == finding
 
 
 def test_unknown_kind_extra_fields_and_wrong_namespace_fail_closed() -> None:

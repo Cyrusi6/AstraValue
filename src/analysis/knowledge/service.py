@@ -16,16 +16,26 @@ def _hash(value: Any) -> str:
 
 
 def _bundle_hash(value: dict) -> str:
-    """Hash immutable bundle content without volatile metadata.
+    """Hash content using the rule recorded in the immutable bundle.
 
-    ``created_at`` records when a candidate was materialized, but it is not
-    part of the candidate's content identity.  Including it in the digest
-    made identical rebuilds look like different knowledge versions and made
-    acceptance evidence impossible to reuse safely.
+    Unversioned bundles retain their original digest, including created_at.
+    Version 2 separates stable content identity from whole-payload integrity.
+    Never try a weaker hash as a fallback for a damaged legacy bundle.
     """
     normalized = copy.deepcopy(value)
     normalized.pop("content_sha256", None)
-    normalized.pop("created_at", None)
+    version = normalized.get("bundle_hash_version")
+    if version == 2:
+        normalized.pop("created_at", None)
+        normalized.pop("integrity_sha256", None)
+    elif version is not None:
+        raise ValueError(f"unsupported bundle hash version: {version}")
+    return _hash(normalized)
+
+
+def _bundle_integrity_hash(value: dict) -> str:
+    normalized = copy.deepcopy(value)
+    normalized.pop("integrity_sha256", None)
     return _hash(normalized)
 
 
@@ -248,7 +258,7 @@ class KnowledgeService:
             raise ValueError("invalid candidate: " + "; ".join(check["errors"]))
         frozen = self._freeze(catalog)
         metrics = self._metrics()
-        payload = {"catalog": frozen, "metrics": metrics, "questions": copy.deepcopy(self.questions), "kind": "candidate"}
+        payload = {"catalog": frozen, "metrics": metrics, "questions": copy.deepcopy(self.questions), "kind": "candidate", "bundle_hash_version": 2}
         identities = {m["method_id"]: method_identity(frozen, m["method_id"], self.project_root, metrics) for m in frozen.get("methods", [])}
         for method in frozen.get("methods", []):
             if method.get("content_status") != "published":
@@ -260,6 +270,7 @@ class KnowledgeService:
         bundle_id = _id(bundle_id or "kb-" + _hash(payload)[:24])
         payload.update(bundle_id=bundle_id, created_at=datetime.now(timezone.utc).isoformat())
         payload["content_sha256"] = _bundle_hash(payload)
+        payload["integrity_sha256"] = _bundle_integrity_hash(payload)
         path = self.store_root / "bundles" / f"{bundle_id}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -278,10 +289,11 @@ class KnowledgeService:
         if not path.exists():
             raise KeyError(f"unknown version: {bundle_id}")
         payload = _load(path)
-        digest = payload.pop("content_sha256", None)
-        if digest != _bundle_hash(payload):
+        digest = payload.get("content_sha256")
+        if (payload.get("bundle_id") != bundle_id or digest != _bundle_hash(payload)
+                or (payload.get("bundle_hash_version") == 2
+                    and payload.get("integrity_sha256") != _bundle_integrity_hash(payload))):
             raise ValueError(f"bundle integrity prevents complete reproduction: {bundle_id}")
-        payload["content_sha256"] = digest
         return payload
 
     def _changes(self) -> list[dict]:
@@ -542,7 +554,8 @@ class KnowledgeService:
         coverage = self.coverage(bundle_id)
         bundle = self.get_bundle(bundle_id)
         evidence = prepare_evidence(bundle_id, coverage["methods"], bundle["catalog"].get("reviews", []), release_evidence)
-        gate = evaluate_release({**coverage, "ready_question_ids": coverage["available_question_ids"]}, evidence, set(self.question_index))
+        gate = evaluate_release({**coverage, "ready_question_ids": coverage["available_question_ids"],
+                                 "content_sha256": bundle["content_sha256"]}, evidence, set(self.question_index))
         if not gate["passed"]:
             raise ValueError("complete 54-question release rejected: " + json.dumps(gate, ensure_ascii=False))
         _write(self.store_root / "default.json", {"bundle_id": bundle_id, "release_evidence": evidence, "gate": gate})

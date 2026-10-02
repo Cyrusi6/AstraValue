@@ -14,7 +14,7 @@ from .models import Citation, EvidenceModel, digest
 from .store import FactStore, aware
 
 
-METHOD_VERSION = "business-profile-v1.0.0"
+METHOD_VERSION = "business-profile-v1.1.0"
 TOPICS = dict(zip((f"Q{i:02d}" for i in range(1, 11)), (
     "起源、业务构成与盈利模式", "产品与地区经济", "客户、供应商与渠道", "价格与单位经济",
     "产能与产销存", "资本开支", "研发投入与产出", "产业链", "战略变化", "竞争力声明与可观察证据")))
@@ -307,6 +307,7 @@ def build_profile(spec: ProfileInput, store: FactStore, corpus: FrozenCorpus, da
     verify_citations(selected, corpus, data_root)
     result = {"schema_version": "1.0.0", "method_version": METHOD_VERSION, "title": spec.title,
         "company_id": spec.company_id, "as_of": query["as_of"], "input_sha256": digest(spec.model_dump(mode="json")),
+        "profile_input": spec.model_dump(mode="json"),
         "manifest_id": corpus.manifest.manifest_id, "manifest_hash": corpus.manifest.manifest_hash,
         "storage_namespace_id": corpus.manifest.storage_namespace_id, "selection_policy": corpus.selection_policy,
         "periods": [{"period": p, "kind": period_kind(p)} for p in spec.periods],

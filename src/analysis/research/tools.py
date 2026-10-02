@@ -11,6 +11,7 @@ def operations(workspace: ResearchWorkspace) -> dict:
     from .jobs import MaterialJobs
     from .knowledge import Knowledge
     from .business_profile import BusinessProfiles
+    from .governance import Governance
     from .reports import Reports
     from .valuation_history import ValuationHistory
     from .processing import Processing
@@ -52,6 +53,9 @@ def operations(workspace: ResearchWorkspace) -> dict:
         "list_business_profiles": profiles.list,
         "get_business_profile": profiles.get,
     })
+    governance = Governance(workspace)
+    registry.update({name: getattr(governance, name) for name in (
+        "list_governance_materials", "build_governance_snapshot", "get_governance_snapshot")})
     def prepare_research(company: str, as_of: str = "latest", scope: str = "eight_step", offline: bool = False):
         """Prepare a company task and return the shared clean writing view when data is ready."""
         result = workspace.prepare_research(company, as_of, scope)

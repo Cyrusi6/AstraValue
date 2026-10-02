@@ -27,6 +27,7 @@ from analysis.acquisition.models import (
     SourceDefinitionRef,
 )
 from analysis.acquisition.runtime import AcquisitionRuntime
+from analysis.acquisition.repository import AcquisitionNotFoundError
 from analysis.acquisition.snapshots import DiscoverySnapshotRequest
 
 from .identity import SecurityIdentity
@@ -37,6 +38,7 @@ from .planner import (
     HistoryMode,
     PlanDisposition,
     StructuredDatasetPlanner,
+    StructuredPlanningError,
 )
 from .pagination import PageAudit, PageManifest, PageSlice, PageStatus
 from .protocols import (
@@ -332,13 +334,6 @@ class StructuredDataRuntime:
         run_ids: list[str] = []
         created_flags: list[bool] = []
         for identity in identities:
-            incremental_starts: dict[str, date] = {}
-            if mode == "incremental":
-                incremental_starts = self._incremental_starts(
-                    identity,
-                    datasets,
-                    activated_on_demand_ids=activated_on_demand_ids,
-                )
             reconcile_parent_id: str | None = None
             reconcile_target: dict[str, Any] | None = None
             if mode == "reconcile":
@@ -348,58 +343,6 @@ class StructuredDataRuntime:
                     parent_run_id=parent_run_id,
                     from_latest=from_latest,
                 )
-            target = CompanyPlanTarget(
-                company_id=identity.company_id,
-                ticker=identity.security_code,
-                listing_date=identity.listing_date,
-                role="target",
-                selection_reason="resolved_security_identity",
-            )
-            def earliest_available_at(item: Any) -> str:
-                configured = (
-                    (valuation_start or cutoff.date() - timedelta(days=14))
-                    if item.dataset_id == "market_cap"
-                    else min(date.fromisoformat(p) for p in selected_periods)
-                    if selected_periods and "REPORT_DATE" in item.date_fields
-                    else scope_start(cutoff.date(), research_profile_id)
-                )
-                if mode == "incremental":
-                    configured = max(
-                        configured,
-                        incremental_starts[item.dataset_id],
-                    )
-                return configured.isoformat()
-
-            planning_datasets = tuple(
-                {
-                    **item.model_dump(mode="json"),
-                    # The dataset registry version is also the frozen version
-                    # of the generated source definitions.  Keep it on each
-                    # planning item so a registry bump cannot fall back to
-                    # planner's legacy 1.0.0 default and miss the bound source.
-                    "source_definition_version": self.bundle.datasets.version,
-                    "earliest_available_at": earliest_available_at(item),
-                    "history_boundary_kind": (
-                        "conservative_query_floor_not_availability_claim"
-                    ),
-                }
-                for item in datasets
-            )
-            works = (
-                self._reconcile_works(
-                    identity,
-                    planning_datasets,
-                    reconcile_target or {},
-                )
-                if mode == "reconcile"
-                else self.planner.plan_history(
-                    companies=(target,),
-                    datasets=planning_datasets,
-                    as_of=cutoff,
-                    selected_dataset_ids=effective_ids,
-                    activated_dataset_ids=activated_on_demand_ids,
-                )
-            )
             run_id = stable_structured_id(
                 "structured-run",
                 {
@@ -523,6 +466,94 @@ class StructuredDataRuntime:
                 frozen_config=frozen,
                 created_at=cutoff,
             )
+            # Resolve an identical frozen request before reading the moving
+            # incremental cursor. Replanning after completion otherwise changes
+            # its windows and collides with a subset of its own initial jobs.
+            try:
+                existing_context = self.storage.get_run_context(run_id)
+            except AcquisitionNotFoundError:
+                existing_context = None
+            if existing_context is not None:
+                existing_run = self.repository.get_run(run_id)
+                if (
+                    existing_context.content_hash != context.content_hash
+                    or existing_run.model_dump(mode="json") != run.model_dump(mode="json")
+                ):
+                    raise StructuredPlanningError(
+                        "existing structured run has a different frozen request"
+                    )
+                run_ids.append(run_id)
+                created_flags.append(False)
+                summaries.append(
+                    {
+                        "run_id": run_id,
+                        "company_id": identity.company_id,
+                        "ticker": identity.canonical_ticker,
+                        "job_count": len(self.storage.list_jobs(run_id, limit=None)),
+                        "coverage_entry_count": len(self.repository.list_coverage_entries(run_id)),
+                        "created": False,
+                    }
+                )
+                continue
+            incremental_starts: dict[str, date] = {}
+            if mode == "incremental":
+                incremental_starts = self._incremental_starts(
+                    identity,
+                    datasets,
+                    activated_on_demand_ids=activated_on_demand_ids,
+                )
+            target = CompanyPlanTarget(
+                company_id=identity.company_id,
+                ticker=identity.security_code,
+                listing_date=identity.listing_date,
+                role="target",
+                selection_reason="resolved_security_identity",
+            )
+            def earliest_available_at(item: Any) -> str:
+                configured = (
+                    (valuation_start or cutoff.date() - timedelta(days=14))
+                    if item.dataset_id == "market_cap"
+                    else min(date.fromisoformat(p) for p in selected_periods)
+                    if selected_periods and "REPORT_DATE" in item.date_fields
+                    else scope_start(cutoff.date(), research_profile_id)
+                )
+                if mode == "incremental":
+                    configured = max(
+                        configured,
+                        incremental_starts[item.dataset_id],
+                    )
+                return configured.isoformat()
+
+            planning_datasets = tuple(
+                {
+                    **item.model_dump(mode="json"),
+                    # The dataset registry version is also the frozen version
+                    # of the generated source definitions.  Keep it on each
+                    # planning item so a registry bump cannot fall back to
+                    # planner's legacy 1.0.0 default and miss the bound source.
+                    "source_definition_version": self.bundle.datasets.version,
+                    "earliest_available_at": earliest_available_at(item),
+                    "history_boundary_kind": (
+                        "conservative_query_floor_not_availability_claim"
+                    ),
+                }
+                for item in datasets
+            )
+            works = (
+                self._reconcile_works(
+                    identity,
+                    planning_datasets,
+                    reconcile_target or {},
+                )
+                if mode == "reconcile"
+                else self.planner.plan_history(
+                    companies=(target,),
+                    datasets=planning_datasets,
+                    as_of=cutoff,
+                    selected_dataset_ids=effective_ids,
+                    activated_dataset_ids=activated_on_demand_ids,
+                )
+            )
             composed = self.planner.compose_shared_plan(
                 run=run,
                 context=context,
@@ -535,6 +566,10 @@ class StructuredDataRuntime:
                 context=context,
                 plan=composed,
             )
+            if persisted_run != run_id:
+                raise StructuredPlanningError(
+                    "plan overlaps a different frozen structured request"
+                )
             run_ids.append(persisted_run)
             created_flags.append(created)
             summaries.append(

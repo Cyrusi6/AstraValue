@@ -244,6 +244,10 @@ def apply_agent_research(report, request):
     # An exploratory evidence reference still needs its method and limitations in the appendix,
     # even when a chapter describes the finding without interpolating a numeric field.
     cited.extend(ref for ref in explorations if ref not in cited)
+    # A claim can cite a profile through evidence_refs without an inline token.
+    # Its frozen facts and original citations must still survive ReportVersion.
+    cited.extend(ref for section in draft["sections"] for ref in section["evidence_refs"]
+                 if ref in evidence and ("profile_id" in evidence[ref] or "governance_snapshot_id" in evidence[ref]) and ref not in cited)
     report.request_metadata["agent_citations"] = [{"reference":ref, "detail": metrics.get(ref) or evidence.get(ref) or calculations.get(ref) or explorations.get(ref)} for ref in cited]
     report.request_metadata["rating_origin"] = "host_model"
     report.request_metadata["research_status"] = "authored_pending_review"
@@ -287,6 +291,15 @@ def render_agent_markdown(report):
                       f"适用条件与限制：{row.get('applicability', '').rstrip('。；;')}；"
                       f"结果单位：{units}；结果期间：{row.get('output_period', '')}。"
                       "代码、只读输入、独立复算、边界用例及验证记录保存在同版JSON；未晋升为标准指标。")
+        elif "governance_snapshot_id" in row:
+            links = [f"[披露原件]({x['source_url']})" for x in row["originals"]]
+            detail = "治理取证与状态快照；" + "；".join(links) + "。逐项断言、原件定位、状态重建与未覆盖事项见同版JSON；资料不完整不代表没有相关事项。"
+        elif "profile_id" in row:
+            originals = {(c["title"], c["source_url"], c.get("page_number"))
+                         for fact in row["facts"] for c in fact["citations"]}
+            links = [f"[{title}]({url})" + (f"，第{page}页" if page else "")
+                     for title, url, page in sorted(originals, key=str)]
+            detail = f"{row['title']}；" + "；".join(links) + "。逐项事实、口径、缺口及原件定位见同版JSON。"
         elif "fact" in row:
             detail = f"{row.get('label',row.get('metric_id'))}，实际数据期 {row['fact'].get('period_end') or row.get('period')}；标准值与来源见同版事实索引。"
         elif "locator" in row:
@@ -359,8 +372,19 @@ class Reports:
         evidence = payload["evidence"] + payload.get("supplemental_evidence", [])
         evidence += [dict(x, evidence_id=x["artifact_id"])
                      for x in self.w.artifacts(research_id, "evidence_read")]
-        evidence += [dict(x, evidence_id=x["artifact_id"])
-                     for x in self.w.business_profiles(research_id)]
+        profile_refs = {ref for section in draft["sections"] for ref in section["evidence_refs"]}
+        profile_refs.update(ref for section in draft["sections"]
+                            for kind, ref in REPORT_TOKEN.findall(section["markdown"]) if kind == "cite")
+        from .business_profile import BusinessProfiles
+        profiles = BusinessProfiles(self.w)
+        evidence += [dict(profiles.validate_saved(research_id, x), evidence_id=x["artifact_id"])
+                     for x in self.w.artifacts(research_id, "business_profile")
+                     if x["artifact_id"] in profile_refs]
+        from .governance import Governance
+        governance = Governance(self.w)
+        evidence += [dict(governance.validate_saved(research_id, x), evidence_id=x["artifact_id"])
+                     for x in self.w.artifacts(research_id, "governance_snapshot")
+                     if x["artifact_id"] in profile_refs]
         request.input_metadata["agent_research"] = {"snapshot_id": state["snapshot_id"], "draft": draft,
             "evidence": evidence,
             "charts":rendered_charts,"calculations":self.w.artifacts(research_id,"calculation"),

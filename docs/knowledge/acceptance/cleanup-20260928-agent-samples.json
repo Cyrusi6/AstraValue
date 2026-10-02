@@ -1,0 +1,236 @@
+{
+  "bundle_id": "cleanup-20260928-v2",
+  "candidate_content_sha256": "8837ddc717fb2664da0a75e0b4d611f4348ad0b583d58875d2164491f7557802",
+  "evaluated_at": "2026-09-28T00:36:46.110824+00:00",
+  "evaluation_design": "当前Codex实际调用KnowledgeService读取冻结候选后的开放案例应用；输入是合成教学案例，预期结果可见，不是盲测、真实公司研究或人工验收。",
+  "read_evidence": {
+    "path": "tmp/knowledge-review-20260928/reads.json",
+    "sha256": "46bebc8d19c6c0c9000bf38b9c4565a8ba164da6a963fa6952cedce3f90807a4"
+  },
+  "agent_samples": [
+    {
+      "step_id": "ES01",
+      "question_id": "ES01.Q02",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.segment_economics"
+      ],
+      "reasons": [
+        "A收入60/(60+40)=60%；B毛利20/(12+20)=62.5%。两者说明不同结构，缺共同费用、抵销或净利桥接时不能声称净利润贡献。删除分部成本后只保留收入结构，缺失不能补零。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES01.Q02",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.segment_economics": "36f0cbbd5e2c0c1d75a5bf9d8ed45df7bfc11645a0926cad26f2321e5c73eb29"
+      }
+    },
+    {
+      "step_id": "ES02",
+      "question_id": "ES02.Q08",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.working_capital"
+      ],
+      "reasons": [
+        "经营占款变化=-5-10-(-5)=-10，即当期释放10；逾期应付增加10同样短期释放现金，但会增偿付和供货风险，不能称效率改善。完整FCFF=100+20-30-10=80；缺组成时不输出完整FCFF。银行贷款110/存款100不能套普通企业占款公式。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES02.Q08",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.working_capital": "acee31e844a37f8bbe95f2a35f2968240073d257c7eec27554b720ad3f126567"
+      }
+    },
+    {
+      "step_id": "ES03",
+      "question_id": "ES03.Q05",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es03_q05"
+      ],
+      "reasons": [
+        "到期应收100且在期限内收到100，支持该笔义务已履行；存在审批但到期收到0时为该笔未履行，审批不是付款。只有审批、没有合同和履约凭证时状态未知，也不能据此判利益输送。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES03.Q05",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es03_q05": "cfb0a0449d8d10bd6ad9e47e3eb4c64cda5c86e0eeb00429f544d1e6094eccf0"
+      }
+    },
+    {
+      "step_id": "ES04",
+      "question_id": "ES04.Q05",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es04_q05"
+      ],
+      "reasons": [
+        "非同一控制全资收购、两边均公允价值且无其他调整时，120-100=20为商誉。商誉存量20未含减值测试结果，不能推减值20或协同已兑现。新版缺失例删除的是减值/履约证据，因此应限制相应判断，已不再误称缺交割日期。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES04.Q05",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es04_q05": "bd4a16d076209f6729159f373feda1767796d3c66e51760ebeffddcdd5d58f0e"
+      }
+    },
+    {
+      "step_id": "ES05",
+      "question_id": "ES05.Q03",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es05_q03"
+      ],
+      "reasons": [
+        "两家5%增长、10%资本成本且现金转化近似，只支持候选可比，还需校准分子分母。2%/20%增长与8%/15%资本成本明显不同，同业低倍数可有基本面解释。只有12倍和20倍、缺增长风险时可报倍数差异，不能据此声称低估40%。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES05.Q03",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es05_q03": "a9a9326190ae6ec1a60aeaf80fa75f60ea95152a650bcd6f0a247e9b5ce85860"
+      }
+    },
+    {
+      "step_id": "ES06",
+      "question_id": "ES06.Q01",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.growth_drivers"
+      ],
+      "reasons": [
+        "价格与范围稳定、实际交付销量增长20%，支持历史收入数量驱动解释；不能外推未来持续20%。行业总量增长20%但公司份额和交付未知时，公司增速仍未知，需查订单/交付、份额和产能约束。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES06.Q01",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.growth_drivers": "c1ca92489397aee7ad36ccd405cccea06cc16f8d732aa34c1599d10ae23d9576"
+      }
+    },
+    {
+      "step_id": "ES07",
+      "question_id": "ES07.Q01",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.industry_boundary"
+      ],
+      "reasons": [
+        "特定工艺设备、运输成本高且替代记录明确，可以提出产品与地域边界，但仍应检验客户替代和供应扩张。硬件代工与订阅软件虽同属科技标签，盈利方式和客户用途不同，不能自动互为同行。缺范围定义时不计算精确市场份额。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES07.Q01",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.industry_boundary": "1062bddbae73207abf4f069e30bdaf93d3a93091241064637e797f68466e9d03"
+      }
+    },
+    {
+      "step_id": "ES08",
+      "question_id": "ES08.Q01",
+      "bundle_id": "cleanup-20260928-v2",
+      "outcome": "passed",
+      "method_ids": [
+        "knowledge.es08_q01"
+      ],
+      "reasons": [
+        "EBIT120、capex30、折旧10和占款增加5可作为有定位的基线，但缺税率时FCFF只可写120*(1-t)+10-30-5，不能默设t。2026预测120不能登记为2025实际；占款变化缺失时不能补零完成模型。"
+      ],
+      "unresolved_issues": [],
+      "reviewer": "Codex root agent",
+      "model": "current-session-model-not-exposed",
+      "prompt_version": "cleanup-eight-step-open-application-v2",
+      "input": {
+        "question_id": "ES08.Q01",
+        "bundle_id": "cleanup-20260928-v2",
+        "context": {
+          "industry": "industrial",
+          "business_type": "manufacturing"
+        }
+      },
+      "content_identities": {
+        "knowledge.es08_q01": "eb808206af6553d4f84725d928091820433acb8e818b1236caf236d0e099296f"
+      }
+    }
+  ],
+  "human_review": {
+    "bundle_id": "cleanup-20260928-v2",
+    "reviewer_kind": "human",
+    "outcome": "pending",
+    "sampled_steps": [],
+    "important_issues": [],
+    "reasons": []
+  }
+}

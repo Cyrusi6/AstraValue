@@ -151,13 +151,6 @@ class GovernancePerspective(str, Enum):
     RECONSTRUCTED = "reconstructed"
 
 
-class ReportGenerationStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
 class TimePrecision(str, Enum):
     DATE = "date"
     DATETIME = "datetime"
@@ -198,29 +191,6 @@ class DeltaDisposition(str, Enum):
 class SnapshotRecordRole(str, Enum):
     CANONICAL = "canonical"
     CANDIDATE = "candidate"
-
-
-class ResearchTaskStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    BUDGET_EXHAUSTED = "budget_exhausted"
-    FAILED = "failed"
-
-
-class ToolReadStatus(str, Enum):
-    SUCCEEDED = "succeeded"
-    REJECTED = "rejected"
-    FAILED = "failed"
-
-
-class QuarantineReason(str, Enum):
-    FUTURE_INFORMATION = "future_information"
-    AVAILABLE_AT_UNPROVEN = "available_at_unproven"
-    SOURCE_POLICY = "source_policy"
-    SCHEMA_INVALID = "schema_invalid"
-    HASH_MISMATCH = "hash_mismatch"
-    DEFERRED_SOURCE = "deferred_source"
 
 
 class GovernanceModel(BaseModel):
@@ -1503,650 +1473,6 @@ class GovernanceSnapshot(GovernanceModel):
         return self
 
 
-class ObjectReference(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-object-reference"
-    kind: Literal["object_reference"] = "object_reference"
-    object_id: NonEmptyStr
-    object_kind: NonEmptyStr
-    schema_version: NonEmptyStr
-    canonical_hash: Sha256Hex
-
-
-class QuestionSummary(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-question-summary"
-    kind: Literal["question_summary"] = "question_summary"
-    question_id: QuestionId
-    completeness_status: CompletenessStatus
-    coverage_entry_ids: SortedUniqueStrings
-    anchor_record_ids: SortedUniqueStrings = ()
-    summary: NonEmptyStr
-
-    @model_validator(mode="after")
-    def validate_question_summary(self) -> Self:
-        if not self.coverage_entry_ids:
-            raise ValueError("question summaries require coverage identities")
-        return self
-
-
-class ToolSchemaReference(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-tool-schema-reference"
-    kind: Literal["tool_schema_reference"] = "tool_schema_reference"
-    tool_name: NonEmptyStr
-    tool_version: NonEmptyStr
-    input_schema_hash: Sha256Hex
-    output_schema_hash: Sha256Hex
-    read_only: Literal[True] = True
-
-
-class ResearchBudget(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-research-budget"
-    kind: Literal["research_budget"] = "research_budget"
-    max_rounds: int = Field(ge=0)
-    max_child_tasks: int = Field(ge=0)
-    max_network_requests: int = Field(ge=0)
-    max_parallelism: int = Field(ge=1)
-    wall_clock_seconds: int = Field(ge=1)
-    max_output_bytes: int = Field(ge=1)
-    max_recursion_depth: Literal[1] = 1
-
-
-class BudgetUsage(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-budget-usage"
-    kind: Literal["budget_usage"] = "budget_usage"
-    rounds: int = Field(ge=0)
-    child_tasks: int = Field(ge=0)
-    network_requests: int = Field(ge=0)
-    wall_clock_milliseconds: int = Field(ge=0)
-    output_bytes: int = Field(ge=0)
-
-
-class CodexInputPack(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-codex-input-pack"
-    kind: Literal["codex_input_pack"] = "codex_input_pack"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    input_pack_id: NonEmptyStr
-    company_id: NonEmptyStr
-    state_at: UtcDateTime
-    known_at: UtcDateTime
-    perspective: GovernancePerspective
-    governance_snapshot_id: NonEmptyStr
-    governance_snapshot_hash: Sha256Hex
-    evidence_manifest_id: NonEmptyStr
-    evidence_manifest_hash: Sha256Hex
-    question_set_id: Literal[
-        "governance_management_questions"
-    ] = GOVERNANCE_QUESTION_SET_ID
-    question_set_version: NonEmptyStr
-    question_summaries: tuple[QuestionSummary, ...]
-    important_records: tuple[ObjectReference, ...] = ()
-    important_event_ids: SortedUniqueStrings = ()
-    active_gap_ids: SortedUniqueStrings = ()
-    active_conflict_ids: SortedUniqueStrings = ()
-    pending_candidate_ids: SortedUniqueStrings = ()
-    tool_schemas: tuple[ToolSchemaReference, ...]
-    research_budget: ResearchBudget
-    temporal_rules: SortedUniqueStrings
-    report_output_schema_hash: Sha256Hex
-    canonical_hash: Sha256Hex
-    created_at: UtcDateTime
-
-    @model_validator(mode="after")
-    def validate_input_pack(self) -> Self:
-        _require_prefix(self.input_pack_id, "govinput", "input_pack_id")
-        _require_prefix(
-            self.governance_snapshot_id, "govsnapshot", "governance_snapshot_id"
-        )
-        _check_query_time(
-            self.state_at,
-            self.known_at,
-            self.perspective,
-            self.perspective == GovernancePerspective.RECONSTRUCTED
-            and self.known_at > self.state_at,
-        )
-        question_ids = [item.question_id for item in self.question_summaries]
-        if question_ids != sorted(question_ids) or len(question_ids) != len(set(question_ids)):
-            raise ValueError("question summaries must be unique and stably sorted")
-        record_ids = [item.object_id for item in self.important_records]
-        if record_ids != sorted(record_ids) or len(record_ids) != len(set(record_ids)):
-            raise ValueError("important records must be unique and stably sorted")
-        tool_names = [item.tool_name for item in self.tool_schemas]
-        if tool_names != sorted(tool_names) or len(tool_names) != len(set(tool_names)):
-            raise ValueError("tool schemas must be unique and stably sorted")
-        if not self.question_summaries or not self.tool_schemas or not self.temporal_rules:
-            raise ValueError("input pack cannot omit question, tool, or temporal indexes")
-        return self
-
-
-class CodexToolRead(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-codex-tool-read"
-    kind: Literal["codex_tool_read"] = "codex_tool_read"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    tool_read_id: NonEmptyStr
-    session_id: NonEmptyStr
-    governance_snapshot_id: NonEmptyStr
-    sequence: int = Field(ge=1)
-    tool_name: NonEmptyStr
-    tool_version: NonEmptyStr
-    canonical_parameters_json: NonEmptyStr
-    parameters_hash: Sha256Hex
-    response_payload_json: NonEmptyStr | None = None
-    response_artifact_id: NonEmptyStr | None = None
-    response_hash: Sha256Hex | None = None
-    actual_record_ids: SortedUniqueStrings = ()
-    actual_claim_ids: SortedUniqueStrings = ()
-    actual_evidence_span_ids: SortedUniqueStrings = ()
-    actual_raw_snapshot_ids: SortedUniqueStrings = ()
-    citation_ids: SortedUniqueStrings = ()
-    status: ToolReadStatus
-    error_code: NonEmptyStr | None = None
-    occurred_at: UtcDateTime
-    canonical_hash: Sha256Hex
-
-    @field_validator("canonical_parameters_json", "response_payload_json")
-    @classmethod
-    def validate_embedded_canonical_json(cls, value: str | None) -> str | None:
-        if value is not None:
-            load_canonical_json(value)
-        return value
-
-    @model_validator(mode="after")
-    def validate_tool_read(self) -> Self:
-        _require_prefix(self.tool_read_id, "govtoolread", "tool_read_id")
-        _require_prefix(self.session_id, "govsession", "session_id")
-        _require_prefix(
-            self.governance_snapshot_id, "govsnapshot", "governance_snapshot_id"
-        )
-        if self.response_payload_json is not None and self.response_artifact_id is not None:
-            raise ValueError("tool response must be inline or artifact-backed, not both")
-        if self.status == ToolReadStatus.SUCCEEDED:
-            if self.response_hash is None:
-                raise ValueError("successful tool reads require a response hash")
-            if self.response_payload_json is None and self.response_artifact_id is None:
-                raise ValueError("successful tool reads require a persisted response")
-            if self.error_code is not None:
-                raise ValueError("successful tool reads cannot have an error code")
-        elif self.error_code is None:
-            raise ValueError("rejected or failed tool reads require an error code")
-        for claim_id in self.actual_claim_ids:
-            _require_prefix(claim_id, "govclaim", "actual_claim_ids")
-        for span_id in self.actual_evidence_span_ids:
-            _require_prefix(span_id, "govspan", "actual_evidence_span_ids")
-        return self
-
-
-class CodexSessionManifest(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-codex-session-manifest"
-    kind: Literal["codex_session_manifest"] = "codex_session_manifest"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    session_manifest_id: NonEmptyStr
-    parent_report_run_id: NonEmptyStr
-    model_profile: NonEmptyStr
-    runner_protocol_version: NonEmptyStr
-    tool_protocol_version: NonEmptyStr
-    input_pack_id: NonEmptyStr
-    input_pack_hash: Sha256Hex
-    initial_snapshot_id: NonEmptyStr
-    final_snapshot_id: NonEmptyStr
-    tool_read_ids: OrderedUniqueStrings = ()
-    research_task_ids: OrderedUniqueStrings = ()
-    research_result_bundle_ids: OrderedUniqueStrings = ()
-    snapshot_adoption_ids: OrderedUniqueStrings = ()
-    final_citation_ids: SortedUniqueStrings = ()
-    report_hash: Sha256Hex | None = None
-    generation_status: ReportGenerationStatus
-    output_schema_validated: bool
-    failure_code: NonEmptyStr | None = None
-    started_at: UtcDateTime
-    completed_at: UtcDateTime | None = None
-    canonical_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_session(self) -> Self:
-        _require_prefix(
-            self.session_manifest_id, "govsession", "session_manifest_id"
-        )
-        _require_prefix(self.input_pack_id, "govinput", "input_pack_id")
-        _require_prefix(self.initial_snapshot_id, "govsnapshot", "initial_snapshot_id")
-        _require_prefix(self.final_snapshot_id, "govsnapshot", "final_snapshot_id")
-        if self.completed_at is not None and self.completed_at < self.started_at:
-            raise ValueError("session completed_at must not precede started_at")
-        if self.generation_status == ReportGenerationStatus.COMPLETED:
-            if self.completed_at is None or self.report_hash is None or not self.output_schema_validated:
-                raise ValueError("completed sessions require report hash and schema validation")
-            if self.failure_code is not None:
-                raise ValueError("completed sessions cannot have a failure code")
-        if self.generation_status == ReportGenerationStatus.FAILED and self.failure_code is None:
-            raise ValueError("failed sessions require a machine-readable failure code")
-        return self
-
-
-class ResearchTask(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-research-task"
-    kind: Literal["research_task"] = "research_task"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    research_task_id: NonEmptyStr
-    parent_session_id: NonEmptyStr
-    company_id: NonEmptyStr
-    question_ids: SortedUniqueQuestionIds
-    gap_ids: SortedUniqueStrings
-    question: NonEmptyStr
-    state_at: UtcDateTime
-    known_at: UtcDateTime
-    perspective: GovernancePerspective
-    known_evidence_ids: SortedUniqueStrings = ()
-    allowed_source_roles: tuple[SourceRole, ...]
-    budget: ResearchBudget
-    recursion_depth: int = Field(ge=1, le=1)
-    result_schema_name: NonEmptyStr
-    result_schema_version: NonEmptyStr
-    result_schema_hash: Sha256Hex
-    created_at: UtcDateTime
-    canonical_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_research_task(self) -> Self:
-        _require_prefix(
-            self.research_task_id, "govresearchtask", "research_task_id"
-        )
-        _require_prefix(self.parent_session_id, "govsession", "parent_session_id")
-        _check_query_time(
-            self.state_at,
-            self.known_at,
-            self.perspective,
-            self.perspective == GovernancePerspective.RECONSTRUCTED
-            and self.known_at > self.state_at,
-        )
-        if not self.question_ids or not self.gap_ids:
-            raise ValueError("research tasks require explicit question and gap IDs")
-        if len(self.allowed_source_roles) != len(set(self.allowed_source_roles)):
-            raise ValueError("allowed source roles must be unique")
-        if tuple(role.value for role in self.allowed_source_roles) != tuple(
-            sorted(role.value for role in self.allowed_source_roles)
-        ):
-            raise ValueError("allowed source roles must be stably sorted")
-        if not self.allowed_source_roles:
-            raise ValueError("research tasks require an explicit source allowlist")
-        if SourceRole.DEFERRED in self.allowed_source_roles:
-            raise ValueError("v1 research tasks cannot authorize deferred sources")
-        return self
-
-
-class AuthoritativeSourceCandidate(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-authoritative-source-candidate"
-    kind: Literal["authoritative_source_candidate"] = "authoritative_source_candidate"
-    item_id: NonEmptyStr
-    source_role: SourceRole
-    source_locator: NonEmptyStr
-    title: NonEmptyStr | None = None
-    announced_at: UtcDateTime | None = None
-    available_at: UtcDateTime | None = None
-    time_precision: TimePrecision | None = None
-    payload_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_authoritative_candidate(self) -> Self:
-        _require_prefix(self.item_id, "govresearchitem", "item_id")
-        if self.source_role not in {
-            SourceRole.OFFICIAL_DISCLOSURE,
-            SourceRole.REGULATOR_EXCHANGE,
-        }:
-            raise ValueError("authoritative candidates require a formal source role")
-        if (self.available_at is None) != (self.time_precision is None):
-            raise ValueError("available_at and time_precision must be supplied together")
-        return self
-
-
-class ContextualEvidenceItem(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-contextual-evidence-item"
-    kind: Literal["contextual_evidence"] = "contextual_evidence"
-    item_id: NonEmptyStr
-    source_role: Literal[SourceRole.CONTEXTUAL_EVIDENCE] = SourceRole.CONTEXTUAL_EVIDENCE
-    source_locator: NonEmptyStr
-    title: NonEmptyStr | None = None
-    summary: NonEmptyStr
-    available_at: UtcDateTime | None = None
-    time_precision: TimePrecision | None = None
-    payload_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_contextual(self) -> Self:
-        _require_prefix(self.item_id, "govresearchitem", "item_id")
-        if (self.available_at is None) != (self.time_precision is None):
-            raise ValueError("available_at and time_precision must be supplied together")
-        return self
-
-
-class DiscoveryLead(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-discovery-lead"
-    kind: Literal["discovery_lead"] = "discovery_lead"
-    item_id: NonEmptyStr
-    source_role: Literal[SourceRole.DISCOVERY_ONLY] = SourceRole.DISCOVERY_ONLY
-    provider: NonEmptyStr
-    locator: NonEmptyStr
-    lead_text: NonEmptyStr | None = None
-    payload_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_discovery(self) -> Self:
-        _require_prefix(self.item_id, "govresearchitem", "item_id")
-        return self
-
-
-class DeferredResearchItem(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-deferred-research-item"
-    kind: Literal["deferred_research_item"] = "deferred_research_item"
-    item_id: NonEmptyStr
-    source_role: Literal[SourceRole.DEFERRED] = SourceRole.DEFERRED
-    source_family: NonEmptyStr
-    reason_code: NonEmptyStr
-    payload_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_deferred(self) -> Self:
-        _require_prefix(self.item_id, "govresearchitem", "item_id")
-        return self
-
-
-class UnresolvedResearchGap(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-unresolved-research-gap"
-    kind: Literal["unresolved_research_gap"] = "unresolved_research_gap"
-    item_id: NonEmptyStr
-    gap_id: NonEmptyStr
-    reason_code: NonEmptyStr
-    detail: NonEmptyStr
-
-    @model_validator(mode="after")
-    def validate_unresolved(self) -> Self:
-        _require_prefix(self.item_id, "govresearchitem", "item_id")
-        _require_prefix(self.gap_id, "govgap", "gap_id")
-        return self
-
-
-ResearchResultItem = Annotated[
-    AuthoritativeSourceCandidate
-    | ContextualEvidenceItem
-    | DiscoveryLead
-    | DeferredResearchItem
-    | UnresolvedResearchGap,
-    Field(discriminator="kind"),
-]
-RESEARCH_RESULT_ITEM_ADAPTER = TypeAdapter(ResearchResultItem)
-
-
-def _item_ids(items: tuple[GovernanceModel, ...]) -> list[str]:
-    return [str(getattr(item, "item_id")) for item in items]
-
-
-class ResearchResultBundle(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-research-result-bundle"
-    kind: Literal["research_result_bundle"] = "research_result_bundle"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    research_result_bundle_id: NonEmptyStr
-    research_task_id: NonEmptyStr
-    task_status: ResearchTaskStatus
-    budget_used: BudgetUsage
-    authoritative_source_candidates: tuple[AuthoritativeSourceCandidate, ...] = ()
-    contextual_evidence: tuple[ContextualEvidenceItem, ...] = ()
-    discovery_leads: tuple[DiscoveryLead, ...] = ()
-    deferred_items: tuple[DeferredResearchItem, ...] = ()
-    unresolved_gaps: tuple[UnresolvedResearchGap, ...] = ()
-    failure_reason: NonEmptyStr | None = None
-    created_at: UtcDateTime
-    canonical_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_result_bundle(self) -> Self:
-        _require_prefix(
-            self.research_result_bundle_id,
-            "govresearchbundle",
-            "research_result_bundle_id",
-        )
-        _require_prefix(self.research_task_id, "govresearchtask", "research_task_id")
-        groups: tuple[tuple[GovernanceModel, ...], ...] = (
-            self.authoritative_source_candidates,
-            self.contextual_evidence,
-            self.discovery_leads,
-            self.deferred_items,
-            self.unresolved_gaps,
-        )
-        seen: set[str] = set()
-        for group in groups:
-            ids = _item_ids(group)
-            if ids != sorted(ids) or len(ids) != len(set(ids)):
-                raise ValueError("research result categories must be unique and stably sorted")
-            overlap = seen.intersection(ids)
-            if overlap:
-                raise ValueError("research result items cannot appear in multiple categories")
-            seen.update(ids)
-        if self.task_status in {
-            ResearchTaskStatus.FAILED,
-            ResearchTaskStatus.BUDGET_EXHAUSTED,
-        } and self.failure_reason is None:
-            raise ValueError("failed or exhausted research requires a reason")
-        if self.task_status == ResearchTaskStatus.COMPLETED and self.failure_reason is not None:
-            raise ValueError("completed research cannot have a failure reason")
-        return self
-
-
-class QuarantinedResearchItem(GovernanceModel):
-    """Parent-visible quarantine metadata; it intentionally has no semantic content."""
-
-    schema_name: ClassVar[str] = "governance-quarantined-research-item"
-    kind: Literal["quarantined_research_item"] = "quarantined_research_item"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    quarantine_id: NonEmptyStr
-    research_task_id: NonEmptyStr
-    research_result_bundle_id: NonEmptyStr
-    source_item_id: NonEmptyStr
-    reason_code: QuarantineReason
-    quarantined_payload_artifact_id: NonEmptyStr
-    quarantined_payload_hash: Sha256Hex
-    known_at: UtcDateTime
-    quarantined_at: UtcDateTime
-    canonical_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_quarantine(self) -> Self:
-        _require_prefix(self.quarantine_id, "govquarantine", "quarantine_id")
-        _require_prefix(self.research_task_id, "govresearchtask", "research_task_id")
-        _require_prefix(
-            self.research_result_bundle_id,
-            "govresearchbundle",
-            "research_result_bundle_id",
-        )
-        _require_prefix(self.source_item_id, "govresearchitem", "source_item_id")
-        return self
-
-
-class SnapshotAdoption(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-snapshot-adoption"
-    kind: Literal["snapshot_adoption"] = "snapshot_adoption"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    snapshot_adoption_id: NonEmptyStr
-    session_id: NonEmptyStr
-    expected_session_revision: int = Field(ge=0)
-    resulting_session_revision: int = Field(ge=1)
-    old_snapshot_id: NonEmptyStr
-    old_snapshot_hash: Sha256Hex
-    new_snapshot_id: NonEmptyStr
-    new_snapshot_hash: Sha256Hex
-    adopted_at_sequence: int = Field(ge=1)
-    adopted_at: UtcDateTime
-    temporal_gate_passed: Literal[True] = True
-    lineage_gate_passed: Literal[True] = True
-    canonical_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_adoption(self) -> Self:
-        _require_prefix(
-            self.snapshot_adoption_id, "govadoption", "snapshot_adoption_id"
-        )
-        _require_prefix(self.session_id, "govsession", "session_id")
-        _require_prefix(self.old_snapshot_id, "govsnapshot", "old_snapshot_id")
-        _require_prefix(self.new_snapshot_id, "govsnapshot", "new_snapshot_id")
-        if self.old_snapshot_id == self.new_snapshot_id:
-            raise ValueError("snapshot adoption must switch to a new immutable snapshot")
-        if self.resulting_session_revision != self.expected_session_revision + 1:
-            raise ValueError("snapshot adoption revision must advance exactly once")
-        return self
-
-
-class FactualFinding(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-factual-finding"
-    kind: Literal["fact"] = "fact"
-    finding_id: NonEmptyStr
-    text: NonEmptyStr
-    citation_ids: SortedUniqueStrings
-    uncertainty: NonEmptyStr | None = None
-
-    @model_validator(mode="after")
-    def validate_factual_finding(self) -> Self:
-        _require_prefix(self.finding_id, "govfinding", "finding_id")
-        if not self.citation_ids:
-            raise ValueError("factual findings require citations")
-        return self
-
-
-class ContextualFinding(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-contextual-finding"
-    kind: Literal["contextual"] = "contextual"
-    finding_id: NonEmptyStr
-    text: NonEmptyStr
-    citation_ids: SortedUniqueStrings
-    source_role: Literal[SourceRole.CONTEXTUAL_EVIDENCE] = SourceRole.CONTEXTUAL_EVIDENCE
-    uncertainty: NonEmptyStr | None = None
-
-    @model_validator(mode="after")
-    def validate_contextual_finding(self) -> Self:
-        _require_prefix(self.finding_id, "govfinding", "finding_id")
-        if not self.citation_ids:
-            raise ValueError("contextual findings require citations")
-        return self
-
-
-class CodexJudgment(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-codex-judgment"
-    kind: Literal["judgment"] = "judgment"
-    finding_id: NonEmptyStr
-    text: NonEmptyStr
-    citation_ids: SortedUniqueStrings
-    uncertainty: NonEmptyStr
-
-    @model_validator(mode="after")
-    def validate_judgment(self) -> Self:
-        _require_prefix(self.finding_id, "govfinding", "finding_id")
-        if not self.citation_ids:
-            raise ValueError("Codex judgments require evidence citations")
-        return self
-
-
-GovernanceFinding = Annotated[
-    FactualFinding | ContextualFinding | CodexJudgment,
-    Field(discriminator="kind"),
-]
-GOVERNANCE_FINDING_ADAPTER = TypeAdapter(GovernanceFinding)
-
-
-class GovernanceReportSection(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-report-section"
-    kind: Literal["governance_report_section"] = "governance_report_section"
-    section_id: NonEmptyStr
-    title: NonEmptyStr
-    findings: tuple[GovernanceFinding, ...]
-
-    @model_validator(mode="after")
-    def validate_report_section(self) -> Self:
-        finding_ids = [finding.finding_id for finding in self.findings]
-        if len(finding_ids) != len(set(finding_ids)):
-            raise ValueError("report finding IDs must be unique")
-        return self
-
-
-class ReportTechnicalValidation(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-report-technical-validation"
-    kind: Literal["report_technical_validation"] = "report_technical_validation"
-    passed: bool
-    hard_failure_codes: SortedUniqueStrings = ()
-    checks: tuple[ValidationCheck, ...]
-
-    @model_validator(mode="after")
-    def validate_technical_summary(self) -> Self:
-        if not self.checks:
-            raise ValueError("technical validation requires explicit checks")
-        if self.passed and (self.hard_failure_codes or not all(item.passed for item in self.checks)):
-            raise ValueError("passed technical validation cannot contain hard failures")
-        if not self.passed and not self.hard_failure_codes:
-            raise ValueError("failed technical validation requires hard failure codes")
-        return self
-
-
-class GovernanceReport(GovernanceModel):
-    schema_name: ClassVar[str] = "governance-report"
-    kind: Literal["governance_report"] = "governance_report"
-    schema_version: NonEmptyStr = MODEL_SCHEMA_VERSION
-    governance_report_id: NonEmptyStr
-    company_id: NonEmptyStr
-    state_at: UtcDateTime
-    known_at: UtcDateTime
-    perspective: GovernancePerspective
-    governance_snapshot_id: NonEmptyStr
-    governance_snapshot_hash: Sha256Hex
-    evidence_manifest_id: NonEmptyStr
-    evidence_manifest_hash: Sha256Hex
-    session_manifest_id: NonEmptyStr
-    session_manifest_hash: Sha256Hex
-    generation_status: ReportGenerationStatus
-    decision_author: Literal["codex"] = "codex"
-    sections: tuple[GovernanceReportSection, ...]
-    active_gap_ids: SortedUniqueStrings = ()
-    active_conflict_ids: SortedUniqueStrings = ()
-    pending_candidate_ids: SortedUniqueStrings = ()
-    data_limitations: SortedUniqueStrings = ()
-    citation_ids: SortedUniqueStrings
-    future_knowledge_used: bool
-    technical_validation: ReportTechnicalValidation
-    failure_code: NonEmptyStr | None = None
-    created_at: UtcDateTime
-    canonical_report_hash: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_report(self) -> Self:
-        _require_prefix(
-            self.governance_report_id, "govreport", "governance_report_id"
-        )
-        _require_prefix(
-            self.governance_snapshot_id, "govsnapshot", "governance_snapshot_id"
-        )
-        _require_prefix(
-            self.session_manifest_id, "govsession", "session_manifest_id"
-        )
-        _check_query_time(
-            self.state_at,
-            self.known_at,
-            self.perspective,
-            self.future_knowledge_used,
-        )
-        section_ids = [section.section_id for section in self.sections]
-        if len(section_ids) != len(set(section_ids)):
-            raise ValueError("report section IDs must be unique")
-        finding_citations = {
-            citation_id
-            for section in self.sections
-            for finding in section.findings
-            for citation_id in finding.citation_ids
-        }
-        if not finding_citations.issubset(set(self.citation_ids)):
-            raise ValueError("report citation index must include every finding citation")
-        if self.generation_status == ReportGenerationStatus.COMPLETED:
-            if not self.technical_validation.passed:
-                raise ValueError("completed reports require passed technical validation")
-            if self.failure_code is not None:
-                raise ValueError("completed reports cannot carry a failure code")
-        if self.generation_status == ReportGenerationStatus.FAILED:
-            if self.technical_validation.passed or self.failure_code is None:
-                raise ValueError("failed reports require technical failure diagnostics")
-        return self
-
 
 def parse_governance_record_json(
     data: bytes | bytearray | memoryview | str,
@@ -2160,115 +1486,81 @@ def parse_governance_snapshot_link_json(
     return validate_canonical_json(GOVERNANCE_SNAPSHOT_LINK_ADAPTER, data)
 
 
-def parse_research_result_item_json(
-    data: bytes | bytearray | memoryview | str,
-) -> ResearchResultItem:
-    return validate_canonical_json(RESEARCH_RESULT_ITEM_ADAPTER, data)
 
-
-def parse_governance_finding_json(
-    data: bytes | bytearray | memoryview | str,
-) -> GovernanceFinding:
-    return validate_canonical_json(GOVERNANCE_FINDING_ADAPTER, data)
 
 
 __all__ = [
-    "AuditOpinionRecord",
-    "AuditorEngagement",
-    "AuthoritativeSourceCandidate",
-    "BiographyClaim",
-    "BudgetUsage",
-    "CanonicalDecimal",
-    "ClaimObjectType",
-    "CodexInputPack",
-    "CodexJudgment",
-    "CodexSessionManifest",
-    "CodexToolRead",
-    "CommitmentRecord",
-    "CompletenessStatus",
-    "CompensationRecord",
-    "ConflictRecord",
-    "ContextualEvidenceItem",
-    "ContextualFinding",
-    "ControlRelation",
-    "CorrectionRecord",
-    "DecisionValue",
-    "DeferredResearchItem",
-    "DeltaDisposition",
-    "DirectionKind",
-    "DiscoveryLead",
-    "ExtractionStatus",
-    "ExtractorKind",
-    "FactualFinding",
-    "GOVERNANCE_FINDING_ADAPTER",
-    "GOVERNANCE_RECORD_ADAPTER",
-    "GOVERNANCE_SNAPSHOT_LINK_ADAPTER",
-    "GapRecord",
-    "GovernanceClaim",
-    "GovernanceEvidenceSpan",
-    "GovernanceExtractionRun",
-    "GovernanceFinding",
-    "GovernanceModel",
-    "GovernancePerson",
-    "GovernancePerspective",
-    "GovernancePolicyVersion",
-    "GovernanceQuestionCoverageLink",
-    "GovernanceRecord",
-    "GovernanceReport",
-    "GovernanceReportSection",
-    "GovernanceSnapshot",
-    "GovernanceSnapshotLink",
-    "Grant",
-    "IncentiveGrant",
-    "IncentivePlan",
-    "InquiryRecord",
-    "InternalControlRecord",
-    "LitigationMatter",
-    "MODEL_SCHEMA_VERSION",
-    "ObjectReference",
-    "OwnershipPosition",
-    "OwnershipSnapshot",
-    "PersonAlias",
-    "PersonLinkCandidate",
-    "PersonLinkDecision",
-    "PledgePositionSnapshot",
-    "QuestionSummary",
-    "QuarantineReason",
-    "QuarantinedResearchItem",
-    "RESEARCH_RESULT_ITEM_ADAPTER",
-    "RecordResolutionStatus",
-    "RegulatoryMatter",
-    "RelatedPartyRelation",
-    "RelatedPartyTransaction",
-    "ReportGenerationStatus",
-    "ReportTechnicalValidation",
-    "ResearchBudget",
-    "ResearchResultBundle",
-    "ResearchResultItem",
-    "ResearchTask",
-    "ResearchTaskStatus",
-    "ReviewDecision",
-    "ReviewStatus",
-    "RoleTenure",
-    "RosterSnapshot",
-    "Sha256Hex",
-    "SnapshotAdoption",
-    "SnapshotAnchorLink",
-    "SnapshotDeltaLink",
-    "SnapshotRecordLink",
-    "SnapshotRecordRole",
-    "SourceRole",
-    "TimePrecision",
-    "ToolReadStatus",
-    "ToolSchemaReference",
-    "UnresolvedResearchGap",
-    "UtcDateTime",
-    "ValidationCheck",
-    "ValidationResult",
-    "VerificationStatus",
-    "VestingCondition",
-    "parse_governance_finding_json",
-    "parse_governance_record_json",
-    "parse_governance_snapshot_link_json",
-    "parse_research_result_item_json",
+    'MODEL_SCHEMA_VERSION',
+    'GOVERNANCE_ACQUISITION_SCOPE',
+    'GOVERNANCE_QUESTION_SET_ID',
+    'NonEmptyStr',
+    'QuestionId',
+    'Sha256Hex',
+    'UtcDateTime',
+    'CanonicalDecimal',
+    'SortedUniqueStrings',
+    'OrderedUniqueStrings',
+    'SortedUniqueQuestionIds',
+    'SourceRole',
+    'ExtractorKind',
+    'ExtractionStatus',
+    'VerificationStatus',
+    'ReviewStatus',
+    'CompletenessStatus',
+    'GovernancePerspective',
+    'TimePrecision',
+    'ClaimObjectType',
+    'DecisionValue',
+    'RecordResolutionStatus',
+    'DirectionKind',
+    'DeltaDisposition',
+    'SnapshotRecordRole',
+    'GovernanceModel',
+    'ClaimScalar',
+    'GovernanceExtractionRun',
+    'GovernanceEvidenceSpan',
+    'GovernanceClaim',
+    'ValidationCheck',
+    'ValidationResult',
+    'ReviewDecision',
+    'GapRecord',
+    'ConflictRecord',
+    'GovernanceRecordBase',
+    'CorrectionRecord',
+    'GovernancePerson',
+    'PersonAlias',
+    'BiographyClaim',
+    'PersonLinkCandidate',
+    'PersonLinkDecision',
+    'RosterSnapshot',
+    'RoleTenure',
+    'OwnershipPosition',
+    'OwnershipSnapshot',
+    'ControlRelation',
+    'PledgePositionSnapshot',
+    'CompensationRecord',
+    'RelatedPartyRelation',
+    'RelatedPartyTransaction',
+    'IncentivePlan',
+    'IncentiveGrant',
+    'VestingCondition',
+    'AuditorEngagement',
+    'AuditOpinionRecord',
+    'InternalControlRecord',
+    'RegulatoryMatter',
+    'InquiryRecord',
+    'LitigationMatter',
+    'CommitmentRecord',
+    'GovernancePolicyVersion',
+    'GovernanceRecord',
+    'GOVERNANCE_RECORD_ADAPTER',
+    'SnapshotAnchorLink',
+    'SnapshotDeltaLink',
+    'SnapshotRecordLink',
+    'GovernanceSnapshotLink',
+    'GOVERNANCE_SNAPSHOT_LINK_ADAPTER',
+    'GovernanceQuestionCoverageLink',
+    'GovernanceSnapshot',
+    'parse_governance_record_json',
+    'parse_governance_snapshot_link_json',
 ]

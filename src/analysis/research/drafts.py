@@ -23,7 +23,19 @@ class Drafts:
         evidence = {i["evidence_id"] for i in pack["evidence"]}
         evidence.update(i["evidence_id"] for i in pack.get("supplemental_evidence", []))
         evidence.update(i["artifact_id"] for i in self.w.artifacts(research_id,"evidence_read"))
-        evidence.update(i["artifact_id"] for i in self.w.business_profiles(research_id))
+        profiles = {i["artifact_id"]: i for i in self.w.artifacts(research_id, "business_profile")}
+        evidence.update(profiles)
+        profile_refs = set(evidence_refs) | {ref for kind, ref in re.findall(r"\{\{(cite):([^{}]+)\}\}", markdown)}
+        if profile_refs & profiles.keys():
+            from .business_profile import BusinessProfiles
+            for ref in profile_refs & profiles.keys():
+                BusinessProfiles(self.w).validate_saved(research_id, profiles[ref])
+        governance = {i["artifact_id"]: i for i in self.w.artifacts(research_id, "governance_snapshot")}
+        evidence.update(governance)
+        if profile_refs & governance.keys():
+            from .governance import Governance
+            for ref in profile_refs & governance.keys():
+                Governance(self.w).validate_saved(research_id, governance[ref])
         calculations = {i["artifact_id"] for i in self.w.artifacts(research_id,"calculation")}
         exploration_refs = {ref for ref in evidence_refs if ref.startswith("exploration_")}
         for kind, ref in re.findall(r"\{\{(explore|cite):([^{}]+)\}\}", markdown):

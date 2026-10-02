@@ -10,6 +10,8 @@
   "knowledge_store": "var/research/knowledge-store",
   "knowledge_bundle_id": null,
   "profile_id": "eight-step-lite-v1.0.0",
+  "business_evidence_sources": [],
+  "governance_sources": [],
   "max_tool_seconds": 120,
   "max_attempts": 3
 }

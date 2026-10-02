@@ -140,3 +140,14 @@
 - [x] 10.17 依据真实茅台报告逐句精读及生成过程复盘，更新共享提示的核心预测依据、估值期限和含息回报审阅；公开参数边界和可操作错误，未知指标不误导补采，CLI支持独立配置与Schema查询。验证旧失败恢复、真实茅台只读重放、图表版本不覆盖及旧写作兼容；保存完整评审，不以本项关闭9.5/6.5或宣告v3新研报已经验收。
 
 - [x] 10.18 精简共享研究/审阅提示为金融要求及必要工具入口，将详细调用迁至按需参考；统一纯研究入口和任务参数模板，不默认布置工程验收或双版本比较。核验CLI/MCP共享版本与哈希、旧写作契约兼容、文档入口及必要调用信息保留，不以文案核验代替新研报效果验收。
+
+## 11. 结构化主链收口与历史重复链清理
+
+本节记录本轮已确认的产品决策和代码处置；它不替代第 6 节贵州茅台人工黄金验收、知识发布门或真实治理资料验收。
+
+- [x] 11.1 删除旧 `src/analysis/adapters/` 全量同步实现、旧 `structured/research.py`、重复包装脚本和旧直接报告写入口；保留结构化 acquisition、`StructuredFactMaterializer`、`research_lite`、研究工作区和 reporting bridge。
+- [x] 11.2 删除 `AnalysisService.patch_assumptions`、`recalculate`、`reanalyze`、`review` 及其生产请求路径；历史 `ReportVersion` 读取、变化查看和导出继续可用，后续修改通过研究工作区生成新版本。
+- [x] 11.3 删除治理独立报告生成器、模型运行器、工具会话和 trace 编排；保留治理取证、实体解析、事件重建、快照和脱敏，并接入共享 acquisition manifest → 研究工作区 → reporting bridge。
+- [x] 11.4 按需报告正文回采已用贵州茅台 2025 年报验证 HTTP 200、快照复用和内容哈希稳定；重复请求不新增运行、attempt 或正文 snapshot，证据见 `docs/acquisition/moutai-on-demand-report-recapture-20261002.md`。
+- [x] 11.5 默认治理配置保持显式空列表并返回 `registered_governance_manifest_required`；新增 capability-gap 回归和绑定说明，禁止用 fixture、缓存或虚构 manifest 冒充真实治理资料。
+- [ ] 11.6 在登记真实治理 manifest、完成贵州茅台报告人工阅读及知识 Agent 样例/人工发布门后，再合并到 `main` 并删除其他 worktree、分支和远程分支。

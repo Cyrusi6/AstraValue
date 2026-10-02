@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-09-28（增量补充证据：`structured-run-096a85739296a0de6f6cffc2`）
+更新时间：2026-10-02（补充有效截止日回采、研究画像和报告/治理决策）
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
@@ -15,17 +15,18 @@
 | P03 | 八步轻量研究包与报告桥接：`src/analysis/structured/research_lite.py`、`reporting_bridge.py`、`report_semantics.py`；`/api/structured/reports`；CLI `structured report`。旧 `structured/research.py` 全量编排已删除。 | **保留**。完整报告链固定为“研究工作区 → reporting bridge → `ReportVersion`”。 | `/api/structured/reports` 只接受已冻结且可校验的研究包；报告生成、导出和审计信息能从包与物化事实复现。 |
 | P04 | 研究工作区与资料处理：`src/analysis/research/`（当前 fact worktree 有已修改和未跟踪的资料、计算、图表、补充资料、Python sandbox、报告组装代码），以及 `docs/acquisition/research-workspace-runbook.md`。 | **纳入并作为报告唯一上游**。fact worktree 的 4 组未提交研究内容全部纳入统一主线。 | 资料采集、状态、计算、图表、笔记表和报告组装使用同一研究任务/快照；真实样本和贵州茅台验收文档保留。 |
 | P05 | 知识产品：`src/analysis/knowledge/`、`knowledge_release.py`、`config/methods/knowledge/catalog.v1.json` 及知识发布测试/文档已按文件选择性迁入；旧 `research-cards` 目录只作历史材料。 | **保留版本化 KnowledgeService 和严格发布门；研究入口改为按 bundle 绑定的薄适配层。** 不整支合并 knowledge-base 分支。 | 适配层、canonical source alias、分页读取和无默认发布的 fail-closed 行为已测试；IFRS3 变更使旧 review identity 失效，必须重新绑定 Agent/人工验收后才能发布 default。 |
-| P06 | 治理全链路：`src/analysis/governance/`（当前 main 约 26 个 Python 文件、约 16,695 行），治理测试和 `scripts/validate_governance_*.py`。当前 API/主 CLI 未直接接入。 | **保留并接入统一生产链路**，不再作为孤立测试包。 | 治理采集、抽取、冲突/版本、报告输入和审计状态在结构化运行及研究工作区中有明确入口；接入完成前不得宣称生产可用。 |
+| P06 | 治理能力：`src/analysis/governance/` 中的取证、实体解析、事件重建/reducers、冲突处理、快照和脱敏；旧独立报告生成、模型运行器、工具会话、findings/report 模型和隔离 OpenSpec 已删除。 | **保留治理取证、事件重建和快照，删除独立编排及历史治理对象**；治理能力已接入研究工作区及 reporting bridge，禁止恢复第二套报告发布器或模型运行器。 | 共享 acquisition manifest、冻结原件和研究任务配置；治理 artifact 通过现有 workspace → reporting bridge → `ReportVersion` 进入报告。默认配置未登记真实治理 manifest，真实治理业务验收仍待补；旧治理报告对象不再提供代码级读取兼容。 |
 | P07 | `business-profile-v1` 独有画像计算已迁入 `src/analysis/business_evidence/profile.py`、schema、测试和方法说明；`src/analysis/research/business_profile.py` 负责绑定研究 snapshot。 | **保留并通过研究工作区调用**；不直接 merge 旧基线分支，也不保留独立 profile report CLI。 | 画像复用 FactStore/FrozenCorpus，引用校验和截止日/公司校验通过；artifact 可被报告桥显式引用，仍需真实公司画像样例和人工报告验收。 |
 | P08 | 商业模式证据与事实：`src/analysis/business_evidence/{cli,corpus,models,routing,store}.py`、`docs/acquisition/business-evidence-facts.md`、相关 schema。当前主要是独立 CLI。 | **保留并接入统一业务分析入口**；与 P07 的画像逻辑共享证据存储和引用。 | 路由、复核、事实查询和画像消费使用同一 manifest/snapshot；无证据时保留缺口，不生成完整结论。 |
-| P09 | 旧 adapters 与 legacy 同步：`src/analysis/adapters/` 已删除；`SyncRequest/SyncResult`、历史同步表和兼容测试仍被旧报告回放使用。 | **生产路径删除；历史模型待用户决定**。结构化 API 是唯一常规数据入口。 | 旧请求明确失败/不再注册；若保留模型，只能作为只读历史兼容，不得创建新的同步批次。 |
+| P09 | 旧 adapters 与 legacy 同步：`src/analysis/adapters/` 已删除；`SyncRequest/SyncResult`、历史同步表和兼容测试仍被旧报告回放使用。旧内部报告编辑方法已确认删除。 | **生产路径删除；历史同步模型只读保留**。结构化 API 是唯一常规数据入口；历史报告读取和导出保留。 | 旧请求明确失败/不再注册；不得创建新的 legacy 同步批次。历史报告只能读取/导出，修改假设、重算、重分析和审阅统一回到研究工作区。 |
 | P10 | 旧全量行情和报告抓取：legacy providers（AkShare、Sina、BaoStock、Tushare、official）及按 5 年/12 季度和 market/report scope 批量抓取的旧组合。 | **删除**，不再以全量行情或报告抓取补齐八步研究。按需报告原文采集由研究工作区的资料任务完成。 | 常规运行只请求研究问题需要的结构化字段/期间；报告原文仅在研究任务明确需要时采集，并保留来源、页码/定位和缺口。 |
-| P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、`AnalysisService.create_report` 的直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告入口**；保留 `ReportVersion`、导出和审计对象作为研究工作区链路的结果模型。 | 只能从研究工作区冻结包经 reporting bridge 生成报告；旧直接输入测试、前端入口、文档和 CLI 同步移除。 |
+| P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、旧 `AnalysisService.create_report` 直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告编辑/编排入口**；保留 `ReportVersion`、历史读取、导出和审计对象作为研究工作区链路的结果模型。 | 新报告只能从研究工作区冻结包经 reporting bridge 生成；旧编辑方法已删除，旧直接输入测试、前端入口、文档和 CLI 引用同步清理。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **保留为只读历史证据**；生产默认只使用 `v1.11`。 | 新 planner/orchestrator 不遍历旧版本；manifest、快照和报告保留 registry version/hash 定位。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
 | P14 | OpenSpec、分支和工作树：当前主线 `main` HEAD `181a4cb`；`codex/knowledge-base-v1` HEAD `027ac38`；fact worktree 当前 HEAD `987d55a`，清理、增量修复、知识候选和回采记录已提交，仅保留 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 三个未跟踪临时文件；knowledge-base worktree 有未提交茅台验收文档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
-当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档和 business-profile 研究工作区 adapter 已实现并通过针对性回归；`income_fields` 安全窗口的真实增量已完成，整批增量仍因 baseline 中的失败/空响应保持门禁。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
+- 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
+当前增量收口补充：知识适配层、IFRS3 canonical alias、历史 pilot 归档、business-profile 研究工作区 adapter 和旧报告编辑链删除已实现并通过针对性回归；有效截止日的 `income_fields` 真实增量及同参数重复采集已完成，整批增量仍因 baseline 中的失败/空响应保持门禁。治理独立编排的删除及共享 workspace 接入已实现并通过针对性回归；治理真实 manifest 尚未登记，业务样本验收待补。当前候选仍需重新绑定 `knowledge.es04_q05` 的 source/case review、Agent 样例和人工验收；在此之前不删除候选报告材料、worktree 或分支。
 
 ## 决策与验收边界
 
@@ -37,13 +38,15 @@
 - 报告原文只按需采集；报告只保留“研究工作区 → reporting bridge → `ReportVersion`”链路，删除 `/api/reports` 直接输入。
 - 完整知识产品纳入；知识同 ID 采用 knowledge-content 修订，同时保留 KB/core 严格发布门。
 - 治理全链路接入；business-profile 独有逻辑移植到统一业务分析入口。
+- 治理取证、事件重建和快照保留；治理独立报告生成、模型运行器和工具会话编排删除，后续只通过研究工作区进入 reporting bridge。
+- 旧内部报告编辑方法删除；历史报告读取和导出保留，修改统一回到研究工作区。
 - fact worktree 的 4 组未提交研究内容全部纳入；两份贵州茅台验收文档都保留。
 - OpenSpec 统一为 `eight-step-production-pipeline-v1`；整合完成后只留 `main`。
 
 当前尚未等同于完成的事项：
 
-1. 旧 adapters、全量编排和直接报告写入口已从当前 worktree 删除；知识候选、发布门和历史 acceptance 已选择性迁入，剩余工作是用户决策、回归验证、研究内容整合和分支收口。
-2. 600519 已在空数据根完成真实结构化 baseline、重复计划幂等、物化和研究包/报告回放；真实 acquisition incremental 仍受 `safe_through=null` 门禁，不能写成已完成。
+1. 旧 adapters、全量编排、旧报告编辑方法和直接报告写入口已从当前 worktree 删除；知识候选、发布门和历史 acceptance 已选择性迁入，治理共享 workspace 接入、回归验证、研究内容整合和分支收口仍未完成。
+2. 600519 已在空数据根完成真实结构化 baseline、重复计划幂等、有效截止日 `income_fields` 增量和重复增量幂等、物化及研究包/报告回放；整批真实 acquisition incremental 仍受失败/空响应 coverage 门禁，不能写成已完成。
 3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
 4. 分支删除属于最后一步；未提交内容未保存、测试或人工验收未完成时不得执行。
 

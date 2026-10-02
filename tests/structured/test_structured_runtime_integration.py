@@ -763,6 +763,34 @@ def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_pat
         assert datetime.fromisoformat(catalog_job["time_start"]) >= NOW.replace(hour=0, minute=0, second=0, microsecond=0)
         _run_all_rounds(service,second)
         assert calls==[dates,dates[:2]]
+        original_records = [
+            record
+            for job in service.storage.list_jobs(second, limit=None)
+            for record in service.storage.list_records(job_id=job["job_id"], limit=None)
+        ]
+        original_pages = [
+            page
+            for job in service.storage.list_jobs(second, limit=None)
+            for page in service.storage.list_pages(job["job_id"])
+        ]
+        repeated = service.plan(
+            '600519', mode='incremental', company_scope='company-only',
+            datasets=('balance_fields',), as_of=first_incremental_as_of,
+        )
+        assert repeated['run_ids'] == [second]
+        assert repeated['created'] is False
+        assert service.run(second)['attempted_job_ids'] == []
+        assert [
+            record
+            for job in service.storage.list_jobs(second, limit=None)
+            for record in service.storage.list_records(job_id=job["job_id"], limit=None)
+        ] == original_records
+        assert [
+            page
+            for job in service.storage.list_jobs(second, limit=None)
+            for page in service.storage.list_pages(job["job_id"])
+        ] == original_pages
+        assert calls == [dates, dates[:2]]
         second_incremental_as_of = NOW + timedelta(days=2)
         third=service.plan('600519',mode='incremental',company_scope='company-only',datasets=('balance_fields',),as_of=second_incremental_as_of)['run_ids'][0]
         third_jobs = service.storage.list_jobs(third, limit=None)
@@ -770,11 +798,48 @@ def test_incremental_catalog_reuses_old_periods_and_refreshes_two_latest(tmp_pat
         assert datetime.fromisoformat(third_catalog["time_start"]).date() >= first_incremental_as_of.date()
         _run_all_rounds(service,third)
         assert calls==[dates,dates[:2],dates[:2]]
+        # Later successful runs must not change the identity of this request.
+        repeated_after_later_run = service.plan(
+            '600519', mode='incremental', company_scope='company-only',
+            datasets=('balance_fields',), as_of=first_incremental_as_of,
+        )
+        assert repeated_after_later_run['run_ids'] == [second]
+        assert repeated_after_later_run['created'] is False
         _run_all_rounds(service,second)
         assert len(calls)==3
         assert service.storage.committed_report_periods(service.storage.get_run_context(second).company_id,'balance_fields',second)==set(dates)
     finally:
         runtime.close();client.close()
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {"mode": "due"},
+        {"report_periods": ("2025-12-31",)},
+        {"company_scope": "peer-set"},
+    ],
+)
+def test_repeated_plan_never_aliases_a_different_frozen_request(tmp_path, changed):
+    from analysis.structured.planner import StructuredPlanningError
+
+    runtime, client = _acquisition_runtime(tmp_path)
+    try:
+        service = StructuredDataService.from_runtime(runtime)
+        identity = service.resolver.resolve("600519", as_of=NOW.date()).identity
+        request = dict(
+            mode="baseline", company_scope="company-only",
+            dataset_ids=("balance_fields",), as_of=NOW,
+        )
+        first = service.runtime.plan((identity,), **request)
+        jobs = service.storage.list_jobs(first.run_ids[0], limit=None)
+        with pytest.raises(StructuredPlanningError, match="overlap|different frozen request"):
+            service.runtime.plan((identity,), **(request | changed))
+        assert service.storage.list_jobs(first.run_ids[0], limit=None) == jobs
+        assert runtime.repository.list_attempts(run_id=first.run_ids[0]) == []
+    finally:
+        runtime.close()
+        client.close()
 
 
 def test_incremental_cursor_advances_and_event_overlap_stays_bounded(tmp_path):

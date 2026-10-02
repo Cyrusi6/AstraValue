@@ -775,7 +775,8 @@ class ReportCreateRequest(BaseModel):
     model_inputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
     requested_rating: ResearchRating = ResearchRating.UNRATED
     report_notes: str | None = None
-    use_synced_facts: bool = True
+    # Kept as a rejecting compatibility field; historical syncs never feed new reports.
+    use_synced_facts: Literal[False] = False
     sync_result_id: str | None = None
     dimensional_sync_result_id: str | None = None
     event_sync_result_id: str | None = None
@@ -809,17 +810,6 @@ class ReportCreateRequest(BaseModel):
         if aware(self.price_as_of) > aware(self.as_of):
             raise ValueError("价格时点不能晚于报告数据截止时间")
         return self
-
-
-class AssumptionPatchRequest(BaseModel):
-    assumptions: list[AssumptionRecord]
-    recalculate: bool = True
-
-
-class ReviewRequest(BaseModel):
-    rating: ResearchRating
-    confirm_assumptions: bool = True
-    note: str | None = None
 
 
 class SyncRequest(BaseModel):
