@@ -17,7 +17,7 @@
 10. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
 11. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
 12. **来源注册表历史兼容**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 保留为只读历史证据，不参与新 planner/orchestrator。历史 manifest、快照和报告继续保留 registry version/hash 定位。
-13. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更。
+13. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更；`eight-step-knowledge-base-v1` 已完整移入 `openspec/retired/` 保存历史上下文。
 14. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
 15. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
 16. **旧内部报告编辑方法**：删除 `AnalysisService.patch_assumptions`、`recalculate`、`reanalyze`、`review` 及仅为其服务的请求模型/派生路径；历史报告读取和导出保留，后续修改统一回到研究工作区。

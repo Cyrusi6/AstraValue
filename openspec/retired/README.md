@@ -8,5 +8,6 @@
 | business-model-directory-recovery-v1 | 10/10 | 目录恢复历史证据 |
 | business-model-acquisition-v1 | 111/113 | 采集底座及尚未完成的历史验收 |
 | governance-management-data-foundation-v1 | 已删除 | 独立治理编排已删除；保留的取证、事件重建和快照契约已迁入当前生产变更与 `docs/project-cleanup-history.md` |
+| eight-step-knowledge-base-v1 | 已归档 | 知识内容已选择性迁入当前生产变更；原 proposal/design/spec/tasks 仅保留历史上下文 |
 
 治理、资本及来源能力仍为当前研究的依赖；相关未完成能力被实际问题触发时，在当前任务中明确输入缺口及验收，不能因为旧目录退出就宣称已经具备。无需重新启动整份旧计划。历史阶段日志路径保留原记录，查询时将 `openspec/changes/<上述名称>` 映射至 `openspec/retired/<上述名称>`。

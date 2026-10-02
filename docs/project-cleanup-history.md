@@ -68,6 +68,7 @@
 - 用户已确认删除旧内部报告编辑方法（修改假设、重算、重分析、审阅）；历史报告读取和导出保留，后续修订回到研究工作区并经 reporting bridge 生成新 `ReportVersion`。
 - 用户已确认删除治理模块独立的报告生成、模型运行器和工具会话编排；保留治理取证、事件重建和快照，后续绑定共享 acquisition manifest、研究工作区和 reporting bridge。
 - 用户已确认删除历史治理模型及旧测试/文档；`CodexInputPack`、`CodexToolRead`、`CodexSessionManifest`、研究任务/结果包、快照采用、治理 findings/report 模型已从运行时代码和旧测试移除，退役治理 OpenSpec 目录已删除。保留的治理事实模型只服务取证、事件重建和快照。
+- 用户已确认将 `eight-step-knowledge-base-v1` 移入 `openspec/retired/`，保留其历史 proposal/design/spec/tasks；活动实施入口只保留 `eight-step-production-pipeline-v1`。
 
 ## 交接约束
 
