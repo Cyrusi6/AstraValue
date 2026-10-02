@@ -78,3 +78,11 @@
 - 本轮有效截止日回采证据见 `docs/acquisition/moutai-valid-cutoff-recapture-20260928.md`：baseline 和 `income_fields` incremental 均为真实 HTTP 响应；同参数重复 baseline/incremental 返回既有 run 且不新增 attempts。早期未来 cutoff 和旧 partial 按需报告记录只作历史证据，已标为 superseded，不能用于当前通过结论。
 
 本轮历史治理模型删除、治理接入说明、默认能力缺口回归和 OpenSpec 清单更新已提交到候选分支 `c7ad3a6`。三个未跟踪的贵州茅台候选验收材料继续保留，未加入提交。
+
+## 2026-10-02 本地 provenance 与九项空响应归因
+
+按用户决定移除所有请求中的 `__retrieved_at`，同时停止把它投影成供应商字段、业务期间或内容版本的一部分。数据集元数据为 1.2.1，上游协议合同保持 1.2.0；旧解释合同哈希未变。
+
+最终空根 `tmp/moutai-api-final-20261002` 的 baseline `structured-run-d58b1fad57728dae9cdb5fb3` 为 53 成功、9 空响应、0 失败；reconcile `structured-run-f2e745256fdc4ea6133d8a44` 真实复查后仍为 9 空响应。已校验 62 个快照哈希、1495 条记录的本地 provenance 与内容版本哈希；重复采集没有新增请求、快照或记录。物化为 548 事实、300 维度、8 事件，重复输出相同。
+
+9 项茅台 API 空响应与同行样本和旧报告正文的区别已写入逐主题来源对照。当前整批 incremental 在联网前被这 9 项 coverage 阻止，已向用户提交是否允许已验证空查询推进增量的选择，尚未修改规则。全量 Python 1729 通过、14 跳过，唯一失败仍为知识发布 Agent/人工门；前端构建与 OpenSpec strict 通过。详见 `docs/acquisition/moutai-structured-api-acceptance-20261002.md`。

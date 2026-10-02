@@ -151,3 +151,6 @@
 - [x] 11.4 按需报告正文回采已用贵州茅台 2025 年报验证 HTTP 200、快照复用和内容哈希稳定；重复请求不新增运行、attempt 或正文 snapshot，证据见 `docs/acquisition/moutai-on-demand-report-recapture-20261002.md`。
 - [x] 11.5 默认治理配置保持显式空列表并返回 `registered_governance_manifest_required`；新增 capability-gap 回归和绑定说明，禁止用 fixture、缓存或虚构 manifest 冒充真实治理资料。
 - [ ] 11.6 在登记真实治理 manifest、完成贵州茅台报告人工阅读及知识 Agent 样例/人工发布门后，再合并到 `main` 并删除其他 worktree、分支和远程分支。
+
+- [x] 11.7 将 `__retrieved_at` 限于本地 provenance；用空根真实回采核实三个旧 `9501` 错误消失，保存 9 项 `no_data` 与同行样本/茅台报告原文的逐项对照。最终 baseline 为 53 成功、9 空响应、0 失败，重复采集/物化幂等；完整增量仍由空 coverage 阻止，详见 `docs/acquisition/moutai-structured-api-acceptance-20261002.md`。
+- [ ] 11.8 等用户决定已验证空响应的增量规则后，实施相应 coverage/checkpoint 处理并完成完整 incremental 真实验收；不自行降低 9 类数据的研究要求，也不以空响应推断无事项。

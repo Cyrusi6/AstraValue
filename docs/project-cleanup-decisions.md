@@ -1,6 +1,6 @@
 # 项目精简决策记录
 
-更新时间：2026-10-02（已纳入报告编辑与治理编排决策）
+更新时间：2026-10-02（已纳入报告编辑、治理编排与本地采集时间决策）
 记录范围：本轮项目精简、分支整合和结构化报告入口决策。
 
 ## 已确认决策
@@ -67,6 +67,12 @@
 
 ## 当前状态与边界
 
-候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口、直接报告写入口和旧内部报告编辑方法；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），贵州茅台真实 reconcile 尝试已记录，但仍留下空响应、失败和待执行窗口，不能据此宣称 incremental 通过。治理独立编排已删除，共享 manifest → 治理 artifact → 研究工作区 → reporting bridge 已接入；默认配置尚未登记真实治理 manifest，因此真实治理样本仍是缺口。详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识目录 canonical 迁移已完成，当前 candidate 仍待 review/Agent/人工验收；真实茅台 baseline 仍有失败和空响应，完整测试和人工报告验收仍未完成。
+候选事实工作树已执行旧链清理，删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装入口、直接报告写入口和旧内部报告编辑方法；structured 已提供基于 finalized parent 与 unsafe coverage 的独立 reconcile 入口（Runtime、Service、CLI、API），贵州茅台最终空根 baseline 已达 53 成功、9 空响应、0 失败，reconcile 已完成 9 项复查；整批 incremental 仍被这 9 项没有安全 coverage 的空响应阻止。治理独立编排已删除，共享 manifest → 治理 artifact → 研究工作区 → reporting bridge 已接入；默认配置尚未登记真实治理 manifest，因此真实治理样本仍是缺口。详见 `docs/project-cleanup-history.md` 与 `docs/acquisition/moutai-structured-api-recapture-20260928.md`。这不等于最终 main 已收口：知识目录 canonical 迁移已完成，当前 candidate 仍待 review/Agent/人工验收；真实茅台 baseline 的 3 个请求失败已修复，9 项空响应原因已记录；全量测试为 1729 通过、14 跳过、1 个既有知识发布门失败，人工报告验收仍未完成。
 
 因此在实现、验证、人工验收和 review 完成前，不能删除承载材料的 worktree、分支或远程引用。
+
+## 2026-10-02 采集时间与空响应
+
+用户确认 `__retrieved_at` 移出请求字段，只保留本地 provenance。已同步请求范围、日期元数据、字段投影和内容版本哈希；数据集元数据版本与未变的来源协议版本分开冻结。真实验收见 [API 验收记录](acquisition/moutai-structured-api-acceptance-20261002.md)。
+
+9 项空响应已与旧同行样本和报告正文逐项核对。待用户决定：保留常规检查并允许已验证的空查询推进增量、研究按需补证；或者继续阻塞整批增量并逐项确认。当前 required/conditional 配置、空结果安全水位线和人工验收门均未修改。
