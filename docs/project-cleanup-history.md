@@ -75,3 +75,5 @@
 - 未完成用户决策前，不删除知识分支、worktree 或远程分支；分支收口是最后一步。
 - 自动测试、真实 API、缓存重放和人工报告阅读分别报告，任何一种通过都不替代其他验收。
 - 本轮有效截止日回采证据见 `docs/acquisition/moutai-valid-cutoff-recapture-20260928.md`：baseline 和 `income_fields` incremental 均为真实 HTTP 响应；同参数重复 baseline/incremental 返回既有 run 且不新增 attempts。早期未来 cutoff 和旧 partial 按需报告记录只作历史证据，已标为 superseded，不能用于当前通过结论。
+
+本轮历史治理模型删除、治理接入说明、默认能力缺口回归和 OpenSpec 清单更新已提交到候选分支 `c7ad3a6`。三个未跟踪的贵州茅台候选验收材料继续保留，未加入提交。
