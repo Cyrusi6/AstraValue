@@ -28,6 +28,7 @@ research = [
   "mcp>=1.20,<2",
   "matplotlib>=3.9,<4",
   "Markdown>=3.7,<4",
+  "Pillow>=10",
 ]
 sources = [
   "akshare>=1.17",
