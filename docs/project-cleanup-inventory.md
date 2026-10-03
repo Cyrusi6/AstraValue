@@ -23,7 +23,7 @@
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、旧 `AnalysisService.create_report` 直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告编辑/编排入口**；保留 `ReportVersion`、历史读取、导出和审计对象作为研究工作区链路的结果模型。 | 新报告只能从研究工作区冻结包经 reporting bridge 生成；旧编辑方法已删除，旧直接输入测试、前端入口、文档和 CLI 引用同步清理。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **保留为只读历史证据**；生产默认只使用 `v1.11`。 | 新 planner/orchestrator 不遍历旧版本；manifest、快照和报告保留 registry version/hash 定位。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
-| P14 | 分支和工作树：候选 fact 分支已快进合入 main；v5 报告、延期门和全部未提交/忽略材料均已归档。OpenSpec 文件已单独移出主仓库。 | 只保留 main；OpenSpec skill、配置和规划文件归档，不再作为当前执行入口。 | main 基线 Python 回归 1912 passed/14 skipped/0 failed；本轮清理后重新运行 registry、导入、前端 build、旧入口扫描和 `git diff --check`。归档清单位于 `D:\估值模型-archives`。 |
+| P14 | 分支和工作树：候选 fact 分支已快进合入 main；v5 报告、延期门和全部未提交/忽略材料均已归档。OpenSpec 文件已单独移出主仓库。 | 只保留 main；OpenSpec skill、配置和规划文件归档，不再作为当前执行入口。 | `main` 与 `origin/main` 已对齐；GitHub Actions `verify` 已通过（[run 37111950599](https://github.com/Cyrusi6/AstraValue/actions/runs/37111950599)），包含 registry、导入、默认 Python 回归和前端 build。归档清单位于 `D:\估值模型-archives`。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
 当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。真实治理 manifest 和知识候选 review/Agent/人工发布门按用户决定延期；贵州茅台 v5 报告成品人工验收已通过。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
@@ -56,6 +56,7 @@
 - 主线：main（origin/main 与本次归档清理提交对齐）。
 - 历史候选整合分支已删除；其已提交内容已进入 main，未提交内容和运行证据保存在 D:\估值模型-archives。
 - 当前事实工作树已合入 `main`；三份 v4 材料、v5 成品、全部忽略运行证据和所有未提交快照均已归档，候选 worktree 已在归档核对后删除。
+- 主线合并与 CI 收口提交为 `42c31c0`、`9684f74`、`5f2179b`、`0a9dd4b`；最终 GitHub Actions 证据见 [run 37111950599](https://github.com/Cyrusi6/AstraValue/actions/runs/37111950599)。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。
