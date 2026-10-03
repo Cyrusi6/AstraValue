@@ -3,11 +3,11 @@
   "registry_kind": "peer_sets",
   "registry_id": "structured_data_peer_sets",
   "version": "1.0.0",
-  "content_sha256": "a1dc422ec1e18cbcc32fd887ea2d4fd4ebc462684eb5b63874f91ca850a7422b",
+  "content_sha256": "264fd7b9fde37c40e9f6c1a51bb8cd3baadc4cfa271233166ebcb893e62e891c",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "peer_sets": [
     {

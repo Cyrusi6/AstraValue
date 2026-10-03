@@ -1,0 +1,266 @@
+{
+  "schema_version": "structured-field-references.v1",
+  "registry_kind": "field_references",
+  "registry_id": "structured_data_field_references",
+  "version": "1.0.0",
+  "source_sha256": "0e2b258ea96a9e5b5e9a3478aa06e76cac2c54e29bfe7fc6444b30078b5b1f6d",
+  "source_note": "从历史字段规则中提取的已确认字段引用；完整历史资料已移至仓外归档。",
+  "references": [
+    {
+      "plan_group_id": "A01",
+      "raw_name": "PRETAX_BONUS_RMB"
+    },
+    {
+      "plan_group_id": "A02",
+      "raw_name": "REPURPROGRESS"
+    },
+    {
+      "plan_group_id": "A03",
+      "raw_name": "ISSUE_NUM"
+    },
+    {
+      "plan_group_id": "A04",
+      "raw_name": "BOND_COMBINE_CODE"
+    },
+    {
+      "plan_group_id": "A05",
+      "raw_name": "HOLDER_NAME"
+    },
+    {
+      "plan_group_id": "A06",
+      "raw_name": "FREE_DATE"
+    },
+    {
+      "plan_group_id": "A07",
+      "raw_name": "ACTUAL_INPUT_RF"
+    },
+    {
+      "plan_group_id": "A07",
+      "raw_name": "ITEM_NAME"
+    },
+    {
+      "plan_group_id": "A08",
+      "raw_name": "FINANCE_TYPE"
+    },
+    {
+      "plan_group_id": "B01",
+      "raw_name": "date"
+    },
+    {
+      "plan_group_id": "B02",
+      "raw_name": "roeAvg"
+    },
+    {
+      "plan_group_id": "B05",
+      "raw_name": "currentRatio"
+    },
+    {
+      "plan_group_id": "B07",
+      "raw_name": "dupontROE"
+    },
+    {
+      "plan_group_id": "C01",
+      "raw_name": "ACCOUNT_FIRM"
+    },
+    {
+      "plan_group_id": "C01",
+      "raw_name": "ORG_CODE"
+    },
+    {
+      "plan_group_id": "C01",
+      "raw_name": "REAL_CONTROLER"
+    },
+    {
+      "plan_group_id": "C01",
+      "raw_name": "SWINDUSTRY_CODE2"
+    },
+    {
+      "plan_group_id": "C02",
+      "raw_name": "MAINOP_TYPE"
+    },
+    {
+      "plan_group_id": "C03",
+      "raw_name": "TYPE"
+    },
+    {
+      "plan_group_id": "C04",
+      "raw_name": "RESEARCH_EXPENSE"
+    },
+    {
+      "plan_group_id": "C05",
+      "raw_name": "TOTAL_NUM"
+    },
+    {
+      "plan_group_id": "C07",
+      "raw_name": "HOLD_ORG_NAME"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "ACCOUNTS_RECE"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "CIP"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "CONTRACT_LIAB"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "GOODWILL"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "MONETARYFUNDS"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "OPINION_TYPE"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "SHORT_LOAN"
+    },
+    {
+      "plan_group_id": "F01",
+      "raw_name": "TOTAL_LIABILITIES"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "BASIC_EPS"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "CREDIT_IMPAIRMENT_LOSS"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "FEE_COMMISSION_INCOME"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "NETPROFIT"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "OPERATE_COST"
+    },
+    {
+      "plan_group_id": "F02",
+      "raw_name": "OPERATE_INCOME"
+    },
+    {
+      "plan_group_id": "F03",
+      "raw_name": "CONSTRUCT_LONG_ASSET"
+    },
+    {
+      "plan_group_id": "F03",
+      "raw_name": "FA_IR_DEPR"
+    },
+    {
+      "plan_group_id": "F03",
+      "raw_name": "NETCASH_OPERATE"
+    },
+    {
+      "plan_group_id": "F05",
+      "raw_name": "NET_INTEREST_MARGIN"
+    },
+    {
+      "plan_group_id": "F05",
+      "raw_name": "NHJZ_CURRENT_AMT"
+    },
+    {
+      "plan_group_id": "F05",
+      "raw_name": "RISK_COVERAGE"
+    },
+    {
+      "plan_group_id": "F05",
+      "raw_name": "ROIC"
+    },
+    {
+      "plan_group_id": "G01",
+      "raw_name": "HOLDER_NAME"
+    },
+    {
+      "plan_group_id": "G02",
+      "raw_name": "TOTAL_SHARES"
+    },
+    {
+      "plan_group_id": "G03",
+      "raw_name": "HOLDER_CODE"
+    },
+    {
+      "plan_group_id": "G04",
+      "raw_name": "FREE_HOLDNUM_RATIO"
+    },
+    {
+      "plan_group_id": "G05",
+      "raw_name": "HOLDER_NUM"
+    },
+    {
+      "plan_group_id": "G06",
+      "raw_name": "PERSON_CODE"
+    },
+    {
+      "plan_group_id": "G07",
+      "raw_name": "SALARY"
+    },
+    {
+      "plan_group_id": "G08",
+      "raw_name": "CHANGE_DATE"
+    },
+    {
+      "plan_group_id": "G09",
+      "raw_name": "IS_RELATED_TRADE"
+    },
+    {
+      "plan_group_id": "G12",
+      "raw_name": "GOODWILL_CHANGE"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "CLOSE_PRICE"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "FREE_SHARES_A"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "NOTLIMITED_MARKETCAP_A"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "PB_MRQ"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "PCF_OCF_TTM"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "PE_TTM"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "PS_TTM"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "TOTAL_MARKET_CAP"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "TOTAL_SHARES"
+    },
+    {
+      "plan_group_id": "M01",
+      "raw_name": "TRADE_DATE"
+    },
+    {
+      "plan_group_id": "T06",
+      "raw_name": "CONTENT"
+    }
+  ]
+}

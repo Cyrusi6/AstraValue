@@ -5,7 +5,7 @@
 | 处置 | 对象 | 调用证据与理由 |
 |---|---|---|
 | 保留 | `structured/{runtime,planner,storage,protocols,records,materialization*,interpretation,repair}.py` | CLI/API/service 使用统一 runtime；repair、分页、namespace 与旧解释回放依赖这些模块。BaoStock 财务指标仍有效，不整体删除 |
-| 保留 | `src/analysis/acquisition/adapters/`、`acquisition/legacy.py`、旧注册与 OpenSpec 归档 | 新 acquisition adapters 负责注册表绑定；`acquisition/legacy.py` 只用于历史文档快照 reconcile 和回放，不恢复旧同步入口。 |
+| 保留 | `src/analysis/acquisition/adapters/`、`acquisition/legacy.py`、旧注册表历史和仓外规划归档 | 新 acquisition adapters 负责注册表绑定；`acquisition/legacy.py` 只用于历史文档快照 reconcile 和回放，不恢复旧同步入口。 |
 | 删除 | `src/analysis/adapters/` 旧生产 adapters | 旧 provider 全量同步已无运行时入口；结构化 API 与 acquisition 注册表承担当前采集。旧适配器测试和兼容同步测试同步删除。 |
 | 保留 | `scripts/{archive_cninfo_inventory,parse_announcement_mineru,build_mineru_reading_index,smoke_structured_sources,supervise_structured_repair}.py` | 包含目录归档、解析、真实源取证或恢复逻辑，不是重复入口；其联网范围需要统一治理 |
 | 改造 | `structured/runtime.py`、`protocols.py` | 全历史默认和强制 columns=ALL 与新范围冲突；在计划冻结及执行前应用新范围，旧证据不重写 |

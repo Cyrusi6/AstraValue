@@ -272,7 +272,7 @@ G12 的 `GOODWILL_CHANGE` 已在东方财富当前[商誉减值页面](https://d
 
 ## 7. 实施交接与验收边界
 
-后续按 [新采集清单](eight-step-data-and-document-scope.md) 和 [当前 OpenSpec](../../openspec/changes/eight-step-production-pipeline-v1/tasks.md) 实施新范围、正文选择、格式适配与覆盖。本文及返回字段 JSON 供核对历史接口能力，不直接以 `columns=ALL` 样本参数生成新请求。
+后续按 [新采集清单](eight-step-data-and-document-scope.md)、代码合同和[运行说明](research-data-layer-runbook.md)实施新范围、正文选择、格式适配与覆盖。本文及返回字段 JSON 供核对历史接口能力，不直接以 `columns=ALL` 样本参数生成新请求。
 
 需要验证：新请求无无关日线及正文、必要估值输入仍可用、文件下载/解析/消费分开；并保留主源成功零备选、所选范围全分页/恢复、合法空结果、单位/期间、唯一主路由、非事实隔离、七家公司范围和 R01–R12 合并触发检查。旧快照、旧对账状态、旧报告和历史验收不变。
 

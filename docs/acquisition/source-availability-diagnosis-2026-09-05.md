@@ -3,7 +3,7 @@
 - 诊断日期：2026-09-05；下文时间为 UTC，北京时间为 UTC+08:00。
 - 代码基线：`d060f39828cc3afa70e8bcaaa0f2cd4f7fb4248b`，已 fast-forward 合入并推送 `main`；[main CI 33947894268](https://github.com/Cyrusi6/AstraValue/actions/runs/33947894268) 于 `2026-09-05T05:44:33Z` 成功。
 - 当前访问合同：registry `astravalue.data_sources@1.3.0`；CNINFO definition `1.2.0`、SSE definition `1.3.0`。
-- 本文是已完成的诊断与待实施建议。没有修改生产代码、registry、OpenSpec 任务状态或已存运行；实际运行记录归属[阶段日志](../../阶段日志.md)。
+- 本文是已完成的诊断与待实施建议。没有修改生产代码、registry、历史规划记录或已存运行；实际运行记录归属[阶段日志](../../阶段日志.md)。
 
 ## 结论
 
@@ -92,8 +92,8 @@
 
 ## 实施顺序与验收
 
-1. 将上述两个事项形成下一轮明确的 OpenSpec 规划和 CNINFO schema 修订记录，确定新版本及路由配置的持久化方式。本轮不创建新的 change，也不修改现有 78/81 任务清单。
-2. 在隔离分支实施，先运行 CNINFO adapter、transport、registry、orchestrator 的聚焦合同测试，再完成全量 pytest、strict OpenSpec、来源 registry 校验、前端构建及 exact pushed commit CI；原始响应只用于忽略目录中的重放，Git 只保留合成的边界夹具。
+1. 将上述两个事项形成下一轮明确的代码合同和 CNINFO schema 修订记录，确定新版本及路由配置的持久化方式。本轮不修改历史任务清单。
+2. 在隔离分支实施，先运行 CNINFO adapter、transport、registry、orchestrator 的聚焦合同测试，再完成全量 pytest、来源 registry 校验、前端构建及 exact pushed commit CI；原始响应只用于忽略目录中的重放，Git 只保留合成的边界夹具。
 3. 自动化通过后，用显式路由和新 registry 运行最小正式 metadata smoke，观察 bootstrap 绑定与空集合 terminal proof。空 metadata 成功仍不能证明附件可用。
 4. 再按已批准范围决定是否启动全新 namespace 的 production baseline。每个适用来源都有兼容非空安全 checkpoint 后才执行两次合法 incremental；取得要求的内容样本和版本链后再进入人工黄金复核。
 

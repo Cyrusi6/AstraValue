@@ -3,11 +3,11 @@
   "registry_kind": "fields",
   "registry_id": "structured_data_fields",
   "version": "1.1.0",
-  "content_sha256": "4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4",
+  "content_sha256": "47c1d77755ff1c5fe34b5591554f015a9eb0e02fa7b0f53c2bf1ab68aa35b64b",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "declared_field_positions": 2504,
   "classification_summary": {

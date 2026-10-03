@@ -1,10 +1,10 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-10-03（已合入 main，最终技术检查通过，其他 worktree/分支已清理）
+更新时间：2026-10-03（已合入 main；OpenSpec 归档与中间文件清理已完成）
 盘点工作树：D:\估值模型（合并前候选为 D:\估值模型-worktrees\fact-materialization-ultra）
-当前分支：main（最终提交 c08ad36；合并提交 2d1c4b1）
+当前分支：main（归档清理改动已纳入本次提交）
 
-这份清单把代码事实、已确认的产品决策和后续验收分开记录。表中的“动作”是目标处置，不表示已经完成删除或合并；在验收门通过前，不得用 `git branch -D`、工作树删除或批量删除替代迁移。
+这份清单把代码事实、已确认的产品决策、已完成处置和后续验收分开记录。P01-P14 的当前处置以本文件和提交内容为准；延期项列在“延期与后续补充”中。
 
 ## P01-P14 功能处置
 
@@ -23,7 +23,7 @@
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、旧 `AnalysisService.create_report` 直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告编辑/编排入口**；保留 `ReportVersion`、历史读取、导出和审计对象作为研究工作区链路的结果模型。 | 新报告只能从研究工作区冻结包经 reporting bridge 生成；旧编辑方法已删除，旧直接输入测试、前端入口、文档和 CLI 引用同步清理。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **保留为只读历史证据**；生产默认只使用 `v1.11`。 | 新 planner/orchestrator 不遍历旧版本；manifest、快照和报告保留 registry version/hash 定位。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
-| P14 | OpenSpec、分支和工作树：候选 fact 分支已快进合入 main；v5 报告、延期门和全部未提交/忽略材料均已归档。 | 统一 OpenSpec 到 eight-step-production-pipeline-v1；本轮收口后只保留 main。 | main 最终 Python 回归 1912 passed/14 skipped/0 failed，compileall、前端 build、OpenSpec strict、旧入口扫描和 git diff --check 均通过；归档清单位于 D:\估值模型-archives。 |
+| P14 | 分支和工作树：候选 fact 分支已快进合入 main；v5 报告、延期门和全部未提交/忽略材料均已归档。OpenSpec 文件已单独移出主仓库。 | 只保留 main；OpenSpec skill、配置和规划文件归档，不再作为当前执行入口。 | main 基线 Python 回归 1912 passed/14 skipped/0 failed；本轮清理后重新运行 registry、导入、前端 build、旧入口扫描和 `git diff --check`。归档清单位于 `D:\估值模型-archives`。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
 当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。真实治理 manifest 和知识候选 review/Agent/人工发布门按用户决定延期；贵州茅台 v5 报告成品人工验收已通过。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
@@ -41,19 +41,19 @@
 - 治理取证、事件重建和快照保留；治理独立报告生成、模型运行器和工具会话编排删除，后续只通过研究工作区进入 reporting bridge。
 - 旧内部报告编辑方法删除；历史报告读取和导出保留，修改统一回到研究工作区。
 - fact worktree 的 4 组未提交研究内容全部纳入；两份贵州茅台验收文档都保留。
-- OpenSpec 统一为 `eight-step-production-pipeline-v1`；整合完成后只留 `main`。
+- OpenSpec 文件与 skill 已移至 `D:\估值模型-archives\openspec-20261003`；主仓库不再使用该工具链，只留 `main`。
 - 贵州茅台 9 项 API 空响应的补齐延期；现阶段保留缺口与已有报告证据，先验收其余适用数据集及报告主链。
 
-当前尚未等同于完成的事项：
+## 延期与后续补充
 
-1. 旧重复链已删除，治理共享 workspace 已接入。真实治理资料和知识发布门已登记为延期；贵州茅台 v5 报告成品人工验收已完成，分支收口也已完成。
-2. 600519 本轮 22 项范围的真实增量、重复运行和中断接续已验证；9 项原始空响应和已有报告证据保留为后补项。真实接口本次未披露新增业务行，新增入库分支另由受控上游变化测试验证。
-3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
-4. 分支、worktree 和远程非 main 引用已经清理；未提交内容与运行证据均保留在仓外归档。
+1. 真实治理 manifest、知识 Agent 样例和人工发布门按用户决定延期，保留独立验收记录，不阻断当前代码回归。
+2. 贵州茅台 9 项历史上为空的结构化接口保留为后补项；当前 22 项适用范围的增量、重复运行和中断接续已验证。
+3. 报告研究覆盖、股利核验、DCF、系统草稿状态和模型身份独立凭证按用户决定延期；不在清理任务中伪造通过状态。
+4. `tmp/`、`var/` 和仓外归档中的真实采集、数据库、报告及验收材料继续保留，后续补采或复核从现有证据恢复。
 
 ## 证据索引
 
-- 主线：main / c08ad36（origin/main 已对齐）。
+- 主线：main（origin/main 与本次归档清理提交对齐）。
 - 历史候选整合分支已删除；其已提交内容已进入 main，未提交内容和运行证据保存在 D:\估值模型-archives。
 - 当前事实工作树已合入 `main`；三份 v4 材料、v5 成品、全部忽略运行证据和所有未提交快照均已归档，候选 worktree 已在归档核对后删除。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
@@ -63,3 +63,34 @@
 - 最新字段修复与 9 项空响应归因：[真实 API 验收](acquisition/moutai-structured-api-acceptance-20261002.md)、[逐主题来源对照](acquisition/moutai-no-data-source-comparison-20261002.md)。
 - 本轮范围、空查询、失败隔离与恢复：[增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
 - 真实报告启动暴露的文件合同迁移问题：[完整修复清单及证据](acquisition/projection-file-contract-audit-20261002.md)。14 类问题已修复，必需输入为 299 项数值就绪、2 项已有原文、12 项待处理；8 条正式分红事件已可读并进入报告输入。使用独立 `workspace-config-repaired-v3.json`，原空快照保留；第一阶段证据见[数值衔接记录](acquisition/moutai-projection-bridge-repair-20261002.md)。
+
+## 2026-10-03 OpenSpec 与中间文件处置
+
+### 已归档
+
+| 范围 | 位置 | 说明 |
+|---|---|---|
+| OpenSpec 规划、主规格、历史变更 | `D:\估值模型-archives\openspec-20261003\openspec/` | 57 个文件，保留原目录结构、大小和 SHA-256，`manifest.json` 可复核 |
+| OpenSpec 本地 skill 与目标文件 | `D:\估值模型-archives\openspec-20261003\.agents/skills/` | 7 个 skill 目录及 `.openspec-target` |
+| OpenSpec 上下文与工作流说明 | `D:\估值模型-archives\openspec-20261003\docs/` | 仅从 main 移除活动入口，历史内容保留 |
+| 运行证据与报告材料 | `D:\估值模型-archives\fact-materialization-ultra\runtime-evidence-20261003\` 等既有归档 | 不在本轮批量删除，保留真实采集和报告复核依据 |
+
+### 已删除或移出工作树
+
+| 范围 | 处理 |
+|---|---|
+| `.agents/skills/openspec-*`、`.agents/skills/.openspec-target`、`openspec/`、`docs/openspec_*.md` | 已复制核验后从 main 删除 |
+| `.pytest_cache/`、各级 `__pycache__/`、`frontend/node_modules/`、`frontend/dist/`、`src/a_share_eight_step_analysis.egg-info/` | 构建/测试缓存，确认不属于交付物后删除 |
+| `output/`、`outputs/` | 旧演示报告产物，先移到本轮清理归档后从工作树删除 |
+
+### 保留
+
+| 范围 | 原因 |
+|---|---|
+| `var/`、`tmp/`、`var/analysis*.db`、`var/timeseries.duckdb` | 包含真实 API、快照、数据库、研究工作区和报告证据；只忽略 Git，不作为垃圾删除 |
+| `.env.local` | 本地配置可能含密钥，未经单独确认不删除 |
+| `阶段日志.md`、历史验收文档、项目精简历史 | 记录真实决策和验收边界；不作为当前执行入口 |
+
+### 运行入口迁移
+
+结构化注册表生成器不再从历史规划目录读取字段引用；新增 `config/structured_data/field_references.v1.json`，保留 64 个已确认字段引用。各注册表的 `generated_from` 已切换到仓内现存文件，避免删除归档后运行时断链。

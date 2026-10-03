@@ -78,6 +78,6 @@ python -X utf8 tmp/moutai-projection-fix-20261002/verify_complete.py
 - 注册表子进程测试失败原因为 Windows 编码：外层 `python -X utf8` 不会把同样设置自动传给子进程，导致中文 stderr 解码异常。按项目环境设置 `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8` 后，该项复测 **1 passed**，见 `encoding-recheck.xml`；未修改注册表代码或测试断言。
 - 最终仍未通过的项目为既有知识发布门 `test_all_54_questions_and_recorded_acceptance_are_ready`，缺 `agent_samples` 和 `human_review`，54 个知识问题的基础映射已就绪；本轮没有伪造验收记录或放宽门槛。
 - 14 个跳过项涉及显式开启的 PDF 视觉、Docker 沙箱及本地真实缓存验证；本轮真实输入另由上述脚本实查。
-- `npm run build`、`openspec validate --all --strict`（2 passed / 0 failed）、`git diff --check` 通过。当前运行时旧文件名引用扫描仅剩清单中说明的历史兼容或独立生产者。
+- `npm run build`、历史规划严格校验（2 passed / 0 failed）、`git diff --check` 通过。当前运行时旧文件名引用扫描仅剩清单中说明的历史兼容或独立生产者。
 
 后续十二项资料缺口已在[原文、同行和行情恢复记录](moutai-input-restoration-20261002.md)中处理。该记录提供最新研究配置和已采用快照；本页的 v3 配置及数量保留为文件合同修复阶段的历史证据。

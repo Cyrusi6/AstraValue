@@ -3,11 +3,11 @@
   "registry_kind": "reading_rules",
   "registry_id": "structured_data_reading_rules",
   "version": "1.0.0",
-  "content_sha256": "23cacad36d0dae6f605e6d26942052e89b13c416b38dd0a896eaa044f151587d",
+  "content_sha256": "9a89dbbce14bd20ab9dc037d6b0755ee58234fc00023e16f9fa768b78a0d84c0",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "fixed_report_policy": {
     "complete_chinese_annual_report": "required",

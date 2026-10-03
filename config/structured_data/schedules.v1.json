@@ -3,11 +3,11 @@
   "registry_kind": "schedules",
   "registry_id": "structured_data_schedules",
   "version": "1.2.0",
-  "content_sha256": "9eac1663c82a647c31d3be350adb19a48dec76fcd327408096682324cbd8183f",
+  "content_sha256": "6865b1f9e1b2406d627901964ef531a74fe61387d0e0d5baf7deacc45c701607",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "timezone": "Asia/Shanghai",
   "source_min_interval_seconds": {

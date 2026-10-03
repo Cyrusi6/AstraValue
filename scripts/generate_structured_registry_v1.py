@@ -16,7 +16,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN_PATH = ROOT / "docs" / "acquisition" / "structured-data-interface-fields-v1.json"
-DESIGN_PATH = ROOT / "openspec" / "retired" / "structured-data-first-v1" / "design.md"
+FIELD_REFERENCES_PATH = ROOT / "config" / "structured_data" / "field_references.v1.json"
 LEGACY_QUESTIONS_PATH = ROOT / "config" / "data_sources" / "business_model_questions.v1.json"
 OUTPUT_DIR = ROOT / "config" / "structured_data"
 
@@ -34,7 +34,7 @@ REGISTRY_VERSIONS = {
 GENERATED_FROM = (
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/retired/structured-data-first-v1/design.md",
+    "config/structured_data/field_references.v1.json",
 )
 
 COMPANY_FILTER_FIELDS = {
@@ -136,10 +136,8 @@ PAGE_SIZE_OVERRIDES: dict[str, int] = {
 }
 
 KNOWN_FIELD_REFS = set(
-    re.findall(
-        r"\b([A-Z]\d{2})\.([A-Za-z][A-Za-z0-9_]*)\b",
-        DESIGN_PATH.read_text(encoding="utf-8"),
-    )
+    (item["plan_group_id"], item["raw_name"])
+    for item in json.loads(FIELD_REFERENCES_PATH.read_text(encoding="utf-8"))["references"]
 )
 F05_CANDIDATE_FIELDS = {
     "NET_INTEREST_MARGIN",

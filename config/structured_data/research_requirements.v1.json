@@ -3,11 +3,11 @@
   "registry_kind": "research_requirements",
   "registry_id": "eight_step_research_requirements",
   "version": "1.1.0",
-  "content_sha256": "fca27c66b80ba5923718cba6bf3fa3d6b82f1a2f6695a25e30edb111237c967b",
+  "content_sha256": "0c675e77b892a61e9dd9b005f9f9a95f0a9aa2dca133abf5b995b8f936264ade",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "question_set_id": "eight_step_research_requirements",
   "question_set_version": "1.0.0",

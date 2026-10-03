@@ -2,7 +2,7 @@
 
 更新时间：2026-10-02（补充用户确认的编辑链与治理编排决策）
 
-这份记录保存本轮实施前的用户要求、Codex session 中形成的初始计划，以及当前实现证据，避免在后续分支收口时丢失上下文。它是历史和验收索引，不替代当前 OpenSpec 合同。
+这份记录保存本轮实施前的用户要求、Codex session 中形成的初始计划，以及当前实现证据，避免在后续分支收口时丢失上下文。它是历史和验收索引，不替代当前代码、测试和验收约束。
 
 ## 用户确认的目标
 
@@ -68,7 +68,7 @@
 - 用户已确认删除旧内部报告编辑方法（修改假设、重算、重分析、审阅）；历史报告读取和导出保留，后续修订回到研究工作区并经 reporting bridge 生成新 `ReportVersion`。
 - 用户已确认删除治理模块独立的报告生成、模型运行器和工具会话编排；保留治理取证、事件重建和快照，后续绑定共享 acquisition manifest、研究工作区和 reporting bridge。
 - 用户已确认删除历史治理模型及旧测试/文档；`CodexInputPack`、`CodexToolRead`、`CodexSessionManifest`、研究任务/结果包、快照采用、治理 findings/report 模型已从运行时代码和旧测试移除，退役治理 OpenSpec 目录已删除。保留的治理事实模型只服务取证、事件重建和快照。
-- 用户已确认将 `eight-step-knowledge-base-v1` 移入 `openspec/retired/`，保留其历史 proposal/design/spec/tasks；活动实施入口只保留 `eight-step-production-pipeline-v1`。
+- 用户已确认将 `eight-step-knowledge-base-v1` 移入历史目录，保留其 proposal/design/spec/tasks；这些规划材料已在本次清理中移到仓外归档。
 
 ## 交接约束
 
@@ -110,6 +110,6 @@
 ## 2026-10-03 合并收口完成
 
 - 候选 codex/fact-materialization-ultra 已快进合入 main，主线提交为 2d1c4b1；主 worktree 清洁。
-- 主线最终检查：默认 Python 回归 1912 passed、14 skipped、0 failed；compileall、前端 npm run build、OpenSpec strict、旧入口运行时扫描和 git diff --check 均通过。知识发布门单独运行仍按预期因 agent_samples、human_review 缺失返回失败，已登记为 deferred，不计入默认回归。
+- 主线最终检查：默认 Python 回归 1912 passed、14 skipped、0 failed；compileall、前端 npm run build、历史规划严格校验、旧入口运行时扫描和 git diff --check 均通过。知识发布门单独运行仍按预期因 agent_samples、human_review 缺失返回失败，已登记为 deferred，不计入默认回归。
 - v4 验收材料、v5 报告、候选 tmp/、var/、output/ 及主/知识 worktree 未提交内容已保存到 D:\估值模型-archives\，并带有 SHA-256 或文件数/字节数清单。
-- 清理完成后只保留 main 的本地和远程引用；知识 OpenSpec 草案保留在仓外归档，活动 OpenSpec 只有 eight-step-production-pipeline-v1。
+- 清理完成后只保留 main 的本地和远程引用；OpenSpec 全部移至仓外归档，main 不再保留活动 OpenSpec 入口。

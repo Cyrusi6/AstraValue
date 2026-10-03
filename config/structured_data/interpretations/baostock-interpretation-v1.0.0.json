@@ -19,6 +19,14 @@
       "source_definition_id": "structured-baostock",
       "source_definition_version": "1.2.0",
       "source_content_hash": "a97dacd2c9952037ab29b15d9bb327f73b0d88fe1ffcb2a3c9afed8a38f5963e"
+    },
+    {
+      "field_registry_id": "structured_data_fields",
+      "field_registry_version": "1.1.0",
+      "field_registry_hash": "47c1d77755ff1c5fe34b5591554f015a9eb0e02fa7b0f53c2bf1ab68aa35b64b",
+      "source_definition_id": "structured-baostock",
+      "source_definition_version": "1.2.0",
+      "source_content_hash": "a97dacd2c9952037ab29b15d9bb327f73b0d88fe1ffcb2a3c9afed8a38f5963e"
     }
   ],
   "evidence_file": "docs/acquisition/baostock-interpretation-evidence.v1.json",
@@ -3017,5 +3025,5 @@
     "basic状态为观察时点；calendar缓存无记录，不能以0行情事实证明未开市。",
     "供应商字段和单位解释核实，不代表财务方法或人工验收。"
   ],
-  "content_sha256": "9521639a413e60c670eb00a892343e7825eaf8f4fb91f93244d0a0f9289e598d"
+  "content_sha256": "8c999880c3a9343b8e89faa476a2ee7fdffe4ed90c654ab4540e59202f611090"
 }

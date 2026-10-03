@@ -9,10 +9,10 @@ from .registry import PROJECT_ROOT
 from .storage import canonical_sha256
 
 CONTRACT_FILES = {
-    "eastmoney-financial-interpretation-v1.0.0": ("eastmoney-financial-interpretation-v1.0.0.json", "622a3a30137617e0969217449ee37ec615a086279c0b2cd3f4e0ff1e5a012499"),
+    "eastmoney-financial-interpretation-v1.0.0": ("eastmoney-financial-interpretation-v1.0.0.json", "28257184568c5cc5da61bcd2e97f265e7d942a8f2c58506797298faa5cf2d8b7"),
     "baostock-interpretation-v1.0.0": (
         "baostock-interpretation-v1.0.0.json",
-        "9521639a413e60c670eb00a892343e7825eaf8f4fb91f93244d0a0f9289e598d"),
+        "8c999880c3a9343b8e89faa476a2ee7fdffe4ed90c654ab4540e59202f611090"),
 }
 
 

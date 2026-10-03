@@ -17,12 +17,12 @@
 10. **legacy 清理**：删除旧 adapters、legacy 同步、旧同步端点和旧直接报告入口。旧全量行情与报告抓取也删除。
 11. **报告原文范围**：报告原文只按研究任务按需采集；不再默认进行全量报告抓取。
 12. **来源注册表历史兼容**：当前生产默认使用 `business_model_sources.v1.11.json`；`v1.0–v1.10` 保留为只读历史证据，不参与新 planner/orchestrator。历史 manifest、快照和报告继续保留 registry version/hash 定位。
-13. **OpenSpec**：统一到 `eight-step-production-pipeline-v1`，不再并行维护另一套生产实施变更；`eight-step-knowledge-base-v1` 已完整移入 `openspec/retired/` 保存历史上下文。
+13. **OpenSpec**：停止使用该工具链。相关 skill、配置和规划文件已于 2026-10-03 移至 `D:\估值模型-archives\openspec-20261003`；主仓库当前以代码、测试、运行手册和验收记录为准。
 14. **分支治理**：整合完成、测试和人工验收通过后，本地和远程只保留 `main`；在此之前不得删除承载未提交材料的 worktree 或分支。
 15. **低风险重复脚本**：`scripts/run_demo.py`、`scripts/smoke_online_sources.py` 作为重复转发器删除；调用方改用 `analysis.cli`/`ashare-analysis` 入口。
 16. **旧内部报告编辑方法**：删除 `AnalysisService.patch_assumptions`、`recalculate`、`reanalyze`、`review` 及仅为其服务的请求模型/派生路径；历史报告读取和导出保留，后续修改统一回到研究工作区。
 17. **治理独立编排**：删除治理模块独立的报告生成、模型运行器和工具会话系统；保留治理取证、实体解析、事件重建/reducers、快照和脱敏，并接入研究工作区及现有 reporting bridge。
-18. **历史治理模型**：删除 `CodexInputPack`、`CodexToolRead`、`CodexSessionManifest`、研究任务/结果包/隔离项、快照采用对象、治理报告及其 findings/technical validation 模型、旧测试和退役 OpenSpec 文档。治理只保留取证、实体解析、事件重建、快照和研究工作区接口；历史治理报告对象不再提供代码级读取兼容。
+18. **历史治理模型**：删除 `CodexInputPack`、`CodexToolRead`、`CodexSessionManifest`、研究任务/结果包/隔离项、快照采用对象、治理报告及其 findings/technical validation 模型、旧测试和历史规划文档。治理只保留取证、实体解析、事件重建、快照和研究工作区接口；历史治理报告对象不再提供代码级读取兼容。
 
 ## 本次新增的结构化入口决定
 

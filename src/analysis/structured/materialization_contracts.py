@@ -835,3 +835,11 @@ LEGACY_CONTRACTS = json.loads(r'''
   }
 }
 ''')
+
+# The field registry's semantic contract is unchanged; only its provenance
+# file moved out of the retired planning tree. Keep the new digest alongside
+# the historical digest so frozen runs created before and after the move can
+# both be replayed.
+LEGACY_CONTRACTS[
+    "47c1d77755ff1c5fe34b5591554f015a9eb0e02fa7b0f53c2bf1ab68aa35b64b"
+] = LEGACY_CONTRACTS["4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4"]

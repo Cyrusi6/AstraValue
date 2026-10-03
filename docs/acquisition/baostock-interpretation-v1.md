@@ -42,8 +42,9 @@
 |---|---|
 | 1.0.0 / `dc7e9581868f0331fa6856c3fa4658d66d0fbc3f41e0af2955360ce80cfbb618` | 1.0.0 / `1500f0f04e3ea61ca216e7c9a92bbd1ad82574663644d6c720e671ff8e66c424` |
 | 1.1.0 / `4c8492349c6e490f173f538e7d2f59f380d3f08abaf58de7ae4f29423692e4f4` | 1.2.0 / `a97dacd2c9952037ab29b15d9bb327f73b0d88fe1ffcb2a3c9afed8a38f5963e` |
+| 1.1.0（provenance migration） / `47c1d77755ff1c5fe34b5591554f015a9eb0e02fa7b0f53c2bf1ab68aa35b64b` | 1.2.0 / `a97dacd2c9952037ab29b15d9bb327f73b0d88fe1ffcb2a3c9afed8a38f5963e` |
 
-这是新增消费解释版本，`fields.v1.json` 和来源配置未更新；禁止覆盖历史字段注册 hash 来冒充原本已确认。
+这是同一字段语义合同在 provenance 文件迁移后的新哈希；旧哈希仍可回放，禁止把迁移哈希解释为新增字段语义。
 
 ## 61 个字段：输出单位、倍率、期间和实际数量
 

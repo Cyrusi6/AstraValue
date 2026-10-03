@@ -3,11 +3,11 @@
   "registry_kind": "industry_profiles",
   "registry_id": "structured_data_industry_profiles",
   "version": "1.0.0",
-  "content_sha256": "982ac43fc794261bef8ff872a908027083e5618bd8bbfe82f7a600a25f43f3f4",
+  "content_sha256": "6c6e359573b231d87cc657ffadf656ead5a78e6ceea489ee142bbaf38b5e26e2",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/changes/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
   "profile_selection_version": "1.0.0",
   "mixed_business_rule": "连续两个可比年度单一主营分类占比均至少50%方可自动选择单一画像；否则组合已证画像并按分部适用，未知保持待确认",

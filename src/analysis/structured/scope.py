@@ -13,6 +13,12 @@ SCOPE_ID = "eight-step-scope-v1.0.0"
 LITE_PROFILE_ID = "eight-step-lite-v1.0.0"
 STANDARD_PROFILE_ID = "eight-step-standard-v1.1.0"
 ROOT = Path(__file__).resolve().parents[3]
+# The scope content is unchanged; only the referenced registry provenance was
+# moved into the checked-in field-reference file. Accept frozen plans created
+# with the pre-migration digest while new plans use the current digest.
+LEGACY_SCOPE_CONTENT_HASHES = frozenset({
+    "0304af1aa4b87018f5d02c18589432f9583ada0c077d2afa940c37ab32a43a02",
+})
 
 
 @lru_cache(maxsize=1)
@@ -157,7 +163,9 @@ def field_selected(dataset_id, raw_name, research_profile_id=None):
 
 def assert_network_scope(context, dataset_id):
     frozen = context.frozen_config.get("research_scope")
-    if not frozen or frozen.get("content_sha256") != load_scope()["content_sha256"]:
+    if not frozen or frozen.get("content_sha256") not in {
+        load_scope()["content_sha256"], *LEGACY_SCOPE_CONTENT_HASHES
+    }:
         raise ValueError("legacy_scope_network_blocked:create_scoped_plan_from_gaps")
     profile_id = context.frozen_config.get("research_profile_id")
     if profile_id:

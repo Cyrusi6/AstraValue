@@ -12,6 +12,14 @@
       "source_definition_id": "structured-eastmoney",
       "source_definition_version": "1.2.0",
       "source_content_hash": "5032f1dfd00c5d21cf3fbb5d9015b50a2fa133df59df9a87aa98228f9169d4fe"
+    },
+    {
+      "field_registry_id": "structured_data_fields",
+      "field_registry_version": "1.1.0",
+      "field_registry_hash": "47c1d77755ff1c5fe34b5591554f015a9eb0e02fa7b0f53c2bf1ab68aa35b64b",
+      "source_definition_id": "structured-eastmoney",
+      "source_definition_version": "1.2.0",
+      "source_content_hash": "5032f1dfd00c5d21cf3fbb5d9015b50a2fa133df59df9a87aa98228f9169d4fe"
     }
   ],
   "evidence_file": "docs/acquisition/eastmoney-financial-interpretation-evidence.v1.json",
@@ -3316,5 +3324,5 @@
   "rejections": {
     "customers_peer.SUM_AMOUNT": "provider_inferred_denominator_not_disclosed"
   },
-  "content_sha256": "622a3a30137617e0969217449ee37ec615a086279c0b2cd3f4e0ff1e5a012499"
+  "content_sha256": "28257184568c5cc5da61bcd2e97f265e7d942a8f2c58506797298faa5cf2d8b7"
 }

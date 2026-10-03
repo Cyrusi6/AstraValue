@@ -3,12 +3,13 @@
   "registry_kind": "datasets",
   "registry_id": "structured_data_datasets",
   "version": "1.2.1",
-  "content_sha256": "ac3f44e5acb860138518ee89aa0e34408db80de5d8fc0278da1812dfadf277d0",
+  "content_sha256": "5a5151fc29f5f3feef4e5d7bf16ae2a784849ee9e717d547a4754e8555c340ed",
   "generated_from": [
     "docs/acquisition/structured-data-interface-fields-v1.json",
     "docs/acquisition/structured-data-field-plan-v1.md",
-    "openspec/retired/structured-data-first-v1/design.md"
+    "config/structured_data/field_references.v1.json"
   ],
+  "source_definition_version": "1.2.0",
   "datasets": [
     {
       "dataset_id": "balance_fields",
@@ -3622,6 +3623,5 @@
         "db7a029062efab88abefa74c9628370429f02d2a648ce1c903f0553f2f426129"
       ]
     }
-  ],
-  "source_definition_version": "1.2.0"
+  ]
 }

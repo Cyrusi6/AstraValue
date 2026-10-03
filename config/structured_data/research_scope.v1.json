@@ -2,7 +2,7 @@
   "scope_id": "eight-step-scope-v1.0.0",
   "version": "1.0.0",
   "authority": "docs/acquisition/eight-step-data-and-document-scope.md",
-  "requirements_sha256": "fca27c66b80ba5923718cba6bf3fa3d6b82f1a2f6695a25e30edb111237c967b",
+  "requirements_sha256": "0c675e77b892a61e9dd9b005f9f9a95f0a9aa2dca133abf5b995b8f936264ade",
   "datasets": {
     "balance_fields": {
       "selection": "required",
@@ -1255,7 +1255,7 @@
       "basis": "ordinary adjusted price history excluded by research scope"
     }
   },
-  "content_sha256": "0304af1aa4b87018f5d02c18589432f9583ada0c077d2afa940c37ab32a43a02",
+  "content_sha256": "4d4c794a3f85028211ff2bccf0b2fdea11aa97248c00a288118102d813dd3f1d",
   "company_acquisition_deferrals": {
     "600519.SH": {
       "decision_id": "moutai-empty-api-follow-up-20261002",

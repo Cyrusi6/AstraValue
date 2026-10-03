@@ -6,17 +6,17 @@
 
 方法库采用 Markdown、JSON、Python 三层结构：Markdown 负责解释，JSON 固化规则，Python 执行确定性计算。当前 37 份 Markdown 方法文件都只建立了带版本号的 `content_status: skeleton` 骨架，正文刻意留待后续专项研究，不应被视为已完成的方法论。LLM 不是财务数字的计算源。
 
-跨层软件变更使用 OpenSpec 管理 proposal、行为规格、设计和任务；完整流程及其与现有文档的职责边界见 [`docs/openspec_workflow.md`](docs/openspec_workflow.md)。
+跨层软件变更以代码、测试、运行手册和验收记录为准；历史规划材料已归档，不再作为当前执行入口。
 
 ## 当前入口（2026-09-28）
 
 产品目标是：框架准备紧凑资料，Codex／Claude Code 自主研究、提出估值假设并给出评级，代码负责核算、绘图和组装，模型检查最终研报。知识库按需读取。
 
 - [四层职责与验收](计划.md)：产品决策。
-- [当前任务](openspec/changes/eight-step-production-pipeline-v1/tasks.md)：唯一实施清单。
+- [结构化数据层运行说明](docs/acquisition/research-data-layer-runbook.md)：当前实施和复现入口。
 - [轻量包运行说明](docs/acquisition/eight-step-lite-runbook.md)：已实现的低层命令。
 - [茅台报告验收](docs/acquisition/moutai-golden-report-acceptance.md)：数据获认可，当前报告人读未通过。
-- [OpenSpec工作流与历史角色](docs/openspec_workflow.md)：避免重复计划。
+- [项目精简清单](docs/project-cleanup-inventory.md)：记录保留、删除和归档边界。
 
 研究工作区已经提供公司任务准备、轻量研究包、按需证据读取、计算/图表和草稿记录的代码入口；MCP 与真实 Codex/Claude 端到端运行、贵州茅台新报告的人读验收仍是独立验收项。见[统一需求与验收](计划.md#统一交互与验收约定2026-09-14-讨论定稿)。历史兼容入口存在不代表新流程已通过业务验收，也不构成全量采集的默认启动指令。
 

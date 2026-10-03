@@ -55,7 +55,7 @@
 
 主要实际账本：`tmp/research-data-layer-live-v1/requests.jsonl`、`gap-requests.jsonl`、`incremental-verification.json`、`incremental-confirmed-identity.json`、`industry-field-samples.json`；正文在 `tmp/research-data-layer-v1/acquisition/requests/`。
 
-## 4. 验证分栏与 OpenSpec 结论
+## 4. 验证分栏与历史规划结论
 
 | 验证类型 | 结果与边界 |
 |---|---|
@@ -65,10 +65,10 @@
 | 当前联网 | 已实际获取报告、季度正文、东财财务与金融字段、NBS 官方页面；明确保留 no_data 和 403，未把离线 Mock 算作联网 |
 | 本地 HTTP | 用显式数据库启动真实服务，`/api/structured/registry` 返回 200；验证后已停止本次测试进程 |
 | 方法与黄金清单 | `METHOD_LIBRARY_OK`；黄金清单结构 passed，10 个样本仍 pending、validated=0、ready_for_acceptance=false |
-| 静态检查 | compileall、OpenSpec strict、git diff --check 通过；前端 build 随用户暂停的前端改造不执行 |
+| 静态检查 | compileall、历史规划校验、git diff --check 通过；前端 build 随当时用户暂停的前端改造不执行 |
 | 人工验收 | pending；没有把历史其他 change 的人工确认迁移为本轮确认 |
 
-OpenSpec 完整性：本轮数据层 1.1–1.14 与本轮 4.1–4.3 已记录交付；2.1–2.3、3.1–3.3 共六项按用户指令暂停，整个 change 不归档。正确性以请求捕获、原件/快照哈希、期间/冲突/恢复测试及真实复算为证；一致性继续使用既有 structured runtime、字段合同、事实模型与公式。完整研究计算路线和全行业语义仍属明确未完成项。
+历史规划完整性：本轮数据层 1.1–1.14 与本轮 4.1–4.3 已记录交付；2.1–2.3、3.1–3.3 共六项按当时用户指令暂停。该规划材料已移至仓外归档，不再作为当前执行入口。正确性以请求捕获、原件/快照哈希、期间/冲突/恢复测试及真实复算为证；一致性继续使用既有 structured runtime、字段合同、事实模型与公式。完整研究计算路线和全行业语义仍属明确未完成项。
 
 ## 5. 剩余具体缺口
 

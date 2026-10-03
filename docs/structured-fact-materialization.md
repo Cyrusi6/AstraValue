@@ -1,6 +1,6 @@
 # 结构化事实物化专项交付
 
-上一轮完成 `eight-step-production-pipeline-v1` 的 **1.1、1.2、1.3**。本轮从 `aace728` 继续完成 **1.4–1.7** 的实现与自动化/真实缓存验证，新增结果见下方；OpenSpec 文件由主 agent 管理，本轮未修改。工作树为 `D:/估值模型-worktrees/fact-materialization-ultra`，分支为 `codex/fact-materialization-ultra`，基于 `8ef6735` 审计和修复已有基础。报告、batch、frontend、主工作树及阶段日志均未纳入本次改动。没有启动全市场采集，没有人工验收。
+上一轮完成历史规划中的 **1.1、1.2、1.3**。本轮从 `aace728` 继续完成 **1.4–1.7** 的实现与自动化/真实缓存验证，新增结果见下方；规划文件只作为当时的交付背景，现已移至仓外归档。工作树为 `D:/估值模型-worktrees/fact-materialization-ultra`，分支为 `codex/fact-materialization-ultra`，基于 `8ef6735` 审计和修复已有基础。报告、batch、frontend、主工作树及阶段日志均未纳入本次改动。没有启动全市场采集，没有人工验收。
 
 ## 前轮基础行为
 
@@ -38,7 +38,7 @@ SQLite 使用同一只读事务内的分批流式读取（默认 256 条记录�
 - `python -m compileall -q src/analysis tests/structured`：通过。
 - 方法库校验：`METHOD_LIBRARY_OK`；结构化登记校验：`STRUCTURED_REGISTRY_OK`。
 - 黄金清单只通过结构校验：10 项中 0 validated、10 pending，`ready_for_acceptance=false`；不是人工验收通过。
-- OpenSpec strict 和 `git diff --check` 结果见本文件末尾交付检查。
+- 历史规划校验和 `git diff --check` 结果见本文件末尾交付检查。
 
 合成绑定验收通过 3 个数值事实、2 个不同持有人维度、1 个分红方案事件；SQLite/DuckDB/Parquet 内容、稳定 SHA、精确 lineage、重复调用零新增采集记录全部验证。它使用 HTTP MockTransport，不是当前联网样本。
 
@@ -74,7 +74,7 @@ $env:TEMP = (Resolve-Path tmp).Path
 $env:TMP = $env:TEMP
 python -m pytest tests/structured -o addopts= -q --basetemp=tmp/pytest/reproduce
 python -m compileall -q src/analysis tests/structured
-openspec validate eight-step-production-pipeline-v1 --strict
+历史规划校验（已归档）
 ```
 
 原缓存只读回放使用独立 reader，避免 CLI service 的 runtime bootstrap 对原库进行常规注册写入：
@@ -105,7 +105,7 @@ python -m analysis.cli structured materialize structured-run-1dc8a259d7cc39dffeb
 - `src/analysis/cli.py`：materialize 的 summary 开关。
 - `src/analysis/api.py`：只增加物化清单 lineage 查询。
 - `tests/structured/test_materialization.py`、`tests/structured/test_materialization_projection.py`。
-- `openspec/changes/eight-step-production-pipeline-v1/tasks.md`：仅 1.x。
+- 历史规划任务文件：仅 1.x（已随规划材料移出主仓库）。
 - `docs/structured-fact-materialization.md`：本交付记录。
 
 ## 残留边界
@@ -114,9 +114,9 @@ python -m analysis.cli structured materialize structured-run-1dc8a259d7cc39dffeb
 
 ## 交付检查
 
-- `openspec validate eight-step-production-pipeline-v1 --strict`：`Change 'eight-step-production-pipeline-v1' is valid`。
+- 历史规划严格校验：当时返回 valid；规划文件现已归档。
 - `git diff --check`：通过。
-- 前轮 OpenSpec 记录为 3/12（1.1–1.3）；当前 planning 已独立新增 1.4–1.7，本轮不修改勾选、不归档整个变更。
+- 前轮规划记录为 3/12（1.1–1.3）；当时新增 1.4–1.7，本轮不修改历史勾选。
 
 ## 本轮后补解释交付：1.4–1.7
 
@@ -142,7 +142,7 @@ python -m analysis.cli structured materialize structured-run-1dc8a259d7cc39dffeb
 - 旧默认结果仍为 0，hash 保持 `2c114e73656eaa0865cc52b1dfbc697c5d7695a4b2da949b5134151acbaf1ac5`，四项缺口计数完全相同。
 - 独立 audit 不调用 materializer 或映射换算函数：100,189 条逐一核对原快照 bytes SHA、row_ordinal、row_key、field_path、原字段版本、run/job/page/成功 attempt、原值、输出单位和独立 Decimal 倍率、报告日期、可得时间；521 个快照通过，映射非空原值与选中输出计数完全对应。
 - 原库 SHA：`72e339d2ad926351ed304401f77ea32cc8d412d9d717d1ed1793bf0d3f9b3956`；WAL/marker 和 521 引用快照不变，attempt 1,009 → 1,009（新增 0）。
-- 全量相关验证：**356 passed in 54.36s**（structured 320 + 受影响回归 36，含新增解释 47）；独立 audit 补充 attempt/单位核验后，绑定 CLI/audit 集成复测 1 passed in 1.65s；compileall、OpenSpec strict、git diff --check 通过。测试输出 `tmp/baostock-evidence/regression.txt`。
+- 全量相关验证：**356 passed in 54.36s**（structured 320 + 受影响回归 36，含新增解释 47）；独立 audit 补充 attempt/单位核验后，绑定 CLI/audit 集成复测 1 passed in 1.65s；compileall、历史规划校验、git diff --check 通过。测试输出 `tmp/baostock-evidence/regression.txt`。
 
 本轮通过 `service.materialize(..., interpretation_contract=...)` 冻结完整后补合同并投影到合法同绑定存储；该链路的合成测试覆盖 SQLite manifest、lineage、DuckDB/Parquet 及重复调用。本次真实缓存采用只读计算导出，**没有持久化到原 ReportStorage**：source namespace 为 `f1cb1cfa-6ea5-4091-ada6-380482097f55`；projection namespace 为 null，表示普通文件而非伪造的新绑定。完整事实文件约 418.1 MiB；内存随事实/缺口输出规模增长，原记录读取仍为 256 条分块，并非恒定内存。
 
@@ -161,10 +161,10 @@ python -m analysis.structured.materialization_audit --db 'D:/估值模型/tmp/st
 
 剩余缺口：210 个空值；1,444 个 `reported_period` 数值只确认报告期末、未确认累计/单季窗口，因此不派生单季/TTM；日历无缓存记录且未新增解释；13,618 个身份/日期/文本字段不作为数值；31 个旧技术字段继续 unknown。利润金额的单位为元，股本为股，均已纳入；未把 ratio 当金额。报告/batch/frontend、主工作树、其他任务日志均未修改。公开文档当前联网核实、历史真实缓存回放、人工验收三个状态分别保留，人工验收仍由主 agent/用户独立完成。
 
-本轮提交文件为 `interpretation.py`、解释合同配置及三份源证据/验证文档、`materialization.py`、`materialization_replay.py`、`materialization_audit.py`、`records.py`、`service.py` 的 materialize 参数、`cli.py` 的 materialize 参数、新增专项测试及本交付记录；不提交 OpenSpec planning 或本地原始/大输出文件。
+本轮提交文件为 `interpretation.py`、解释合同配置及三份源证据/验证文档、`materialization.py`、`materialization_replay.py`、`materialization_audit.py`、`records.py`、`service.py` 的 materialize 参数、`cli.py` 的 materialize 参数、新增专项测试及本交付记录；不提交规划材料或本地原始/大输出文件。
 
 ## 主 Agent 收尾复核（2026-09-13）
 
 实施提交为 `9bc8b677128979d58aceaf7a9ed218aa1f63aacd`。主 Agent 独立复跑 `tests/structured/test_baostock_interpretation.py`，结果为 **47 passed in 4.45s**；复跑上文 `materialization_audit` 命令，核验 **100,189 条事实、521 个快照**，`all_mapped_numeric_inputs_accounted_for=true`，物化哈希与交付记录一致。前述 356 项全量相关测试为实施 Agent 的运行记录，本次主 Agent 未重复全量测试。
 
-依据代码交付、专项复测与真实缓存审计，主 Agent 将 OpenSpec **1.4–1.7** 标记完成；事实物化任务为 **7/7**，整个变更为 **7/16**。210 个空值、1,444 个期间窗口未确认事实及空日历缓存的边界保持不变。报告、批处理、前端和全局交付任务继续暂停，未归档整个变更，分支尚未合并；当前行情采集和人工黄金验收未完成。
+依据代码交付、专项复测与真实缓存审计，主 Agent 将历史规划中的 **1.4–1.7** 标记完成；事实物化任务为 **7/7**，整个历史变更为 **7/16**。210 个空值、1,444 个期间窗口未确认事实及空日历缓存的边界保持不变。报告、批处理、前端和全局交付任务当时继续暂停；当前行情采集和人工黄金验收未完成。
