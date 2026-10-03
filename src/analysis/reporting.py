@@ -183,7 +183,12 @@ class ReportBuilder:
             if item.verification_status == VerificationStatus.PENDING
         )
         conflicts.extend(
-            f"{item.event_type}/{item.summary}: 事件核验状态为待核验"
+            (
+                f"{item.event_type}/{item.summary}"
+                f" [event_id={item.event_id};"
+                f" period_end={item.period_end.isoformat() if item.period_end else 'unknown'}]:"
+                " 事件核验状态为待核验"
+            )
             for item in events
             if item.verification_status == VerificationStatus.PENDING
         )
@@ -289,6 +294,10 @@ class ReportBuilder:
             active_verification_fact_ids.update(
                 str(item) for item in fact.metadata.get("consolidated_from_fact_ids", [])
             )
+        peer_sets = [
+            item for item in request.peer_sets
+            if _datetime_le(item.as_of, request.as_of)
+        ]
         audit = AuditAppendix(
             sources=sources,
             method_bundle=bundle,
@@ -309,6 +318,7 @@ class ReportBuilder:
                 item.dimensional_fact_id for item in dimensional_facts
             ],
             event_ids=[item.event_id for item in events],
+            peer_set_refs=[item.peer_set_id for item in peer_sets],
         )
         report = ReportVersion(
             parent_report_id=parent_report_id,
@@ -326,7 +336,7 @@ class ReportBuilder:
             dimensional_facts=dimensional_facts,
             events=events,
             industry_facts=[f for f in request.industry_facts if _datetime_le(f.available_at, request.as_of)],
-            peer_sets=[p for p in request.peer_sets if _datetime_le(p.as_of, request.as_of)],
+            peer_sets=peer_sets,
             claims=claims,
             assumptions=request.assumptions,
             tracking_indicators=tracking_indicators,
@@ -395,6 +405,13 @@ class ReportBuilder:
             for refs in _normalize_lineage(inputs.get("_lineage", {})).values():
                 referenced.update(ref.split(":", 1)[1] for ref in refs if ref.startswith("source:"))
         referenced.update(sid for item in [*request.industry_facts, *request.peer_sets] for sid in item.source_ids)
+        # Peer metric rows carry their own frozen structured source IDs. Keep
+        # those sources in the report audit appendix as well as the synthetic
+        # peer-projection source that identifies the input files.
+        for peer_set in request.peer_sets:
+            for peer in (peer_set.metadata or {}).get("peers", []):
+                for metric in peer.get("metrics", []):
+                    referenced.update(metric.get("source_ids", []))
         return [
             source
             for source in request.sources

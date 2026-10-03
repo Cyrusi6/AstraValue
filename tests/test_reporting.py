@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from analysis.models import ClaimKind, ClaimRecord, FactRecord, ResearchRating, VerificationStatus
+from analysis.models import ClaimKind, ClaimRecord, EventRecord, FactRecord, PeerSetVersion, ResearchRating, VerificationStatus
 from analysis.reporting import ReportBuildError, ReportBuilder
 
 
@@ -107,6 +107,38 @@ def test_pending_fact_forces_unrated_and_never_enters_latest(demo_request):
     report = ReportBuilder().build(demo_request)
     assert report.conclusion.rating == ResearchRating.UNRATED
     assert report.audit.conflicts
+
+
+def test_peer_metric_sources_and_peer_set_refs_remain_in_audit(demo_request):
+    peer_source = demo_request.sources[0].model_copy(update={"source_id": "peer-metric-source"})
+    demo_request.sources.append(peer_source)
+    demo_request.peer_sets = [PeerSetVersion(
+        peer_set_id="peer-set-audit", target_ticker=demo_request.ticker,
+        as_of=demo_request.as_of, included_tickers=["000858"],
+        inclusion_reason={"000858": "同一行业观察集"},
+        industry_taxonomy_version="test-v1", data_snapshot_id="peer-snapshot",
+        metadata={"peers": [{"ticker": "000858", "metrics": [{"source_ids": [peer_source.source_id]}]}]},
+    )]
+
+    report = ReportBuilder().build(demo_request)
+
+    assert "peer-set-audit" in report.audit.peer_set_refs
+    assert peer_source.source_id in {item.source_id for item in report.audit.sources}
+
+
+def test_pending_event_conflict_identifies_event_and_period(demo_request):
+    demo_request.events = [EventRecord(
+        event_id="dividend-event-2025", ticker=demo_request.ticker, event_type="dividend",
+        announced_at=demo_request.as_of, available_at=demo_request.as_of,
+        period_end=date(2025, 12, 31), lifecycle_state="announced_plan",
+        summary="每股税前现金分红方案", source_ids=[demo_request.sources[0].source_id],
+        data_snapshot_id="event-snapshot",
+    )]
+
+    report = ReportBuilder().build(demo_request)
+
+    assert any("event_id=dividend-event-2025" in item and "period_end=2025-12-31" in item
+               for item in report.audit.conflicts)
 
 
 def test_critical_acceptance_window_excludes_prior_year_comparative():

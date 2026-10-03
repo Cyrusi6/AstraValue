@@ -1798,6 +1798,8 @@ def _peer_payload(
                         "label": next(item["label"] for item in profile["core_metrics"] if item["metric_id"] == metric),
                         "value": public["value"],
                         "unit": public["unit"],
+                        "currency": public["currency"],
+                        "scope": public["scope"],
                         "period": public["period_end"],
                         "period_type": public["period_type"],
                         "fact_id": public["fact_id"],

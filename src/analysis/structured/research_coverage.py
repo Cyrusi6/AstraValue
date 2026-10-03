@@ -177,7 +177,8 @@ def build_question_coverage(
         field = str(metadata.get("structured_field_path") or "").removeprefix("$.")
         if dataset and field and fact.get("value") is not None and not fact.get("derived_from_fact_ids"):
             expected = {"cumulative_or_annual": {"cumulative", "annual"}, "single_quarter": {"single_quarter"},
-                        "point_in_time": {"instant"}, "daily": {"market_quote", "instant"}}.get(field_periods.get((dataset, field)))
+                        "point_in_time": {"instant", "market_quote"},
+                        "daily": {"market_quote", "instant"}}.get(field_periods.get((dataset, field)))
             if expected and fact.get("period_type") not in expected:
                 period_mismatches[(dataset, field, period)].append(fact)
             else:

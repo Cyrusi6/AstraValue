@@ -27,7 +27,15 @@ class Briefing:
         """Get only useful category summaries, date spans, availability and expansion links."""
         from .catalog import Catalog
         result=Catalog(self.w).catalog_overview(research_id)
-        s,_,_=self.w.pack(research_id)
+        s,_,payload=self.w.pack(research_id)
+        peers, excluded = aligned_peers(payload.get("peers", []))
         return {**result,'company':s['company'],'as_of':s['as_of'],'writing_contract':VERSION,
+            'peer_comparison': {
+                'status': 'ready' if peers else 'pending',
+                'included_tickers': [item.get('ticker') for item in peers],
+                'items': peers,
+                'excluded_metrics': excluded,
+                'limitations': '冻结同行事实用于同口径观察；品牌带、渠道、产品结构和区域差异未标准化，集合仍需研究者确认。',
+            },
             'content':'按类别展开目录，再选择指标、完整报表、附注或公告读取。',
             'prompt_tool':'get_research_prompt'}

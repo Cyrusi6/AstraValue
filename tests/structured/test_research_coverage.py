@@ -74,6 +74,16 @@ def test_selected_zero_fact_readies_only_matching_field_and_period_with_provenan
                if row["requiredness"] == "optional" or not row["active_in_profile"] or row["scope_route"] != "core")
 
 
+def test_market_quote_satisfies_point_in_time_market_cap_requirement():
+    result = build(facts=[fact(dataset="market_cap", raw="CLOSE_PRICE", value=1258.62,
+                               period="2026-09-30", period_type="market_quote", ident="market-quote")])
+    rows = [row for row in result["rows"] if row["requirement_id"] == "REQ.ES05.Q01.002"]
+    assert len(rows) == 1
+    assert rows[0]["state"] == "ready"
+    assert rows[0]["fact_ids"] == ["market-quote"]
+    assert rows[0]["effective_input_period"] == "2026-09-30"
+
+
 def test_quarter_and_stock_values_cannot_satisfy_cumulative_field_at_same_year_end():
     for kind in ("single_quarter", "instant", "ttm"):
         result = build(facts=[fact(period_type=kind)])

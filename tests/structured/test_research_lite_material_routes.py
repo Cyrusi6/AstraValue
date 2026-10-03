@@ -91,6 +91,8 @@ def test_peer_inputs_merge_all_roots_and_keep_dedicated_root_out_of_company_fact
         "operating_income": "80", "gross_margin": "0.75", "eastmoney_pe_ttm": "16", "eastmoney_pb_mrq": "5"}
     assert metrics["eastmoney_pe_ttm"]["period"] == "2026-09-12"
     assert metrics["eastmoney_pb_mrq"]["period"] == "2026-09-11"
+    assert metrics["operating_income"]["currency"] == "CNY"
+    assert metrics["operating_income"]["scope"] == "consolidated"
     assert metrics["eastmoney_pe_ttm"]["available_at"] == "2026-09-13T00:00:00Z"
     assert _requirement(payload, "lite.context.peer_comparison")["state"] == "ready"
     income = next(item for item in payload["metrics"]

@@ -58,6 +58,8 @@ def test_brief_is_clean_without_rewriting_frozen_files(workspace):
     s=workspace.prepare_research('贵州茅台','2025-01-01')
     result=Briefing(workspace).get_research_brief(s['research_id'])
     assert result['categories'] and 'F1' not in str(result)
+    assert result['peer_comparison']['status'] == 'pending'
+    assert result['peer_comparison']['included_tickers'] == []
     assert 'exclusion_reasons' not in str(result) and 'audit_entry' not in result
     public = operations(workspace)['prepare_research']('贵州茅台','2025-01-01')
     assert public['content'] == result['content']
