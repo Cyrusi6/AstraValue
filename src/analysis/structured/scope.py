@@ -33,7 +33,7 @@ def load_scope():
 def load_research_profile(profile_id: str):
     if profile_id in {STANDARD_PROFILE_ID, "eight-step-standard-v1.0.0"}:
         value = deepcopy(load_research_profile(LITE_PROFILE_ID))
-        value.update(profile_id=profile_id, version=profile_id.rsplit("v",1)[1], authority="计划.md")
+        value.update(profile_id=profile_id, version=profile_id.rsplit("v",1)[1], authority="项目总计划.md")
         value["windows"].update(complete_annual_years=5, required_quarters=12)
         value["include_latest_cumulative_and_ttm"] = True
         if profile_id == STANDARD_PROFILE_ID:
