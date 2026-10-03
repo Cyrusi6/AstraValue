@@ -106,3 +106,10 @@
 贵州茅台 `贵州茅台-6.1sol-20261003-final` 已由 Codex 按用户授权完成代人工成品验收。8 页 PDF 逐页检查、八章结构、同行连接、31 条数字引用、19 个 Excel 工作表、提示词哈希和五种导出格式检查通过；验收记录为 `overall_decision=passed`。研究覆盖、股利核验、DCF、系统草稿状态和模型身份独立凭证按用户决定保留为 deferred。
 
 真实治理 manifest 与知识 Agent/人工发布门属于合并前遗留验收缺口，按用户决定延期，不再阻断本轮代码合并。知识发布测试继续单独保留，默认代码回归门不再运行该真实发布门；延期证据见 `docs/knowledge/acceptance/release-deferred-20261003.json`。
+
+## 2026-10-03 合并收口完成
+
+- 候选 codex/fact-materialization-ultra 已快进合入 main，主线提交为 2d1c4b1；主 worktree 清洁。
+- 主线最终检查：默认 Python 回归 1912 passed、14 skipped、0 failed；compileall、前端 npm run build、OpenSpec strict、旧入口运行时扫描和 git diff --check 均通过。知识发布门单独运行仍按预期因 agent_samples、human_review 缺失返回失败，已登记为 deferred，不计入默认回归。
+- v4 验收材料、v5 报告、候选 tmp/、var/、output/ 及主/知识 worktree 未提交内容已保存到 D:\估值模型-archives\，并带有 SHA-256 或文件数/字节数清单。
+- 清理完成后只保留 main 的本地和远程引用；知识 OpenSpec 草案保留在仓外归档，活动 OpenSpec 只有 eight-step-production-pipeline-v1。

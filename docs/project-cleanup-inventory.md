@@ -1,8 +1,8 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-10-03（报告验收、知识延期门和材料归档已完成，待合入 main 收口）
-盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
-当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
+更新时间：2026-10-03（已合入 main，最终技术检查通过，其他 worktree/分支已清理）
+盘点工作树：`D:\估值模型`（合并前候选为 `D:\估值模型-worktrees\fact-materialization-ultra`）
+当前分支：`main`（合入 `2d1c4b1`，清理、结构化增量修复、回采记录和延期门已提交）
 
 这份清单把代码事实、已确认的产品决策和后续验收分开记录。表中的“动作”是目标处置，不表示已经完成删除或合并；在验收门通过前，不得用 `git branch -D`、工作树删除或批量删除替代迁移。
 
@@ -23,7 +23,7 @@
 | P11 | 旧直接报告入口：`src/analysis/api.py` 的 `/api/reports*`、旧 `AnalysisService.create_report` 直接输入流程、前端报告新建/旧 CLI 输入。`ReportVersion` 模型和导出能力仍被 P03 使用。 | **删除 `/api/reports` 直接输入和旧报告编辑/编排入口**；保留 `ReportVersion`、历史读取、导出和审计对象作为研究工作区链路的结果模型。 | 新报告只能从研究工作区冻结包经 reporting bridge 生成；旧编辑方法已删除，旧直接输入测试、前端入口、文档和 CLI 引用同步清理。 |
 | P12 | 旧来源注册表历史版本：`config/data_sources/business_model_sources.v1.0–v1.10.json`；当前代码默认 `v1.11`，测试和历史回放仍按版本哈希读取。 | **保留为只读历史证据**；生产默认只使用 `v1.11`。 | 新 planner/orchestrator 不遍历旧版本；manifest、快照和报告保留 registry version/hash 定位。 |
 | P13 | 已删除的重复启动包装器：`scripts/run_demo.py`、`scripts/smoke_online_sources.py`。前者曾转发到早期 CLI 演示子命令，后者曾转发到现行 `smoke-sources`；两者均无独有功能，`e9f553e` 已在知识/事实分支删除。 | **删除**，现行调用方只使用仍存在的结构化、采集和 smoke CLI，或安装后的 `ashare-analysis` 入口。 | README、前端空状态提示、脚本文档和测试引用一并更新；不删除实际 smoke/structured probe 实现。历史说明不表示这些包装器或演示子命令仍可运行。 |
-| P14 | OpenSpec、分支和工作树：2026-10-02 核对 `main` 为 `181a4cb`、`codex/knowledge-base-v1` 为 `027ac38`；fact 候选已包含清理、增量修复、知识候选、治理接入，最新采集时间修复代码为 `4c203d5`。三份未跟踪报告材料继续保留；其他 worktree 的未提交内容须在合并前核对。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
+| P14 | OpenSpec、分支和工作树：候选 `codex/fact-materialization-ultra` 已快进合入 `main`（`2d1c4b1`）；v5 报告、延期门和全部未提交/忽略材料均已归档。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；本轮收口后只保留 `main`**。 | `main` 最终 Python 回归 1912 passed/14 skipped/0 failed，compileall、前端 build、OpenSpec strict、旧入口扫描和 `git diff --check` 均通过；归档清单位于 `D:\估值模型-archives\`。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
 当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。真实治理 manifest 和知识候选 review/Agent/人工发布门按用户决定延期；贵州茅台 v5 报告成品人工验收已通过。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
@@ -55,7 +55,7 @@
 
 - 主线：`main` / `181a4cb`。
 - 候选整合分支：`codex/knowledge-base-v1` / `027ac38`，包含 `fact-materialization-ultra` 及三个 knowledge 分支的已提交等价补丁。
-- 当前事实工作树：`codex/fact-materialization-ultra`，清理与结构化增量修复及本轮收口变更已提交前核验；三份 v4 材料、v5 成品和全部忽略运行证据均已归档，未提交内容另有状态快照。
+- 当前事实工作树已合入 `main`；三份 v4 材料、v5 成品、全部忽略运行证据和所有未提交快照均已归档，候选 worktree 已在归档核对后删除。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。

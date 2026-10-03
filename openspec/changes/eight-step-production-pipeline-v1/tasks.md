@@ -150,7 +150,7 @@
 - [x] 11.3 删除治理独立报告生成器、模型运行器、工具会话和 trace 编排；保留治理取证、实体解析、事件重建、快照和脱敏，并接入共享 acquisition manifest → 研究工作区 → reporting bridge。
 - [x] 11.4 按需报告正文回采已用贵州茅台 2025 年报验证 HTTP 200、快照复用和内容哈希稳定；重复请求不新增运行、attempt 或正文 snapshot，证据见 `docs/acquisition/moutai-on-demand-report-recapture-20261002.md`。
 - [x] 11.5 默认治理配置保持显式空列表并返回 `registered_governance_manifest_required`；新增 capability-gap 回归和绑定说明，禁止用 fixture、缓存或虚构 manifest 冒充真实治理资料。
-- [x] 11.6 按用户决定完成贵州茅台 v5 成品代人工验收；真实治理 manifest 与知识 Agent 样例/人工发布门属于合并前遗留验收缺口，登记为独立 deferred acceptance，不阻断本轮代码合并。实际合入 `main`、确认主线结果并删除其他 worktree、分支和远程分支仍按最终收口步骤执行。
+- [x] 11.6 按用户决定完成贵州茅台 v5 成品代人工验收；真实治理 manifest 与知识 Agent 样例/人工发布门属于合并前遗留验收缺口，登记为独立 deferred acceptance，不阻断代码合并。候选已合入 `main`，主线最终检查通过，其他 worktree、分支和远程分支已在归档证据确认后清理。
 
 - [x] 11.7 将 `__retrieved_at` 限于本地 provenance；用空根真实回采核实三个旧 `9501` 错误消失，保存 9 项 `no_data` 与同行样本/茅台报告原文的逐项对照。最终 baseline 为 53 成功、9 空响应、0 失败，重复采集/物化幂等；完整增量仍由空 coverage 阻止，详见 `docs/acquisition/moutai-structured-api-acceptance-20261002.md`。
 - [x] 11.8 按用户决定，将贵州茅台 9 项 API 缺口延期落实到默认配置，本轮其余 22 项已完成真实 incremental、重复运行及跨进程接续。完整空查询允许后续联网，覆盖首次为空与后续新增测试；原始 `no_data`、快照和报告证据保留，其他公司范围不变。最终真实运行 18 有数据、10 完整为空、0 未完成，详见 `docs/acquisition/moutai-incremental-recovery-20261002.md`。
