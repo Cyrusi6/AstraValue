@@ -19,7 +19,7 @@
   },
   "default_regression": {
     "excluded_marker": "knowledge_release",
-    "command": "python -X utf8 -m pytest --ignore=tests/knowledge/release -q -rA",
+    "command": "python -X utf8 -m pytest -m \"not knowledge_release\" -q -rA",
     "release_gate_command": "python -X utf8 -m pytest tests/knowledge/release -o addopts= -m knowledge_release"
   },
   "resume_requirements": [
