@@ -1,6 +1,6 @@
 # 公司研究工具运行说明
 
-新研究统一使用 `get_research_prompt` 返回的主提示和审阅提示（buy-side-v4），以及 `get_research_brief` 的写作材料投影；所有宿主共用 `config/prompts/`。写作数据契约仍为buy-side-v2，历史草稿可读。公司任务只填[任务模板](../../config/prompts/company_research_task.md)的对象及运行参数；详细参数和例子移至[按需工具参考](research-tool-reference.md)。本文是部署与工程运行说明，不要求研究模型默认阅读全文或其中的历史验收记录。
+新研究统一使用 `get_research_prompt` 返回的主提示和审阅提示（buy-side-v5），以及 `get_research_brief` 的写作材料投影；所有宿主共用 `config/prompts/`。写作数据契约仍为buy-side-v2，历史草稿可读。公司任务只填[任务模板](../../config/prompts/company_research_task.md)的对象及运行参数；详细参数和例子移至[按需工具参考](research-tool-reference.md)。本文是部署与工程运行说明，不要求研究模型默认阅读全文或其中的历史验收记录。
 
 当前入口复用既有轻量包、证据读取器、估值引擎、ReportVersion 和导出器。公司身份、数据位置和状态目录由部署配置 `config/research_workspace.json` 管理，模型调用不传供应商或目录。当前行业画像支持已登记的七家白酒公司；其他公司返回画像能力缺口，尚不代表全部 A 股可用。
 

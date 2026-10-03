@@ -9,19 +9,35 @@
   "compileall": "passed",
   "git_diff_check": "passed",
   "full_release": {
-    "passed": true,
-    "failed_checks": [],
+    "status": "deferred",
+    "passed": false,
+    "failed_checks": [
+      "agent_samples",
+      "human_review"
+    ],
     "available_questions": 54,
-    "total_questions": 54
+    "total_questions": 54,
+    "reason": "当前候选的真实 Agent 样例和人工发布记录属于合并前遗留验收项，按用户决定延期；该发布门从默认代码回归中分离。",
+    "command": "python -X utf8 -m pytest tests/knowledge/release -o addopts= -m knowledge_release",
+    "bundle_id": "cleanup-20260928-v2",
+    "candidate_content_sha256": "8837ddc717fb2664da0a75e0b4d611f4348ad0b583d58875d2164491f7557802",
+    "ready": 54,
+    "returncode": 1,
+    "evidence_counts": {
+      "source_checks": 56,
+      "case_checks": 56,
+      "agent_samples": 0
+    },
+    "log": "var/research/knowledge-store/release-deferred-20261003.log"
   },
   "full_repository_regression": {
-    "status": "passed_with_two_existing_skips",
-    "command": "PYTHONUTF8=1 PYTHONIOENCODING=utf-8 python -X utf8 -m pytest --ignore=tests/knowledge/release -q -rA",
-    "log": "var/research/knowledge-store/full-regression.log",
-    "passed": 1432,
+    "status": "passed_with_existing_skips",
+    "command": "python -X utf8 -m pytest -m \"not knowledge_release\" -q -rA",
+    "log": "var/final-default-regression-20261003.log",
+    "passed": 1912,
     "failed": 0,
-    "skipped": 2,
+    "skipped": 14,
     "failure": null,
-    "focused_utf8_rerun": "full suite rerun with PYTHONUTF8=1 and PYTHONIOENCODING=utf-8; passed"
+    "focused_utf8_rerun": "default suite rerun with PYTHONUTF8=1 and PYTHONIOENCODING=utf-8; passed"
   }
 }

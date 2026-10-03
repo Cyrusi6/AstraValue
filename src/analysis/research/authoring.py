@@ -7,7 +7,9 @@ from .drafts import Drafts
 from .workspace import ResearchError, ROOT
 
 VERSION = "buy-side-v2"
-PROMPT_VERSION = "buy-side-v4"
+# The prompt files in config/prompts are both v5.  Keep this separate from
+# VERSION: the latter is the persisted writing-data contract used by drafts.
+PROMPT_VERSION = "buy-side-v5"
 FORBIDDEN = ("由于输入包未提供", "受限于输入包", "本报告不作断言", "读者应自行注意", "结构化无记录不证明无事项")
 
 

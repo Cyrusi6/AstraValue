@@ -66,7 +66,8 @@ jobs:
           legacy_snapshot"
       - run: python scripts/validate_governance_registry.py --questions config/data_sources/governance_management_questions.v1.json --query-pack config/data_sources/governance_management_query_pack.v1.json --require-plan-traceability
       - run: python -m pytest tests/governance -q
-      - run: python -m pytest
+      - name: Run default regression suite (deferred knowledge release gate excluded)
+        run: python -m pytest -m "not knowledge_release"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

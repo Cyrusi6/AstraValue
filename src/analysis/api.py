@@ -452,6 +452,8 @@ def create_app(
         )
         return _plan_response(plan)
 
+    # Keep a deterministic tombstone for old clients. It is excluded from the
+    # OpenAPI schema and never creates a legacy sync batch.
     @application.post("/api/companies/{ticker}/sync", include_in_schema=False)
     def removed_legacy_sync_entry(ticker: str) -> None:
         raise HTTPException(status_code=404, detail="legacy sync入口已移除；请使用结构化采集流程")

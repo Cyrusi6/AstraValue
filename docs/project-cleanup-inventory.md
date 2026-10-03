@@ -1,6 +1,6 @@
 # 项目精简盘点与处置清单
 
-更新时间：2026-10-02（延期范围、增量和空查询规则已落实，失败隔离与恢复已接入）
+更新时间：2026-10-03（报告验收、知识延期门和材料归档已完成，待合入 main 收口）
 盘点工作树：`D:\估值模型-worktrees\fact-materialization-ultra`  
 当前分支：`codex/fact-materialization-ultra`（清理、结构化增量修复和回采记录已提交）
 
@@ -26,11 +26,11 @@
 | P14 | OpenSpec、分支和工作树：2026-10-02 核对 `main` 为 `181a4cb`、`codex/knowledge-base-v1` 为 `027ac38`；fact 候选已包含清理、增量修复、知识候选、治理接入，最新采集时间修复代码为 `4c203d5`。三份未跟踪报告材料继续保留；其他 worktree 的未提交内容须在合并前核对。 | **统一 OpenSpec 到 `eight-step-production-pipeline-v1`；整合后本地和远程只保留 `main`**。以当前 fact worktree 为代码基线，按用户决定选择性处理知识冲突，再合并到 main。 | 先保存并审核全部未提交内容，确认两份茅台验收文档都保留；完成测试、真实联网/人工验收和 review 后，才删除其他分支、远程引用和 worktree。 |
 
 - 2026-10-02 已完成一份明确报告的真实按需正文验收：贵州茅台 2025 年报在新空根 HTTP 200、143 页解析成功，重复执行复用同一正文 snapshot；没有扩大为全量报告归档。
-当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。治理真实 manifest、知识候选 review/Agent/人工验收及报告人工验收仍待完成；在此之前保留候选材料、worktree 和分支。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
+当前增量收口补充：旧重复入口已清理，最新空根 baseline 为 53 成功、9 空响应、0 失败。9 项延期已落实到贵州茅台默认范围，本轮其余 22 项真实增量及同参数重复采集已完成；完整空查询允许以后更新，失败项独立补采。真实治理 manifest 和知识候选 review/Agent/人工发布门按用户决定延期；贵州茅台 v5 报告成品人工验收已通过。具体运行见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。
 
 ## 决策与验收边界
 
-当前工作树还有三份未跟踪的贵州茅台验收材料：`tmp_v4.txt`（含评级、目标价和八步正文）以及 `v4-contact.png`、`v4-all-contact.png`（报告渲染联系图）。它们不是源代码，也未加入 Git；在人工黄金验收完成前保留，最终归档或删除需结合用户阅读结果决定。
+贵州茅台验收材料 `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 已由 v5 代人工验收覆盖，并归档到 `D:\估值模型-archives\fact-materialization-ultra\moutai-report-qa-20261003\`；v5 成品、验收记录和哈希清单也在该目录。
 
 已确认的产品决策：
 
@@ -46,7 +46,7 @@
 
 当前尚未等同于完成的事项：
 
-1. 旧重复链已删除，治理共享 workspace 已接入。真实治理资料、知识与报告的人工验收及分支收口仍未完成。
+1. 旧重复链已删除，治理共享 workspace 已接入。真实治理资料和知识发布门已登记为延期；贵州茅台 v5 报告成品人工验收已完成，分支收口仍未完成。
 2. 600519 本轮 22 项范围的真实增量、重复运行和中断接续已验证；9 项原始空响应和已有报告证据保留为后补项。真实接口本次未披露新增业务行，新增入库分支另由受控上游变化测试验证。
 3. 未提交研究代码、图片、配置和文档需要逐组审阅，确认不是临时文件后才能纳入；`tmp/`、`var/` 中的真实证据不得批量清理。
 4. 分支删除属于最后一步；未提交内容未保存、测试或人工验收未完成时不得执行。
@@ -55,7 +55,7 @@
 
 - 主线：`main` / `181a4cb`。
 - 候选整合分支：`codex/knowledge-base-v1` / `027ac38`，包含 `fact-materialization-ultra` 及三个 knowledge 分支的已提交等价补丁。
-- 当前事实工作树：`codex/fact-materialization-ultra`，清理与结构化增量修复已提交；仍有三个未跟踪临时文件待确认。
+- 当前事实工作树：`codex/fact-materialization-ultra`，清理与结构化增量修复及本轮收口变更已提交前核验；三份 v4 材料、v5 成品和全部忽略运行证据均已归档，未提交内容另有状态快照。
 - 结构化运行说明：`docs/acquisition/structured-data-runtime-v1.md`。
 - 研究工作区运行手册：`docs/acquisition/research-workspace-runbook.md`。
 - 贵州茅台验收：`docs/acquisition/moutai-golden-report-acceptance.md`。

@@ -5,9 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from analysis.knowledge import KnowledgeService
 
 ROOT = Path(__file__).resolve().parents[3]
+
+pytestmark = pytest.mark.knowledge_release
 
 
 def test_all_54_questions_and_recorded_acceptance_are_ready(tmp_path):

@@ -1,0 +1,47 @@
+{
+  "schema": "knowledge-release-deferred-v1",
+  "recorded_at": "2026-10-03T00:00:00+08:00",
+  "change": "eight-step-production-pipeline-v1",
+  "bundle_id": "cleanup-20260928-v2",
+  "candidate_content_sha256": "8837ddc717fb2664da0a75e0b4d611f4348ad0b583d58875d2164491f7557802",
+  "classification": "preexisting_deferred",
+  "status": "deferred",
+  "reason": "当前候选缺少与本版本绑定的真实 Agent 样例和人工发布记录；该缺口在最终分支合并前已经存在，按用户决定延期处理。",
+  "release_gate": {
+    "question_coverage": "passed",
+    "candidate_content_identity": "passed",
+    "method_identities": "passed",
+    "source_checks": "passed",
+    "case_checks": "passed",
+    "agent_samples": "deferred",
+    "human_review": "deferred",
+    "default_published": false
+  },
+  "default_regression": {
+    "excluded_marker": "knowledge_release",
+    "command": "python -X utf8 -m pytest --ignore=tests/knowledge/release -q -rA",
+    "release_gate_command": "python -X utf8 -m pytest tests/knowledge/release -o addopts= -m knowledge_release"
+  },
+  "resume_requirements": [
+    "用当前 bundle_id 重新运行真实 Agent 样例并保存 ES01–ES08 证据。",
+    "由人工审阅当前 bundle 的来源、案例、样例回答和未解决问题。",
+    "重新运行 release gate，两个 deferred 检查全部通过后再考虑发布 default。"
+  ],
+  "observed_release": {
+    "command": "python -X utf8 scripts/validate_knowledge_release.py --store var/research/knowledge-store --bundle-id cleanup-20260928-v2 --output var/research/knowledge-store/release-deferred-20261003.json",
+    "returncode": 1,
+    "passed": false,
+    "ready": 54,
+    "total": 54,
+    "failed_checks": [
+      "agent_samples",
+      "human_review"
+    ],
+    "evidence_counts": {
+      "source_checks": 56,
+      "case_checks": 56,
+      "agent_samples": 0
+    },
+    "log": "var/research/knowledge-store/release-deferred-20261003.log"
+  }
+}

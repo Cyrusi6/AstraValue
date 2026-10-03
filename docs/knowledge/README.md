@@ -40,10 +40,13 @@ full = kb.expand(guide['methods'][0]['detail_ref'])
 python -X utf8 -m pytest tests/knowledge/regression tests/test_method_registry.py
 python -X utf8 scripts/validate_method_library.py
 python -X utf8 scripts/validate_knowledge_release.py --bundle-id my-candidate-v1 --output var/research/knowledge-store/release-report.json
-python -X utf8 -m pytest tests/knowledge/release
+# 真实发布门单独运行；默认 pytest 会排除 knowledge_release 标记
+python -X utf8 -m pytest tests/knowledge/release -o addopts= -m knowledge_release
 ```
 
 发布命令返回码 0 表示所有门通过，1 表示验收未齐，2 表示输入或版本错误。它只检查，不修改默认包。完整测试默认从当前目录构建临时候选；检查既有冻结候选时设置 `KNOWLEDGE_STORE`、`KNOWLEDGE_BUNDLE`，实际 Agent 与人工记录文件通过 `KNOWLEDGE_ACCEPTANCE` 或命令的 `--acceptance` 指定。
+
+当前知识候选的真实 Agent 样例和人工发布记录属于合并前遗留验收项，已按用户决定延期。默认回归门不运行 `tests/knowledge/release`，该目录仍可用上面的命令单独复核；在记录补齐前，候选保持未发布并返回 `no_default_release`。
 
 来源与案例审阅直接取自被冻结的内容记录，外部文件不能替换它们。实际 Agent 样例和人工抽查分别记录。人工项尚缺时，完整发布门仍然失败；不能把模型审阅登记为人工通过。通过后可用 Python 的 `publish_default(bundle_id, acceptance)` 发布，发布会再次校验。
 

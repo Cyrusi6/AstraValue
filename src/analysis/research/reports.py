@@ -352,6 +352,7 @@ class Reports:
         from analysis.service import AnalysisService
         from analysis.storage import ReportStorage
         from analysis.exports import export_report
+        from .authoring import PROMPT_VERSION, VERSION, prompt_document
         state, path, payload = self.w.pack(research_id)
         draft = Drafts(self.w).get_draft(research_id)
         if draft["missing_sections"] or not draft["conclusion"]:
@@ -369,6 +370,15 @@ class Reports:
         request = build_report_request(path)
         request.claims = []
         request.report_notes = "宿主模型自主研究；数据/公式/假设分别记录；人读验收未完成。"
+        research_prompt = prompt_document("research")
+        review_prompt = prompt_document("review")
+        request.input_metadata.update({
+            "prompt_version": PROMPT_VERSION,
+            "prompt_sha256": research_prompt["sha256"],
+            "review_prompt_version": review_prompt["version"],
+            "review_prompt_sha256": review_prompt["sha256"],
+            "writing_contract_version": VERSION,
+        })
         evidence = payload["evidence"] + payload.get("supplemental_evidence", [])
         evidence += [dict(x, evidence_id=x["artifact_id"])
                      for x in self.w.artifacts(research_id, "evidence_read")]
@@ -386,6 +396,9 @@ class Reports:
                      for x in self.w.artifacts(research_id, "governance_snapshot")
                      if x["artifact_id"] in profile_refs]
         request.input_metadata["agent_research"] = {"snapshot_id": state["snapshot_id"], "draft": draft,
+            "prompt_version": PROMPT_VERSION, "prompt_sha256": research_prompt["sha256"],
+            "review_prompt_version": review_prompt["version"], "review_prompt_sha256": review_prompt["sha256"],
+            "writing_contract_version": VERSION,
             "evidence": evidence,
             "charts":rendered_charts,"calculations":self.w.artifacts(research_id,"calculation"),
             "explorations":explorations}

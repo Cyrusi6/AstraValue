@@ -21,7 +21,7 @@ def test_public_schema_removes_chapter_rebuttal_and_hosts_share_prompt(workspace
     assert a['prompt'] and a['sha256'] == hashlib.sha256(a['prompt'].encode()).hexdigest()
     review = ops['get_research_prompt'](stage='review')
     assert review == prompt_document('review')
-    assert a['version'] == review['version'] == 'buy-side-v4'
+    assert a['version'] == review['version'] == 'buy-side-v5'
     assert a['sha256'] != review['sha256']
 
 

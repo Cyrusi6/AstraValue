@@ -43,13 +43,13 @@
 
 ### 2026-09-28 候选报告材料只读检查
 
-已只读检查当前工作树中暂存的贵州茅台候选材料：`tmp_v4.txt` 为 8 章文本报告，包含评级、目标价、情景假设、37 条证据索引及计算边界；`v4-contact.png` 与 `v4-all-contact.png` 为对应的多页渲染联系图。文本与渲染均可读取，图表和附录页存在。该检查只证明材料可读和渲染完整，不替代来源逐条核验、独立复算或用户人工黄金验收；三份文件在验收完成前继续保留且不加入提交。
+已只读检查当前工作树中暂存的贵州茅台候选材料：`tmp_v4.txt` 为 8 章文本报告，包含评级、目标价、情景假设、37 条证据索引及计算边界；`v4-contact.png` 与 `v4-all-contact.png` 为对应的多页渲染联系图。文本与渲染均可读取，图表和附录页存在。该检查只证明材料可读和渲染完整，不替代来源逐条核验、独立复算或用户人工黄金验收；三份文件已在 v5 验收后归档到 `D:\估值模型-archives\fact-materialization-ultra\moutai-report-qa-20261003\`，不加入提交。
 
 审计知识候选分支时发现：`codex/knowledge-base-v1` 的合并结果包含知识提交，但同时重新带回了旧 `src/analysis/adapters/`、`src/analysis/structured/research.py`、旧包装脚本和部分旧研究入口。因此它只能作为内容来源逐项迁移，不能直接作为最终 `main` 的整合基线；当前候选工作树的旧链删除结果必须优先保留。
 
 进一步审计确认，knowledge 分支的 `structured/runtime.py` 回退了本轮 incremental 水位线和 reconcile 实现，`acquisition/runtime.py` 还通过 `AdapterManager` 重新连接旧 adapters；这两个文件不得从 knowledge 分支覆盖当前候选版本。可迁移范围限于知识服务、知识目录/正文、发布门和经逐项核对的财务计算链。
 
-主工作树 `D:\估值模型` 另有未跟踪的 `openspec/changes/eight-step-knowledge-base-v1/`；已复制到候选工作树同一路径保存，但尚未纳入当前唯一生产 OpenSpec。最终只保留 `main` 前必须按用户决定归档或合并，不能因分支清理而丢失。
+主工作树 `D:\估值模型` 的未跟踪 `.tmp-knowledge-diff.txt` 和 `openspec/changes/eight-step-knowledge-base-v1/` 已完整归档到 `D:\估值模型-archives\worktree-cleanup-20261003\main-untracked\`；它们未纳入当前唯一生产 OpenSpec，也不会因清理分支而丢失。
 
 - 候选事实分支 `codex/fact-materialization-ultra` 已删除旧 adapters、旧全量采集链、旧 `structured/research.py`、旧包装脚本和直接报告写入路径，提交 `33b0800`。
 - 贵州茅台真实结构化 baseline run 为 `structured-run-ed9bcd788fc8ac594c4c01a9`：62 个分区任务，50 success、9 no_data、3 failed；失败和空响应均保留来源证据，没有用 fixture 或缓存冒充成功。
@@ -72,12 +72,12 @@
 
 ## 交接约束
 
-- `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 是当前候选工作树未跟踪临时文件，未经确认不删除、不加入提交。
+- `tmp_v4.txt`、`v4-contact.png`、`v4-all-contact.png` 已完成 v5 验收并归档到 `D:\估值模型-archives\fact-materialization-ultra\moutai-report-qa-20261003\`，不加入提交。
 - 未完成用户决策前，不删除知识分支、worktree 或远程分支；分支收口是最后一步。
 - 自动测试、真实 API、缓存重放和人工报告阅读分别报告，任何一种通过都不替代其他验收。
 - 本轮有效截止日回采证据见 `docs/acquisition/moutai-valid-cutoff-recapture-20260928.md`：baseline 和 `income_fields` incremental 均为真实 HTTP 响应；同参数重复 baseline/incremental 返回既有 run 且不新增 attempts。早期未来 cutoff 和旧 partial 按需报告记录只作历史证据，已标为 superseded，不能用于当前通过结论。
 
-本轮历史治理模型删除、治理接入说明、默认能力缺口回归和 OpenSpec 清单更新已提交到候选分支 `c7ad3a6`。三个未跟踪的贵州茅台候选验收材料继续保留，未加入提交。
+本轮历史治理模型删除、治理接入说明、默认能力缺口回归和 OpenSpec 清单更新已提交到候选分支 `c7ad3a6`。贵州茅台 v4 材料、v5 成品和验收记录已归档；候选 worktree 的 `tmp/`、`var/`、`output/` 也已完整复制到 `D:\估值模型-archives\fact-materialization-ultra\runtime-evidence-20261003\`，清单记录文件数和字节数。
 
 ## 2026-10-02 本地 provenance 与九项空响应归因
 
@@ -100,3 +100,9 @@
 已修复异常已存页被跳过、有效终页保存后错误请求下一页两个恢复漏洞。保存历史页版本，用新的完成证明确定可消费页；研究工作区跑完独立任务后汇总可用候选快照和未完成清单，部分成果保持 partial。
 
 全量 Python 1745 通过、14 跳过、1 个既有知识发布门失败；OpenSpec strict 通过。证据见 [增量与恢复验收](acquisition/moutai-incremental-recovery-20261002.md)。真实治理 manifest、知识和报告人工验收仍待完成，未合并、推送或删除分支/worktree。
+
+## 2026-10-03 v5 报告验收与发布门延期
+
+贵州茅台 `贵州茅台-6.1sol-20261003-final` 已由 Codex 按用户授权完成代人工成品验收。8 页 PDF 逐页检查、八章结构、同行连接、31 条数字引用、19 个 Excel 工作表、提示词哈希和五种导出格式检查通过；验收记录为 `overall_decision=passed`。研究覆盖、股利核验、DCF、系统草稿状态和模型身份独立凭证按用户决定保留为 deferred。
+
+真实治理 manifest 与知识 Agent/人工发布门属于合并前遗留验收缺口，按用户决定延期，不再阻断本轮代码合并。知识发布测试继续单独保留，默认代码回归门不再运行该真实发布门；延期证据见 `docs/knowledge/acceptance/release-deferred-20261003.json`。
