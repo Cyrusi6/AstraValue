@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import date, datetime, time
 import json
 from pathlib import Path
+import shutil
 import sqlite3
 from typing import Any, Mapping, Sequence
 from zoneinfo import ZoneInfo
@@ -141,6 +142,10 @@ def request(jobs, research_id: str, question: str, impact: str,
         "groups": selected_groups,
         "refresh": bool(refresh),
     }
+    # Wording and impact are metadata.  The immutable operation is identified
+    # by the frozen research scope, group set and refresh intent so a changed
+    # prompt cannot reset the same task's retry budget or create duplicate
+    # evidence for one candidate run.
     task_id = "j_" + digest(task_identity)[:24]
     try:
         return jobs.get(task_id)
@@ -158,9 +163,12 @@ def request(jobs, research_id: str, question: str, impact: str,
         "group_definitions": [GROUP_BY_ID[item] for item in selected_groups],
         "group_index": 0,
         "group_results": {},
+        "recovery_groups": [],
+        "recovery_index": 0,
         "candidate_roots": [],
         "candidate_evidence_roots": [],
         "candidate_artifacts": [],
+        "latest_candidate": None,
         "refresh": bool(refresh),
         "baseline": baseline,
         "state": "planned",
@@ -184,12 +192,12 @@ def execute(jobs, job: Mapping[str, Any]) -> None:
     _assert_baseline(state, pack_path, job, w.config)
     group_ids = tuple(job.get("groups") or ())
     index = int(job.get("group_index", 0))
-    if index >= len(group_ids):
+    phase, group_id = _next_group(dict(job))
+    if group_id is None:
         _finish(jobs, dict(job), state, pack_path)
         return
 
     task = dict(job)
-    group_id = group_ids[index]
     group = dict(GROUP_BY_ID[group_id])
     results = dict(task.get("group_results") or {})
     current = dict(results.get(group_id) or {
@@ -204,9 +212,15 @@ def execute(jobs, job: Mapping[str, Any]) -> None:
     group_root = w.state / "jobs" / task["task_id"] / "groups" / group_id
     group_root.mkdir(parents=True, exist_ok=True)
     try:
-        run = _structured_round(jobs, task, current, group, state, payload, group_root)
+        run = _structured_round(
+            jobs, task, current, group, state, payload, group_root,
+            reconcile=phase == "recovery",
+        )
         current.update(run)
-        task["network_requests"] = int(task.get("network_requests", 0)) + int(run.get("network_requests", 0))
+        task["network_requests"] = sum(
+            int(value.get("network_requests", 0))
+            for key, value in results.items() if key != group_id
+        ) + int(run.get("network_requests", 0))
         task["cache_hits"] = int(task.get("cache_hits", 0)) + int(run.get("cache_hits", 0))
     except Exception as exc:
         current.update(
@@ -228,44 +242,104 @@ def execute(jobs, job: Mapping[str, Any]) -> None:
     _publish_group_candidate(jobs, task, current, state, pack_path, payload)
     results[group_id] = current
     task["group_results"] = results
-    task["group_index"] = index + 1
-    if task["group_index"] < len(group_ids):
+    if phase == "forward":
+        task["group_index"] = index + 1
+        if _group_needs_recovery(current):
+            _queue_recovery_group(task, group_id)
+        if task["group_index"] < len(group_ids):
+            task.update(state="checkpointed", reason="group_complete; next_group_ready")
+            jobs.save(task)
+            return
+        _finish(jobs, task, state, pack_path)
+        return
+    else:
+        _advance_recovery(task, group_id)
+        if _recovery_group_still_open(current):
+            task["failures"] = int(task.get("failures", 0)) + 1
+
+    if _next_group(task)[1] is not None:
         task.update(state="checkpointed", reason="group_complete; next_group_ready")
         jobs.save(task)
         return
     _finish(jobs, task, state, pack_path)
 
 
-def _structured_round(jobs, task, current, group, state, payload, group_root):
+def _structured_round(jobs, task, current, group, state, payload, group_root, *, reconcile: bool = False):
     from analysis.acquisition.runtime import AcquisitionRuntime
     from analysis.structured.runtime import StructuredDataRuntime
 
     cutoff = date.fromisoformat(state["as_of"])
-    profile_id = (task["baseline"].get("profile_id") or jobs.w.config["profile_id"])
+    pack_path = Path(task["baseline"]["manifest"]["path"]).resolve().parent
     identity = jobs.w.resolve(state["canonical_ticker"], cutoff).identity
     if identity is None:
         raise ResearchError("deferred_topic_company_identity_unresolved")
     db = group_root / "analysis.db"
     data_root = group_root / "data"
     run_id = current.get("run_id")
+    reconcile_topics = [
+        topic for topic, result in (current.get("dataset_results") or {}).items()
+        if result.get("state") in {"failed", "partial"}
+    ]
+    if reconcile and current.get("state") == "checkpointed":
+        # The current run still has resumable pages.  Recovery must continue
+        # that checkpoint; reconcile is only for a terminal failed/partial run.
+        reconcile = False
+    if reconcile and run_id and not reconcile_topics:
+        # A candidate build or document fallback can fail after the structured
+        # run succeeded.  Reuse its immutable run instead of creating a
+        # needless reconcile run.
+        reconcile = False
     with AcquisitionRuntime.create(db, data_root) as acquisition:
         runtime = StructuredDataRuntime(acquisition)
-        if not run_id:
+        if reconcile and run_id:
+            parent_run_id = run_id
+            plan = runtime.plan(
+                [identity], mode="reconcile", company_scope="company-only",
+                dataset_ids=reconcile_topics or list(group["topics"]),
+                report_periods=list(task["baseline"].get("report_periods") or ()),
+                # The nine deferred datasets are explicit scope routes.  Some
+                # are intentionally absent from the lite profile's selection
+                # list, so the acquisition plan must use the base scope while
+                # materialization still keeps the frozen report profile.
+                research_profile_id=None,
+                parent_run_id=parent_run_id,
+                as_of=datetime.combine(cutoff, time.max, ZoneInfo("Asia/Shanghai")),
+            )
+            run_id = plan.run_ids[0]
+            current["inherited_jobs"] = list((current.get("structured_status") or {}).get("jobs", []))
+            current["inherited_coverage"] = list(current.get("coverage") or [])
+            current["reconcile_parent_run_id"] = parent_run_id
+            current["reconcile_topics"] = reconcile_topics or list(group["topics"])
+            current["run_id"] = run_id
+            _persist_group_run_id(jobs, task, current)
+        elif not run_id:
             plan = runtime.plan(
                 [identity], mode="incremental", company_scope="company-only",
                 dataset_ids=list(group["topics"]),
                 report_periods=list(task["baseline"].get("report_periods") or ()),
-                research_profile_id=profile_id,
+                research_profile_id=None,
                 as_of=datetime.combine(cutoff, time.max, ZoneInfo("Asia/Shanghai")),
             )
             run_id = plan.run_ids[0]
+            current["run_id"] = run_id
+            _persist_group_run_id(jobs, task, current)
         result = runtime.execute(run_id, max_jobs_per_round=1)
         status = result["status"]
         coverage = runtime.storage.list_acquisition_coverage(run_id=run_id, limit=None)
         jobs_status = status.get("jobs", [])
+        replaced_jobs = {item.get("reconciles_job_id")
+                         for item in runtime.storage.list_jobs(run_id, limit=None)}
+        jobs_status = [item for item in current.get("inherited_jobs", [])
+                       if item.get("job_id") not in replaced_jobs] + list(jobs_status)
+        coverage = [item for item in current.get("inherited_coverage", [])
+                    if item.get("job_id") not in replaced_jobs] + coverage
+        status = {**status, "jobs": jobs_status}
         dataset_results = _dataset_results(group["topics"], jobs_status, coverage)
         snapshots = _snapshot_inventory(db, data_root, group["topics"])
-        attempts = sum(int(item.get("attempt_count", 0)) for item in jobs_status)
+        # Each persisted acquisition attempt is one page request. Counting the
+        # group database once avoids adding cumulative run totals on resumes.
+        with sqlite3.connect(db) as con:
+            attempts = con.execute("SELECT COUNT(*) FROM acquisition_attempts").fetchone()[0]
     terminal = not any(status.get(key, 0) for key in ("pending", "retryable", "partial"))
     if not terminal:
         return {
@@ -299,7 +373,21 @@ def _structured_round(jobs, task, current, group, state, payload, group_root):
     group_state = "partial" if failed_topics else "completed"
     if status.get("failed") or status.get("blocked"):
         group_state = "partial" if status.get("succeeded") or status.get("no_data") else "failed"
-    fallback = _fallback_documents(jobs, task, current, group, state, group_root, dataset_results)
+    fallback = _fallback_documents(
+        jobs, task, current, group, state, pack_path, group_root, dataset_results,
+    )
+    # A previous candidate build or fallback attempt may have left transient
+    # recovery fields on the group.  The terminal structured round below is a
+    # fresh basis for publishing the next candidate, so remove those stale
+    # fields before recording the new fallback result.
+    _clear_retry_state(current)
+    if _fallback_has_gaps(fallback):
+        group_state = "partial"
+        current.setdefault("candidate_gaps", []).append({
+            "stage": "document_fallback",
+            "reason": _fallback_gap_reason(fallback),
+            "next_action": "resume_report_materials",
+        })
     return {
         "run_id": run_id,
         "state": group_state,
@@ -313,14 +401,58 @@ def _structured_round(jobs, task, current, group, state, payload, group_root):
     }
 
 
+def _clear_retry_state(current: dict[str, Any]) -> None:
+    """Remove transient candidate errors before a successful retry publishes."""
+
+    for key in (
+        "candidate_gaps",
+        "candidate_state",
+        "candidate_build_status",
+        "candidate_audit",
+        "candidate_pack_path",
+        "candidate_snapshot_id",
+        "reason",
+    ):
+        current.pop(key, None)
+
+
+def _fallback_has_gaps(fallback: Mapping[str, Any]) -> bool:
+    """Return whether filing fallback is incomplete for the requested slots."""
+
+    if fallback.get("status") in {None, "not_needed"}:
+        return False
+    return bool(
+        fallback.get("status") != "completed"
+        or fallback.get("query_complete") is not True
+        or fallback.get("materials_ready") is not True
+        or fallback.get("failures")
+        or fallback.get("missing_documents")
+        or fallback.get("missing_slots")
+        or fallback.get("remaining")
+    )
+
+
+def _fallback_gap_reason(fallback: Mapping[str, Any]) -> str:
+    """Keep a compact, inspectable reason in the candidate audit."""
+
+    failures = fallback.get("failures") or []
+    if failures and isinstance(failures[0], Mapping):
+        return str(failures[0].get("reason") or failures[0].get("stage") or "fallback_incomplete")
+    return str(fallback.get("reason") or fallback.get("status") or "fallback_incomplete")
+
+
 def _publish_group_candidate(jobs, task, current, state, pack_path, payload) -> None:
     """Build a candidate from all completed group projections and fallback roots."""
 
-    from analysis.structured.research_lite import build_lite_pack, materialize_cache
+    from analysis.structured.research_lite import materialize_cache
 
     group_id = current["group_id"]
     group_root = jobs.w.state / "jobs" / task["task_id"] / "groups" / group_id
-    materialized = group_root / "materialized"
+    current["publication_round"] = int(current.get("publication_round", 0)) + 1
+    outputs = group_root / "rounds" / str(current["publication_round"])
+    outputs.mkdir(parents=True, exist_ok=True)
+    _persist_group_run_id(jobs, task, current)
+    materialized = outputs / "materialized"
     run_id = current.get("run_id")
     if run_id and current.get("structured_status", {}).get("summary", {}).get("runnable_finished", True):
         try:
@@ -334,32 +466,28 @@ def _publish_group_candidate(jobs, task, current, state, pack_path, payload) -> 
                 "stage": "materialization", "reason": str(exc), "next_action": "inspect_group_run",
             })
     try:
-        roots, evidence, peers = bound_roots(jobs.w, state, pack_path)
-        candidate_roots = list(task.get("candidate_roots") or ())
+        candidate_roots = [item for item in task.get("candidate_roots", [])
+                           if not Path(item).resolve().is_relative_to(group_root.resolve())]
         if materialized.joinpath(state["ticker"]).is_dir():
             candidate_roots.append(str(materialized.resolve()))
         candidate_roots = list(dict.fromkeys(candidate_roots))
-        candidate_evidence = list(task.get("candidate_evidence_roots") or ())
+        candidate_evidence = [item for item in task.get("candidate_evidence_roots", [])
+                              if not Path(item).resolve().is_relative_to(group_root.resolve())]
         fallback_root = current.get("fallback", {}).get("output_root")
         if fallback_root:
-            candidate_evidence.append(str(Path(fallback_root).resolve()))
+            frozen = outputs / "documents"
+            for name in ("document-evidence.jsonl", "live-documents.json"):
+                source = Path(fallback_root) / name
+                if source.is_file():
+                    frozen.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source, frozen / name)
+            if frozen.is_dir():
+                candidate_evidence.append(str(frozen.resolve()))
         candidate_evidence = list(dict.fromkeys(candidate_evidence))
-        all_roots = list(dict.fromkeys([*(str(item) for item in roots), *candidate_roots]))
-        primary = next((Path(item) for item in all_roots if (Path(item) / state["ticker"]).is_dir()), None)
-        if primary is None:
-            raise ResearchError("registered_projection_missing")
-        built = build_lite_pack(
-            input_root=primary, ticker=state["ticker"], as_of=date.fromisoformat(state["as_of"]),
-            output_root=jobs.w.state / "deferred-topic-packs",
-            supplements=tuple(Path(item) for item in all_roots if Path(item) != primary),
-            # Candidate projections contain only the target company.  Keep
-            # them out of the peer channel; peer inputs remain peer-only.
-            peer_roots=tuple(dict.fromkeys(peers)),
-            evidence_roots=tuple(dict.fromkeys([*evidence, *candidate_evidence])),
-            profile_id=task["baseline"].get("profile_id") or jobs.w.config["profile_id"],
-        )
-        built = inherit_snapshot_materials(
-            parent_pack=pack_path, built=built, output_root=jobs.w.state / "material-packs"
+        built = _build_candidate_pack(
+            jobs, task, state, pack_path,
+            candidate_roots=candidate_roots,
+            candidate_evidence=candidate_evidence,
         )
         audit = {
             "version": VERSION,
@@ -371,11 +499,13 @@ def _publish_group_candidate(jobs, task, current, state, pack_path, payload) -> 
             "coverage": current.get("coverage", []),
             "snapshots": current.get("snapshots", []),
             "fallback": current.get("fallback", {}),
+            "group_state": current.get("state"),
+            "candidate_gaps": current.get("candidate_gaps", []),
             "candidate_roots": candidate_roots,
             "candidate_evidence_roots": candidate_evidence,
             "candidate_snapshot_id": built["pack_id"],
         }
-        audit_path = group_root / "candidate-audit.json"
+        audit_path = outputs / "candidate-audit.json"
         audit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         artifact = jobs.w.artifact(task["research_id"], "snapshot_candidate", {
             "candidate_pack_path": built["pack_dir"],
@@ -394,6 +524,12 @@ def _publish_group_candidate(jobs, task, current, state, pack_path, payload) -> 
         current.update(candidate_state="ready", candidate_pack_path=built["pack_dir"],
                        candidate_snapshot_id=built["pack_id"], candidate_build_status=built.get("status"),
                        candidate_audit=audit)
+        task["latest_candidate"] = {
+            "candidate_pack_path": built["pack_dir"],
+            "candidate_snapshot_id": built["pack_id"],
+            "candidate_build_status": built.get("status"),
+            "group_id": group_id,
+        }
         task["candidate_roots"] = candidate_roots
         task["candidate_evidence_roots"] = candidate_evidence
         if artifact["artifact_id"] not in task.setdefault("candidate_artifacts", []):
@@ -405,9 +541,44 @@ def _publish_group_candidate(jobs, task, current, state, pack_path, payload) -> 
         current["candidate_state"] = "unavailable"
 
 
+def _build_candidate_pack(jobs, task, state, pack_path, *, candidate_roots, candidate_evidence):
+    """Build one candidate from every currently accumulated group input."""
+
+    from analysis.structured.research_lite import build_lite_pack
+
+    roots, evidence, peers = bound_roots(jobs.w, state, pack_path)
+    projection_roots = [Path(item).resolve() for item in candidate_roots
+                        if Path(item).resolve().is_dir()]
+    all_roots = list(dict.fromkeys([*(str(item) for item in roots),
+                                    *(str(item) for item in projection_roots)]))
+    primary = next((Path(item) for item in all_roots
+                    if (Path(item) / state["ticker"]).is_dir()), None)
+    if primary is None:
+        raise ResearchError("registered_projection_missing")
+    evidence_roots = [Path(item).resolve() for item in [*evidence, *candidate_evidence]
+                      if Path(item).resolve().is_dir()]
+    built = build_lite_pack(
+        input_root=primary, ticker=state["ticker"], as_of=date.fromisoformat(state["as_of"]),
+        output_root=jobs.w.state / "deferred-topic-packs",
+        supplements=tuple(Path(item) for item in all_roots if Path(item) != primary),
+        # Candidate projections contain only the target company.  Keep them
+        # out of the peer channel; peer inputs remain peer-only.
+        peer_roots=tuple(dict.fromkeys(peers)),
+        evidence_roots=tuple(dict.fromkeys(evidence_roots)),
+        profile_id=task["baseline"].get("profile_id") or jobs.w.config["profile_id"],
+    )
+    return inherit_snapshot_materials(
+        parent_pack=pack_path, built=built, output_root=jobs.w.state / "material-packs"
+    )
+
+
 def _finish(jobs, task, state, pack_path) -> None:
     groups = task.get("group_results", {})
-    candidate_ids = list(task.get("candidate_artifacts") or ())
+    # Reference group artifacts only; feeding previous final artifacts back
+    # into the next final creates a new identity on every unchanged finish.
+    candidate_ids = list(dict.fromkeys(
+        ident for value in groups.values() for ident in value.get("candidate_artifacts", [])
+    ))
     ready = [value for value in groups.values() if value.get("candidate_state") == "ready"]
     partial = any(
         value.get("state") not in {"completed"}
@@ -417,8 +588,26 @@ def _finish(jobs, task, state, pack_path) -> None:
         for value in groups.values()
     )
     final = None
+    aggregate_error = None
     if ready:
-        latest = ready[-1]
+        latest = task.get("latest_candidate") or ready[-1]
+        if task.get("candidate_roots"):
+            try:
+                aggregate = _build_candidate_pack(
+                    jobs, task, state, pack_path,
+                    candidate_roots=task.get("candidate_roots", ()),
+                    candidate_evidence=task.get("candidate_evidence_roots", ()),
+                )
+                latest = {
+                    "candidate_pack_path": aggregate["pack_dir"],
+                    "candidate_snapshot_id": aggregate["pack_id"],
+                    "candidate_build_status": aggregate.get("status"),
+                    "group_id": "all",
+                }
+                task["latest_candidate"] = latest
+            except Exception as exc:
+                aggregate_error = f"{type(exc).__name__}:{str(exc)[:500]}"
+                partial = True
         final = jobs.w.artifact(task["research_id"], "snapshot_candidate", {
             "candidate_pack_path": latest["candidate_pack_path"],
             "candidate_snapshot_id": latest["candidate_snapshot_id"],
@@ -430,6 +619,9 @@ def _finish(jobs, task, state, pack_path) -> None:
                        for topic in GROUP_BY_ID[group_id]["topics"]],
             "group_candidate_artifacts": candidate_ids,
             "group_results": groups,
+            "aggregate_candidate_roots": list(task.get("candidate_roots", ())),
+            "aggregate_candidate_evidence_roots": list(task.get("candidate_evidence_roots", ())),
+            "aggregate_build_error": aggregate_error,
             "baseline": task["baseline"],
             "adoption_required": True,
             "is_final_candidate": True,
@@ -443,7 +635,94 @@ def _finish(jobs, task, state, pack_path) -> None:
         "group_results": groups,
         "baseline": task["baseline"],
     }
-    task.update(state="partial" if partial or final is None else "completed", reason=None if not partial and final else "candidate_or_group_gaps_preserved")
+    recovery_open = bool(_open_recovery_groups(task))
+    if recovery_open:
+        recovery = list(task.get("recovery_groups") or ())
+        open_groups = set(_open_recovery_groups(task))
+        task["recovery_index"] = next(
+            (index for index, group_id in enumerate(recovery) if group_id in open_groups),
+            0,
+        )
+    task.update(
+        state="partial" if partial or final is None or recovery_open else "completed",
+        reason=(None if not partial and final and not recovery_open
+                else "candidate_or_group_gaps_preserved"),
+        next_action=("resume_failed_groups" if recovery_open
+                     else None if not partial and final else task.get("next_action")),
+    )
+    jobs.save(task)
+
+
+def _next_group(task: Mapping[str, Any]) -> tuple[str, str | None]:
+    """Return the next forward or recovery group without changing the job."""
+
+    groups = tuple(task.get("groups") or ())
+    index = int(task.get("group_index", 0))
+    if index < len(groups):
+        return "forward", groups[index]
+    recovery = list(task.get("recovery_groups") or ())
+    cursor = int(task.get("recovery_index", 0))
+    results = task.get("group_results") or {}
+    while cursor < len(recovery):
+        group_id = recovery[cursor]
+        current = results.get(group_id) or {}
+        if _group_recovered(current):
+            cursor += 1
+            continue
+        return "recovery", group_id
+    return "", None
+
+
+def _group_needs_recovery(current: Mapping[str, Any]) -> bool:
+    return (
+        current.get("state") in {"failed", "partial"}
+        or current.get("candidate_state") != "ready"
+        or bool(current.get("candidate_gaps"))
+    )
+
+
+def _group_recovered(current: Mapping[str, Any]) -> bool:
+    return (
+        current.get("state") == "completed"
+        and current.get("candidate_state") == "ready"
+        and not current.get("candidate_gaps")
+        and current.get("candidate_build_status") in {None, "ready"}
+    )
+
+
+def _recovery_group_still_open(current: Mapping[str, Any]) -> bool:
+    return not _group_recovered(current)
+
+
+def _queue_recovery_group(task: dict[str, Any], group_id: str) -> None:
+    queue = task.setdefault("recovery_groups", [])
+    if group_id not in queue:
+        queue.append(group_id)
+
+
+def _open_recovery_groups(task: Mapping[str, Any]) -> list[str]:
+    results = task.get("group_results") or {}
+    return [
+        group_id for group_id in task.get("recovery_groups", ())
+        if not _group_recovered(results.get(group_id) or {})
+    ]
+
+
+def _advance_recovery(task: dict[str, Any], group_id: str) -> None:
+    recovery = list(task.get("recovery_groups") or ())
+    try:
+        index = recovery.index(group_id)
+    except ValueError:
+        return
+    task["recovery_index"] = index + 1
+
+
+def _persist_group_run_id(jobs, task: dict[str, Any], current: Mapping[str, Any]) -> None:
+    """Persist a newly planned run before its first execute call can fail."""
+
+    results = dict(task.get("group_results") or {})
+    results[current["group_id"]] = dict(current)
+    task["group_results"] = results
     jobs.save(task)
 
 
@@ -528,16 +807,28 @@ def _coverage_complete(row: Mapping[str, Any]) -> bool:
     )
 
 
-def _fallback_documents(jobs, task, current, group, state, group_root, dataset_results):
+def _fallback_documents(jobs, task, current, group, state, pack_path, group_root, dataset_results):
     empty = [topic for topic, value in dataset_results.items() if value.get("state") == "no_data"]
     if not empty:
         return {"status": "not_needed", "reason": "api_not_complete_empty"}
     from .report_materials import refresh_report_materials
 
-    roots, evidence = jobs.w.material_input_roots(date.fromisoformat(state["as_of"]))
+    # Reuse the parent snapshot's bound roots.  This checks every declared
+    # source/auxiliary input hash before a filing fallback can read it, so a
+    # changed local directory cannot silently become a new baseline.
+    roots, evidence, _ = bound_roots(jobs.w, state, pack_path)
     previous = list(task.get("candidate_evidence_roots") or ())
-    output = group_root / "documents"
+    # Keep pre-scope candidate indexes intact while continuing the same job.
+    output = group_root / "documents-scoped"
+    legacy = group_root / "documents"
+    if legacy.is_dir():
+        previous.append(legacy)
     requirements = [{"requirement_id": value} for value in group["report_requirements"]]
+    frozen_periods = tuple(task["baseline"].get("report_periods") or ())
+    document_periods = {
+        "D01": max((value for value in frozen_periods if value.endswith("-12-31")), default=None),
+        "D02": max((value for value in frozen_periods if value.endswith("-06-30")), default=None),
+    }
     try:
         result = refresh_report_materials(
             ticker=state["ticker"], cutoff=date.fromisoformat(state["as_of"]),
@@ -546,15 +837,21 @@ def _fallback_documents(jobs, task, current, group, state, group_root, dataset_r
             requirements=requirements, allow_network=True, refresh=bool(task.get("refresh")),
             max_seconds=max(5, min(60, int(jobs.w.config.get("max_tool_seconds", 120)) - 15)),
             profile_id=task["baseline"].get("profile_id") or jobs.w.config["profile_id"],
+            allowed_report_periods=tuple(value for value in document_periods.values() if value),
         )
         result["trigger_topics"] = empty
         result["scope"] = "report_period_and_registered_route_only"
+        result["allowed_report_periods"] = [value for value in document_periods.values() if value]
+        if (output / "live-documents.json").is_file() and (output / "document-evidence.jsonl").is_file():
+            from .deferred_evidence import organize_topic_evidence
+            result["topic_results"] = organize_topic_evidence(output, empty, result["allowed_report_periods"])
         result["source_files"] = _root_descriptors([output])
         return result
     except Exception as exc:
         return {
             "status": "failed", "reason": str(exc), "trigger_topics": empty,
             "scope": "report_period_and_registered_route_only",
+            "allowed_report_periods": [value for value in document_periods.values() if value],
         }
 
 
@@ -566,10 +863,18 @@ def _snapshot_inventory(db: Path, data_root: Path, topics: Sequence[str]) -> lis
         payloads = con.execute("SELECT payload FROM raw_resource_snapshots ORDER BY created_at,snapshot_id").fetchall()
     for (raw,) in payloads:
         item = json.loads(raw)
+        query = item.get("query_page_canonical")
+        try:
+            query = json.loads(query) if isinstance(query, str) else query
+        except json.JSONDecodeError:
+            query = None
+        dataset_id = query.get("dataset_id") if isinstance(query, Mapping) else None
+        topic_scope = [dataset_id] if dataset_id in topics else []
         relative = item.get("archive_relative_path")
         path = (data_root / relative).resolve() if relative else None
         entry = {
             "snapshot_id": item.get("snapshot_id"),
+            "dataset_id": dataset_id,
             "source_definition_id": item.get("source_definition_id"),
             "source_definition_version": item.get("source_definition_version"),
             "query_page_canonical": item.get("query_page_canonical"),
@@ -579,7 +884,7 @@ def _snapshot_inventory(db: Path, data_root: Path, topics: Sequence[str]) -> lis
             "available_at": item.get("available_at"),
             "created_at": item.get("created_at"),
             "file_hash_verified": bool(path and path.is_file() and sha(path) == item.get("sha256")),
-            "topic_scope": list(topics),
+            "topic_scope": topic_scope,
         }
         rows.append(entry)
     return rows

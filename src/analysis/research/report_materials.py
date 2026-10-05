@@ -119,7 +119,7 @@ def _routes(profile, requirements):
     return chosen, [slots[s] for s in sorted(selected_slots)]
 
 
-def _candidate(row, ticker, cutoff):
+def _candidate(row, ticker, cutoff, allowed_periods=None):
     if row.get("ticker", (row.get("metadata") or {}).get("ticker")) != ticker:
         return None
     url = row.get("url") or row.get("resource_url") or ""
@@ -143,6 +143,8 @@ def _candidate(row, ticker, cutoff):
     kind = "D01" if end.month == 12 else "D02" if end.month == 6 else None
     if kind is None or end > cutoff:
         return None
+    if allowed_periods is not None and end.isoformat() not in allowed_periods:
+        return None
     published = row.get("published_at")
     if not published:
         return None
@@ -158,7 +160,7 @@ def _candidate(row, ticker, cutoff):
             "url": row.get("url") or row.get("resource_url"), "language": "zh", "selected": True}
 
 
-def _load_inputs(roots, ticker, cutoff):
+def _load_inputs(roots, ticker, cutoff, allowed_periods=None):
     merged, requests, evidence, catalogs = {}, [], [], []
     for root in roots:
         payload = _json(root / "live-documents.json", {})
@@ -185,7 +187,8 @@ def _load_inputs(roots, ticker, cutoff):
                     row = json.loads(line)
                     if row.get("company") == ticker:
                         evidence.append(row)
-    candidates = [value for row in merged.values() if (value := _candidate(row, ticker, cutoff))]
+    candidates = [value for row in merged.values()
+                  if (value := _candidate(row, ticker, cutoff, allowed_periods))]
     return candidates, requests, evidence, catalogs
 
 
@@ -304,12 +307,15 @@ def _passages(document, parsed, routes, prior):
 def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db_path: Path, data_root: Path,
         evidence_roots: Sequence[Path] = (), requirements: Sequence[Mapping[str, Any]] = (),
         allow_network: bool = True, max_documents: int = 2, max_seconds: float | None = None,
-        profile_id: str = LITE_PROFILE_ID, refresh: bool = False) -> dict[str, Any]:
+        profile_id: str = LITE_PROFILE_ID, refresh: bool = False,
+        allowed_report_periods: Sequence[str] | None = None) -> dict[str, Any]:
     """Run one bounded round; repeat with the same output to resume durable work.
 
     completed/query_complete describes the query workflow. materials_ready and
     missing_documents/missing_slots separately describe usable source material.
     max_seconds is cooperative between documents and at every network boundary.
+    allowed_report_periods, when provided, limits selected annual/interim
+    documents to the caller's frozen report-period scope.
     """
     started = time.monotonic()
     if not re.fullmatch(r"\d{6}", ticker) or not 1 <= max_documents <= 2:
@@ -319,6 +325,8 @@ def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db
     deadline = started + max_seconds if max_seconds is not None else None
     output = Path(output_root).resolve()
     roots = list(dict.fromkeys(Path(p).resolve() for p in evidence_roots))
+    allowed_periods = (frozenset(date.fromisoformat(value).isoformat() for value in allowed_report_periods)
+                       if allowed_report_periods is not None else None)
     if output in roots:
         raise ValueError("report_materials_output_must_not_overwrite_input")
     profile = load_research_profile(profile_id)
@@ -326,6 +334,8 @@ def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db
     identity = {"version": VERSION, "ticker": ticker, "cutoff": cutoff.isoformat(), "profile_id": profile_id,
                 "profile_sha256": profile["content_sha256"], "scope_sha256": load_scope()["content_sha256"],
                 "db_path": str(Path(db_path).resolve()), "data_root": str(Path(data_root).resolve())}
+    if allowed_periods is not None:
+        identity["allowed_report_periods"] = sorted(allowed_periods)
     checkpoint = output / "report-materials-state.json"
     state = _json(checkpoint, {"identity": identity, "catalog": {}, "bodies": {}, "failures": []})
     if state["identity"] != identity:
@@ -372,7 +382,9 @@ def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db
             "documents": list(documents.values()), "catalogs": catalogs, "requests": requests,
             "performed_network_io": bool(requests), "manual_acceptance": "pending"})
     try:
-        candidates, requests, prior, old_catalogs = _load_inputs([*roots, output], ticker, cutoff)
+        candidates, requests, prior, old_catalogs = _load_inputs(
+            [*roots, output], ticker, cutoff, allowed_periods,
+        )
         selected = _select(candidates)
         local = {}
         for kind, document in selected.items():
@@ -382,6 +394,9 @@ def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db
                 input_issues.append({"document_class": kind, "resource_id": document["resource_id"], "reason": str(exc)})
         expected = {"D01": f"{cutoff.year - (1 if cutoff >= date(cutoff.year, 4, 30) else 2)}-12-31",
                     "D02": f"{cutoff.year if cutoff >= date(cutoff.year, 8, 31) else cutoff.year - 1}-06-30"}
+        if allowed_periods is not None:
+            expected = {kind: max((p for p in allowed_periods if p.endswith(suffix)), default=expected[kind])
+                        for kind, suffix in (("D01", "-12-31"), ("D02", "-06-30"))}
         local_complete = all(local.get(k) and selected[k]["period"] >= expected[k] for k in TARGETS)
         catalog_result = None
         if (not local_complete or state.get("refresh_pending") or state["catalog"].get("run_id")) and allow_network:
@@ -392,7 +407,9 @@ def refresh_report_materials(*, ticker: str, cutoff: date, output_root: Path, db
                 query_complete = bool(catalog_result["query_complete"])
                 if query_complete:
                     remote = [value for row in catalog_result["entries"]
-                              if (value := _candidate({**row, "ticker": ticker}, ticker, cutoff))]
+                              if (value := _candidate(
+                                  {**row, "ticker": ticker}, ticker, cutoff, allowed_periods
+                              ))]
                     selected = _select([*candidates, *remote])
                     state["refresh_pending"] = [k for k in state.get("refresh_pending", []) if k in selected]
                     # Preserve a verified body when its resource identity agrees.

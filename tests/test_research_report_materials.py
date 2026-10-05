@@ -93,6 +93,12 @@ def test_selection_excludes_summary_english_future_and_chooses_actual_latest(tmp
     assert {r["resource_id"] for r in chosen.values()} == {"cninfo:D01", "cninfo:D02"}
 
 
+def test_selection_can_be_bound_to_frozen_report_periods():
+    annual = row("D01")
+    assert reports._candidate(annual, "600519", CUTOFF, {"2025-12-31"}) is not None
+    assert reports._candidate(annual, "600519", CUTOFF, {"2024-12-31"}) is None
+
+
 def test_hash_corruption_is_rejected_and_other_document_stays_readable(tmp_path):
     inputs = tmp_path / "inputs"
     write_inputs(inputs)
