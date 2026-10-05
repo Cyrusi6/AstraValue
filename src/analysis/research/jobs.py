@@ -105,6 +105,20 @@ class MaterialJobs:
             return self.resume_task(ident)
         return job
 
+    def request_deferred_topics(self, research_id: str, question: str, impact: str,
+                                groups: list[str] | None = None,
+                                execute: bool | None = None, refresh: bool = False):
+        """Stage the nine deferred 600519 topics as candidate-only group work.
+
+        This reuses the structured plan/execute/resume and materialization chain.
+        New API responses and filing fallbacks stay below the job directory until
+        a candidate is explicitly adopted; the active research catalog is not
+        changed by this request.
+        """
+        from .deferred_topics import request
+        return request(self, research_id, question, impact, groups=groups,
+                       execute=execute, refresh=refresh)
+
     def query_material_requirements(self, research_id: str, page: int = 1, page_size: int = 30):
         if page < 1 or not 1 <= page_size <= 40:
             raise ResearchError("invalid_pagination")
@@ -154,6 +168,10 @@ class MaterialJobs:
     def execute_round(self, task_id):
         job=self.get(task_id)
         if self.w.config.get("offline", False):
+            return
+        if job.get("topic") == "deferred_topics":
+            from .deferred_topics import execute
+            execute(self, job)
             return
         if job['topic']=='core_materials':
             from .core_materials import execute
