@@ -66,6 +66,9 @@ def reconcile(data,pack,dataset_fact_ids=None):
                             'read_entry':{'tool':'read_material','material_id':target['material_id']}})
         elif r['reader']=='missing':
             ds=r['payload'].get('dataset_id')
+            reviewed=[check for check in items if check['reader']=='filing_check'
+                      and check['payload'].get('dataset_id')==ds
+                      and check['payload'].get('source_projection_role')=='reviewed_filing']
             admitted=set((dataset_fact_ids or {}).get(ds,()))
             for m in pack['metrics']:
                 fact=m.get('fact') or {}
@@ -77,6 +80,19 @@ def reconcile(data,pack,dataset_fact_ids=None):
                     'read_entry':{'tool':'read_material','material_id':target['material_id'],'period':m['period']}})
             if ds=='goodwill':
                 routes.extend(resolutions.get('goodwill',[]))
+            if reviewed:
+                reviewed_periods={check['period'] for check in reviewed}
+                numeric_periods={route['period'] for route in routes if route['state']=='ready'}
+                routes=[route for route in routes
+                        if route['state']!='disclosed_blank' or route['period'] not in reviewed_periods]
+                checks=reviewed+[check for check in items
+                    if check['reader'] in {'filing_check','api_record'}
+                    and check['payload']['dataset_id']==ds
+                    and check['period'] not in reviewed_periods]
+                routes.extend({'period':check['period'],'state':check['payload']['state'],
+                               'finding':check['payload']['finding'],'scope':check['payload']['scope'],
+                               'read_entry':{'tool':'read_material','material_id':check['material_id']}}
+                              for check in checks if check['period'] not in numeric_periods)
             elif ds in {'guarantee','litigation','seo','allotment','bond_issuance','unlock_peer','customers_peer','pledge','violation','audit_opinion'}:
                 for check in items:
                     if check['reader'] not in {'filing_check','api_record'} or check['payload']['dataset_id']!=ds:continue

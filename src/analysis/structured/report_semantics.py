@@ -143,6 +143,40 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
         available = datetime.fromisoformat(item["available_at"].replace("Z", "+00:00"))
         if available > as_of:
             raise ValueError("report_governance_future_record")
+        if item.get("source_projection_role") == "reviewed_filing":
+            originals = {row["evidence_id"]: row for row in
+                         core.get("evidence", []) + core.get("supplemental_evidence", [])}
+            source_ids, spans = [], []
+            for ident in item["evidence_ids"]:
+                original = originals[ident]
+                if hashlib.sha256(Path(original["original_path"]).read_bytes()).hexdigest() != original["original_sha256"]:
+                    raise ValueError("report_reviewed_original_changed")
+                sid = "report-reviewed-document-" + original["original_sha256"][:24]
+                if sid not in {s.source_id for s in sources}:
+                    sources.append(SourceRecord(
+                        source_id=sid, name=item["dataset_id"], source_type="issuer-filing",
+                        url=original.get("source_url"), document_hash=original["original_sha256"],
+                        published_at=original.get("published_at"),
+                        retrieved_at=original.get("retrieved_at") or datetime.fromtimestamp(
+                            Path(original["original_path"]).stat().st_mtime, tz=as_of.tzinfo),
+                        available_at=original.get("published_at") or available,
+                        metadata={"original_path": original["original_path"], "decision_basis": item["decision_basis"],
+                                  "retrieved_at_basis": "frozen_source" if original.get("retrieved_at") else "cached_file_mtime"},
+                    ))
+                source_ids.append(sid)
+                locator = original.get("locator", "")
+                page = int(locator.split(":")[1]) if locator.startswith("page:") else None
+                spans.append(EvidenceSpan(document_id=original["original_sha256"], page=page,
+                                          text=original.get("excerpt")))
+                evidence_index[ident] = {**original, "source_id": sid}
+            claims.append(ClaimRecord(
+                claim_id="report-claim-" + canonical_sha256([VERSION, item["record_id"]])[:24],
+                ticker=ticker, category="business" if item["dataset_id"] == "customers_peer" else "quality" if item["dataset_id"] == "goodwill" else "governance",
+                text=item["period"] + "：" + item["conclusion_text"], claim_kind=ClaimKind.ANALYST_JUDGEMENT,
+                evidence_source_ids=sorted(set(source_ids)), evidence_ids=item["evidence_ids"],
+                evidence_fact_ids=item.get("fact_ids", []), evidence_spans=spans, as_of=as_of,
+            ))
+            continue
         sid = "report-record-" + item["record_id"]
         sources.append(SourceRecord(source_id=sid, name=item["dataset_id"], source_type="supplier-structured",
             upstream_source_id="eastmoney", retrieved_at=available, available_at=available,

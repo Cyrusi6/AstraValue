@@ -164,8 +164,10 @@ class Catalog:
         from .filing_checks import enrich
         from .api_materials import enrich as enrich_api
         from .sw_industry import enrich as enrich_sw
+        from .reviewed_topics import enrich as enrich_reviewed
         view = enrich_sw(enrich_api(enrich(data,pack),self.w.artifacts(rid,'catalog_api_materials')),
                          self.w.artifacts(rid,'sw_industry_classification'),s)
+        view = enrich_reviewed(view,pack,pack_path,s)
         return s,reconcile(view,pack,dataset_fact_ids(manifest,pack,s['ticker']))
 
     def refresh_catalog(self,research_id:str):

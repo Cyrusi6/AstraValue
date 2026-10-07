@@ -7,8 +7,9 @@
     }
   ],
   "state_root": "var/research-workspace",
-  "identity_file": "tmp/data-layer-evidence/cninfo-stock-list.json",
+  "identity_file": "var/research-workspace/identity/cninfo-stock-list.json",
   "pack_roots": [
+    "var/research-snapshots",
     "tmp/moutai-input-restoration-20261002/state/packs",
     "tmp/moutai-golden-v1/lite",
     "tmp/eight-step-lite-v1"
