@@ -107,6 +107,30 @@ def reconcile(data,pack,dataset_fact_ids=None):
                     if ready and name in metric_items:
                         routes.append({'metric_id':name,'periods':sorted({m['period'] for m in ready}),
                             'state':'derived_readable','read_entry':{'tool':'query_research','metric_ids':[name], 'period_type':'single_quarter'}})
+        if r['reader']=='field':
+            parent=next((item for item in items if item.get('material_id')==r['payload'].get('parent_id')),None)
+            dataset=(parent or {}).get('payload',{}).get('dataset_id')
+            if not dataset and parent and parent['reader']=='records':
+                datasets={row.get('dataset_id') for row in parent['payload'].get('rows',[])}
+                if len(datasets)==1:dataset=next(iter(datasets))
+            field=r['payload']['field']
+            reviewed=[]
+            for check in items:
+                payload=check.get('payload') or {}
+                if (check['reader']!='filing_check' or not dataset
+                    or payload.get('dataset_id')!=dataset
+                    or payload.get('source_projection_role')!='reviewed_filing'
+                    or field not in payload.get('fields',{})):continue
+                fact_ids=payload.get('field_fact_ids',{}).get(field,[])
+                reviewed.append({'period':check['period'],
+                    'state':'ready' if fact_ids and payload['fields'][field] is not None else 'original_readable',
+                    'value':payload['fields'][field],'fact_ids':fact_ids,
+                    'unit':payload.get('field_units',{}).get(field),
+                    'value_period':payload.get('field_periods',{}).get(field,check['period']),
+                    'finding':payload['finding'],'scope':payload['scope'],
+                    'read_entry':{'tool':'read_material','material_id':check['material_id']}})
+            reviewed_periods={route['period'] for route in reviewed}
+            routes=[route for route in routes if route.get('period') not in reviewed_periods]+reviewed
         if not routes:continue
         periods=sorted({p for x in routes for p in x.get('periods',[x.get('period')]) if p})
         r['availability']={'source_status':r['status'],'source_label':r.get('status_label',{'processing':'已有待处理','missing':'尚未取得','readable':'已有可读'}.get(r['status'],r['status'])),'source_periods':r['period'],

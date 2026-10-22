@@ -52,7 +52,7 @@ python -m analysis.research.cli search_knowledge --arguments '{"question":"现�
 
 ## MCP 与补采状态
 
-新增 `query_valuation(research_id,start_date,end_date,peers,reference_multiple)` 从已登记真实缓存生成独立估值事实投影，返回区间PE统计、1/3年窗口敏感性和共同有效日同行比较。只读原缓存、不发网络请求、不改旧研究包；历史窗口单独进入合同哈希，保留正式准入、源哈希和复算记录。数据缺失返回共同日期缺口，跨运行冲突拒绝静默覆盖。具体接口、已有能力和仍待接入的API见[研究补采自动化清单](research-automation-map.md)。
+`query_valuation(research_id,start_date,end_date,peers,reference_multiple)` 从已登记真实缓存生成独立估值事实投影。v2读取PE(TTM)、PB(MRQ)、PS(TTM)、收盘价、市值和股本；`metric_history`返回三种倍数的当前分位、中位数、10%/90%分位、最低/最高值及有效样本数，`metric_window_sensitivity`提供1/3年对照。对照窗口以传入end_date为终点，行情日另列。旧`history`仍表示reference_multiple在PE序列中的位置，该参数只作比较参考。共同有效日同行比较继续要求PE、PB和收盘价齐备，PS缺值单列。工具只读原缓存、不联网、不改旧研究包；窗口、六字段和v2版本进入合同哈希，保留正式准入、源哈希和复算记录。候选采用继续调用adopt_snapshot。具体来源与更新状态见[研究补采自动化清单](research-automation-map.md)。
 
 MCP stdio 服务：`python -m analysis.research.mcp_server`。设置与 CLI 相同的 Python 环境和依赖（`pip install -e ".[research]"`）；宿主配置中的 command 使用已安装依赖的 Python 绝对路径，args 为 `-m analysis.research.mcp_server`，PYTHONPATH 指向本项目 src。MCP 与 CLI 调用同一服务；图片查看返回 MCP Image。已经验证真实进程握手、工具发现和错误返回，尚未完成 Codex／Claude Code 各自的完整宿主验收。
 

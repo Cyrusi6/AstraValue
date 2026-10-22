@@ -417,13 +417,18 @@ def test_explicit_valuation_window_is_separate_stable_and_does_not_change_contex
         "stored_unit":"multiple", "original_unit":"multiple"}
     for day in ['2026-09-08','2026-09-09','2026-09-10']:
         fixture.add('market_cap','PE_TTM','20',day,row={'TRADE_DATE':day},rule=rule)
+        for raw,metric,unit,value in [('PS_TTM','ps_ttm','multiple','9'),
+                ('TOTAL_MARKET_CAP','market_cap','CNY','1500'),('TOTAL_SHARES','total_shares','shares','100')]:
+            additional={**rule,'raw_field':raw,'standard_field':metric,'unit':unit,
+                        'stored_unit':unit,'original_unit':unit,'definition_id':'test:'+raw}
+            fixture.add('market_cap',raw,value,day,row={'TRADE_DATE':day},rule=additional)
     fixture.add()
     fixture.get_run_context('run-1')
     original = deepcopy(fixture.context.frozen_config)
     default = fixture.run(research_scope=True)
     history = fixture.run(research_scope=True,valuation_window=('2026-09-08','2026-09-09'))
     assert {f.period_end.isoformat() for f in history.facts} == {'2026-09-08','2026-09-09'}
-    assert {f.metric_id for f in history.facts} == {'pe_ttm'}
+    assert {f.metric_id for f in history.facts} == {'pe_ttm','ps_ttm','market_cap','total_shares'}
     assert history.materialization_hash == fixture.run(research_scope=True,valuation_window=('2026-09-08','2026-09-09')).materialization_hash
     assert default.contract_hash != history.contract_hash
     assert default.materialization_hash == fixture.run(research_scope=True).materialization_hash

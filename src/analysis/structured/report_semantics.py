@@ -131,9 +131,15 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
 
     market = [m for m in ready if m.get("group") == "F"]
     if market:
+        historical_ready = core.get("valuation_history_review", {}).get("status") == "ready"
         claim("valuation", "；".join(f"{m['label']}={_format_number(m['fact']['value'],m['fact']['unit'],m['metric_id'])}（数据期{m['fact']['period_end']}）" for m in market)
               + "。这是市场定价快照，不是合理价值；缺少确认的预测和折现假设，暂不估值。",
-              facts=[m["fact"]["fact_id"] for m in market], unknowns=["历史估值分位、可比调整和前瞻盈利假设未完成。"])
+              facts=[m["fact"]["fact_id"] for m in market],
+              unknowns=["可比调整和前瞻盈利假设未完成。" if historical_ready else "历史估值分位、可比调整和前瞻盈利假设未完成。"])
+        if historical_ready:
+            history = core["valuation_history_review"]
+            claim("valuation", history["narrative"], facts=history["summary_fact_ids"],
+                  evidence=[history["evidence_id"]], source_ids=history["source_ids"])
 
     materialized_record_ids = {
         (item.get("metadata") or {}).get("structured_record_version_id")
@@ -154,7 +160,7 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
                 sid = "report-reviewed-document-" + original["original_sha256"][:24]
                 if sid not in {s.source_id for s in sources}:
                     sources.append(SourceRecord(
-                        source_id=sid, name=item["dataset_id"], source_type="issuer-filing",
+                        source_id=sid, name=item["dataset_id"], source_type=original.get("source_type") or "issuer-filing",
                         url=original.get("source_url"), document_hash=original["original_sha256"],
                         published_at=original.get("published_at"),
                         retrieved_at=original.get("retrieved_at") or datetime.fromtimestamp(
@@ -171,7 +177,7 @@ def semantic_inputs(pack, manifest, core, as_of, read_rows):
                 evidence_index[ident] = {**original, "source_id": sid}
             claims.append(ClaimRecord(
                 claim_id="report-claim-" + canonical_sha256([VERSION, item["record_id"]])[:24],
-                ticker=ticker, category="business" if item["dataset_id"] == "customers_peer" else "quality" if item["dataset_id"] == "goodwill" else "governance",
+                ticker=ticker, category=item.get("claim_category") or ("business" if item["dataset_id"] == "customers_peer" else "quality" if item["dataset_id"] == "goodwill" else "governance"),
                 text=item["period"] + "：" + item["conclusion_text"], claim_kind=ClaimKind.ANALYST_JUDGEMENT,
                 evidence_source_ids=sorted(set(source_ids)), evidence_ids=item["evidence_ids"],
                 evidence_fact_ids=item.get("fact_ids", []), evidence_spans=spans, as_of=as_of,

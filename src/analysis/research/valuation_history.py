@@ -18,8 +18,11 @@ from analysis.structured.research_lite import _write_json as write_json
 from analysis.structured.storage import StructuredStorage
 from .workspace import ResearchError, ResearchWorkspace, digest, read_json, sha
 
-VERSION = "valuation-history-v1"
-METRICS = {"eastmoney_pe_ttm": "ratio", "eastmoney_pb_mrq": "ratio", "market_price": "CNY_per_share"}
+VERSION = "valuation-history-v2"
+METRICS = {"eastmoney_pe_ttm": "ratio", "eastmoney_pb_mrq": "ratio", "eastmoney_ps_ttm": "ratio",
+           "market_price": "CNY_per_share", "market_cap": "CNY", "total_shares": "shares"}
+RATIO_METRICS = ("eastmoney_pe_ttm", "eastmoney_pb_mrq", "eastmoney_ps_ttm")
+COMPARISON_METRICS = ("eastmoney_pe_ttm", "eastmoney_pb_mrq", "market_price")
 
 
 def readonly(db: Path):
@@ -53,30 +56,65 @@ def summarize(series: dict, target: Decimal) -> dict:
         "method": "positive PE only; type-7 quantiles; midrank=(below+0.5*equal)/N; equal date weights"}
 
 
-def compare(series: dict, target: Decimal) -> dict:
+def distribution(series: dict, metric_id: str) -> dict:
+    """Describe positive multiples and rank the latest observed multiple, not a fair-value assumption."""
+    values = {d: Decimal(row["value"]) for d, row in series.items()}
+    valid = {d: v for d, v in values.items() if v.is_finite() and v > 0}
+    counts = {"observations": len(values), "valid_observations": len(valid),
+              "excluded_nonpositive": sum(v.is_finite() and v <= 0 for v in values.values()),
+              "excluded_nonfinite": sum(not v.is_finite() for v in values.values())}
+    if not valid:
+        return {"status": "no_positive_multiple", "metric_id": metric_id, **counts}
+    ordered = list(valid.values())
+    latest_date = max(values)
+    latest = values[latest_date]
+    eligible = latest.is_finite() and latest > 0
+    rank = ((sum(v < latest for v in ordered) + Decimal(sum(v == latest for v in ordered)) / 2)
+            / len(ordered) * 100) if eligible else None
+    return {"status": "ready", "metric_id": metric_id, **counts,
+            "first_date": min(valid), "last_date": max(valid), "latest_date": latest_date,
+            "latest_value": str(latest), "latest_fact_ids": series[latest_date].get("fact_ids", []),
+            "minimum": str(min(ordered)), "p10": str(quantile(ordered, Decimal('.1'))),
+            "median": str(quantile(ordered, Decimal('.5'))), "p90": str(quantile(ordered, Decimal('.9'))),
+            "maximum": str(max(ordered)), "current_midrank_percent": str(rank) if rank is not None else None,
+            "rank_status": "ready" if eligible else "latest_multiple_not_positive",
+            "method": "positive finite multiples; type-7 quantiles; midrank=(below+0.5*equal)/N; equal observed date weights"}
+
+
+def compare(series: dict, target: Decimal, *, window_end: str | None = None) -> dict:
     """Intersect complete dates; never forward-fill peers or select each company's latest date."""
     dates = []
     for metrics in series.values():
-        complete = set.intersection(*(set(metrics.get(m, {})) for m in METRICS))
-        complete = {d for d in complete if all(Decimal(metrics[m][d]["value"]) > 0 for m in METRICS)}
+        complete = set.intersection(*(set(metrics.get(m, {})) for m in COMPARISON_METRICS))
+        complete = {d for d in complete if all(Decimal(metrics[m][d]["value"]).is_finite()
+                    and Decimal(metrics[m][d]["value"]) > 0 for m in COMPARISON_METRICS)}
         dates.append(complete)
     common = set.intersection(*dates) if dates else set()
     day = max(common) if common else None
-    sensitivity = {}
+    sensitivity, metric_sensitivity = {}, {}
     if day:
-        end = date.fromisoformat(day)
+        end = date.fromisoformat(window_end or day)
         for years in (1, 3):
             try:
                 start = end.replace(year=end.year-years).isoformat()
             except ValueError:
                 start = end.replace(year=end.year-years, day=28).isoformat()
             sensitivity[str(years) + "y"] = {ticker: summarize(
-                {d: row for d, row in values.get("eastmoney_pe_ttm", {}).items() if start <= d <= day}, target)
+                {d: row for d, row in values.get("eastmoney_pe_ttm", {}).items() if start <= d <= end.isoformat()}, target)
                 for ticker, values in series.items()}
+            metric_sensitivity[str(years) + "y"] = {ticker: {metric: distribution(
+                {d: row for d, row in values.get(metric, {}).items() if start <= d <= end.isoformat()}, metric)
+                for metric in RATIO_METRICS} for ticker, values in series.items()}
     return {"status": "ready" if day else "no_common_complete_date", "comparison_date": day,
-        "rows": {ticker: {m: values[m][day] for m in METRICS} for ticker, values in series.items()} if day else {},
+        "rows": {ticker: {m: dates[day] for m, dates in values.items() if day in dates}
+                 for ticker, values in series.items()} if day else {},
         "history": {ticker: summarize(values.get("eastmoney_pe_ttm", {}), target) for ticker, values in series.items()},
-        "window_sensitivity": sensitivity}
+        "window_sensitivity": sensitivity,
+        "metric_history": {ticker: {metric: distribution(values.get(metric, {}), metric)
+            for metric in RATIO_METRICS} for ticker, values in series.items()},
+        "metric_window_sensitivity": metric_sensitivity,
+        "window_end": window_end or day,
+        "reference_multiple_role": "comparison_reference_only"}
 
 
 def admit(result, repository, data_root: Path, verified: dict) -> tuple[dict, list]:
@@ -201,7 +239,7 @@ class ValuationHistory:
         payload = {"version": VERSION, "start_date": start_date, "end_date": end_date,
             "series": series, "facts": evidence, "sources": [sources[k] for k in sorted(sources)],
             "manifests": manifests, "proofs": proofs,
-            "verified_source_hashes": verified, "summary": compare(series, target),
+            "verified_source_hashes": verified, "summary": compare(series, target, window_end=end_date),
             "boundary": "current cached vendor history; not proven point-in-time history; PE TTM is not forecast PE"}
         ident = digest(payload)
         path = self.w.state / "valuation-history" / (ident + ".json")

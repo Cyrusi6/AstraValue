@@ -122,8 +122,8 @@ class StructuredFactMaterializer:
                 raise ValueError("invalid_valuation_window")
             market_start, market_cutoff = start, end
             contract_hash = canonical_sha256({"contract": contract_hash,
-                "valuation_window": [start, end], "projection": "valuation-history-v1",
-                "fields": ["PE_TTM", "PB_MRQ", "CLOSE_PRICE"]})
+                "valuation_window": [start, end], "projection": "valuation-history-v2",
+                "fields": ["PE_TTM", "PB_MRQ", "PS_TTM", "CLOSE_PRICE", "TOTAL_MARKET_CAP", "TOTAL_SHARES"]})
         jobs = {str(j["job_id"]): j for j in self.storage.list_jobs(run_id, limit=None)}
         datasets = {d["dataset_id"]: d for d in context.frozen_config.get("datasets", [])}
         frozen_sources = {(s["source_definition_id"], str(s.get("version", s.get("source_definition_version")))): s
@@ -220,7 +220,9 @@ class StructuredFactMaterializer:
             source = _source_for_snapshot(snapshot, job, source_definition)
             for field in fields:
                 raw_name = field.get("raw_field_name")
-                if valuation_window is not None and raw_name not in {"PE_TTM", "PB_MRQ", "CLOSE_PRICE"}:
+                if valuation_window is not None and raw_name not in {
+                    "PE_TTM", "PB_MRQ", "PS_TTM", "CLOSE_PRICE", "TOTAL_MARKET_CAP", "TOTAL_SHARES"
+                }:
                     gap("outside_valuation_projection", record, field)
                     continue
                 if research_scope and not field_selected(

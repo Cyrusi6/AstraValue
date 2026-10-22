@@ -8,7 +8,8 @@ from analysis.research.workspace import ResearchError, sha
 from test_research_workspace import workspace
 
 
-def attach_review(workspace, status='verified_none', available_at='2024-12-31'):
+def attach_review(workspace, status='verified_none', available_at='2024-12-31',
+                  decision_basis='user_confirmed'):
     pack = workspace.root / 'packs/600519/2025-01-01/lite-pack-test'
     original = workspace.root / 'filing.txt'
     original.write_text('主要股东明确披露无质押、标记或冻结。', encoding='utf8')
@@ -19,7 +20,7 @@ def attach_review(workspace, status='verified_none', available_at='2024-12-31'):
     core['deferred_topic_resolutions'] = [{
         'record_id': 'reviewed-pledge', 'dataset_id': 'pledge', 'status': status,
         'available_at': available_at + 'T00:00:00Z', 'source_projection_role': 'reviewed_filing',
-        'decision_basis': 'user_confirmed', 'consumption_status': 'ready',
+        'decision_basis': decision_basis, 'consumption_status': 'ready',
         'period': '2024-12-31', 'covered_periods': ['2024-12-31'],
         'conclusion_text': '主要股东明确披露无质押、标记或冻结。',
         'fields': {'PLEDGED_SHARES': 0}, 'evidence_ids': ['official-pledge'],
@@ -29,6 +30,27 @@ def attach_review(workspace, status='verified_none', available_at='2024-12-31'):
     manifest['output_hashes']['core-pack.json'] = sha(pack / 'core-pack.json')
     (pack / 'manifest.json').write_text(json.dumps(manifest), encoding='utf8')
     return original
+
+
+def test_verified_primary_reply_is_readable_and_original_checked(workspace):
+    original = attach_review(workspace, decision_basis='primary_source_verified')
+    rid = workspace.prepare_research('600519', '2025-01-01')['research_id']
+    catalog = Catalog(workspace)
+    _, data = catalog._load(rid)
+    reviewed = next(r for r in data['items'] if r['reader'] == 'filing_check')
+    result = catalog.read_material(rid, reviewed['material_id'])
+    assert json.loads(result['content'])['decision_basis'] == 'primary_source_verified'
+    original.write_text('changed', encoding='utf8')
+    with pytest.raises(ResearchError, match='reviewed_topic_original_changed'):
+        Catalog(workspace)._load(rid)
+
+
+@pytest.mark.parametrize('basis', ['unreviewed', 'api_empty', None])
+def test_unverified_decision_basis_is_not_consumed(workspace, basis):
+    attach_review(workspace, decision_basis=basis)
+    rid = workspace.prepare_research('600519', '2025-01-01')['research_id']
+    _, data = Catalog(workspace)._load(rid)
+    assert not any(r['reader'] == 'filing_check' for r in data['items'])
 
 
 def test_adopted_review_is_readable_and_survives_catalog_refresh(workspace):
@@ -58,8 +80,9 @@ def test_reviewed_original_is_checked_on_read(workspace):
         catalog._load(rid)
 
 
-def test_after_cutoff_review_is_not_consumed(workspace):
-    attach_review(workspace, available_at='2025-01-02')
+@pytest.mark.parametrize('basis', ['user_confirmed', 'primary_source_verified'])
+def test_after_cutoff_review_is_not_consumed(workspace, basis):
+    attach_review(workspace, available_at='2025-01-02', decision_basis=basis)
     rid = workspace.prepare_research('600519', '2025-01-01')['research_id']
     _, data = Catalog(workspace)._load(rid)
     assert not any(r['reader'] == 'filing_check' for r in data['items'])
@@ -72,6 +95,34 @@ def test_undisclosed_review_remains_a_readable_disclosure_status(workspace):
     reviewed = next(r for r in data['items'] if r['reader'] == 'filing_check')
     assert reviewed['payload']['state'] == 'original_readable'
     assert reviewed['payload']['status'] == 'not_disclosed'
+
+
+def test_note_review_keeps_material_and_claim_categories_and_source_type(workspace):
+    from analysis.structured.report_semantics import semantic_inputs
+
+    attach_review(workspace)
+    pack=workspace.root/'packs/600519/2025-01-01/lite-pack-test'
+    core=json.loads((pack/'core-pack.json').read_text('utf8'))
+    row=core['deferred_topic_resolutions'][0]
+    row.update(dataset_id='financial_notes',material_category='notes',claim_category='quality')
+    core['evidence'][0].update(source_type='supplier-structured',published_at='2024-12-31T00:00:00Z',
+                               retrieved_at='2025-01-03T00:00:00Z')
+    core['supplemental_evidence']=core.pop('evidence')
+    core['governance']=[row]
+    (pack/'core-pack.json').write_text(json.dumps(core,ensure_ascii=False),encoding='utf8')
+    manifest=json.loads((pack/'manifest.json').read_text('utf8'))
+    manifest['output_hashes']['core-pack.json']=sha(pack/'core-pack.json')
+    (pack/'manifest.json').write_text(json.dumps(manifest),encoding='utf8')
+    rid=workspace.prepare_research('600519','2025-01-01')['research_id']
+    _,data=Catalog(workspace)._load(rid)
+    assert next(r for r in data['items'] if r['reader']=='filing_check')['category']=='notes'
+    semantic=semantic_inputs(pack,{'ticker':'600519','periods':{'annual':[]}},core,
+                             datetime(2025,1,1,tzinfo=timezone.utc),lambda _:[])
+    claim=next(r for r in semantic['claims'] if '无质押' in r.text)
+    assert claim.category=='quality'
+    source=next(s for s in semantic['sources'] if s.source_id in claim.evidence_source_ids)
+    assert source.source_type=='supplier-structured'
+    assert source.retrieved_at==datetime(2025,1,3,tzinfo=timezone.utc)
 
 
 def test_reviewed_report_projection_preserves_filing_provenance(workspace):

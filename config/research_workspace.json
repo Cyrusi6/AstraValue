@@ -2,8 +2,12 @@
   "version": "research-workspace-v1",
   "valuation_caches": [
     {
-      "db": "tmp/moutai-api-final-20261002/analysis.db",
-      "data_root": "tmp/moutai-api-final-20261002/data"
+      "db": "var/research-caches/valuation/600519/20261008/analysis.db",
+      "data_root": "var/research-caches/valuation/600519/20261008/data"
+    },
+    {
+      "db": "var/research-caches/valuation/existing-baijiu-peers/20261009/analysis.db",
+      "data_root": "var/research-caches/valuation/existing-baijiu-peers/20261009/data"
     }
   ],
   "state_root": "var/research-workspace",

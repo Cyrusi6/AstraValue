@@ -102,3 +102,50 @@ def test_small_nonzero_ratio_is_not_rendered_as_zero():
     assert format_ratio(Decimal('0.0000209396020786483'))=='0.00209396%'
     assert format_ratio(Decimal('0'))=='0.00%'
     assert format_ratio(Decimal('0.8842309563559'))=='88.42%'
+
+
+@pytest.mark.parametrize('parent_shape',['explicit_dataset','frozen_rows'])
+def test_reviewed_field_routes_use_dataset_period_and_declared_numeric_lineage(parent_shape):
+    data={'items':[
+        {'material_id':'income','reader':'records','payload':{'dataset_id':'income_fields'}},
+        {'material_id':'other','reader':'records','payload':{'dataset_id':'other'}},
+        *[{'material_id':parent+'-eps','reader':'field','title':'EPS','status':'processing',
+           'period':['2024-12-31','2025-03-31'],'payload':{'parent_id':parent,'field':'DILUTED_EPS'}}
+          for parent in ['income','other']],
+        {'material_id':'review','reader':'filing_check','period':'2024-12-31','payload':{
+            'dataset_id':'income_fields','source_projection_role':'reviewed_filing',
+            'fields':{'DILUTED_EPS':'68.64'},'field_fact_ids':{'DILUTED_EPS':['f1']},
+            'field_units':{'DILUTED_EPS':'CNY/share'},'field_periods':{'DILUTED_EPS':'2024-12-31'},
+            'state':'ready','finding':'累计稀释EPS','scope':'consolidated'}}]}
+    if parent_shape=='frozen_rows':
+        for parent in data['items'][:2]:
+            parent['payload']={'rows':[{'dataset_id':parent['payload']['dataset_id']}]}
+    result=reconcile(data,{'metrics':[]})
+    resolved=result['items'][2]
+    assert resolved['availability']['routes'][0]['value']=='68.64'
+    assert resolved['availability']['routes'][0]['fact_ids']==['f1']
+    assert resolved_view(resolved,'2025-03-31')['status']=='processing'
+    assert result['items'][3]['status']=='processing'
+    assert reconcile(result,{'metrics':[]})==result
+    # A disclosure without field-specific numeric lineage stays readable text.
+    data['items'][-1]['payload']['field_fact_ids']={}
+    assert reconcile(data,{'metrics':[]})['items'][2]['availability']['routes'][0]['state']=='original_readable'
+
+
+def test_reviewed_field_precedes_original_only_for_the_same_period(tmp_path):
+    original=tmp_path/'income.txt';original.write_text('信用减值损失',encoding='utf8')
+    data={'items':[
+        {'material_id':'parent','reader':'records','payload':{'dataset_id':'income_fields'}},
+        {'reader':'field','title':'credit','status':'processing','period':['2024-12-31','2025-03-31'],
+         'payload':{'parent_id':'parent','field':'CREDIT_IMPAIRMENT_LOSS'}},
+        *[{'material_id':p,'reader':'statement','period':p,'payload':{'statement':'income_statement'}}
+          for p in ['2024-12-31','2025-03-31']],
+        {'material_id':'review','reader':'filing_check','period':'2024-12-31','payload':{
+            'dataset_id':'income_fields','source_projection_role':'reviewed_filing',
+            'fields':{'CREDIT_IMPAIRMENT_LOSS':'-1'},'field_fact_ids':{'CREDIT_IMPAIRMENT_LOSS':['f']},
+            'state':'ready','finding':'信用减值','scope':'consolidated'}}]}
+    pack={'metrics':[],'statements':[{'evidence_id':p,'period':p,'statement':'income_statement',
+        'path':str(original),'sha256':sha(original),'content':'信用减值损失'} for p in ['2024-12-31','2025-03-31']]}
+    routes=reconcile(data,pack)['items'][1]['availability']['routes']
+    assert [(r['period'],r['state']) for r in routes]==[
+        ('2025-03-31','original_readable'),('2024-12-31','ready')]

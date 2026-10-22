@@ -1,4 +1,4 @@
-"""Expose frozen, user-confirmed filing conclusions through the material catalog."""
+"""Expose frozen, reviewed source conclusions through the material catalog."""
 from pathlib import Path
 
 from .workspace import ResearchError, digest, sha
@@ -13,7 +13,7 @@ def enrich(data, pack, pack_path, state):
     verified = set()
     for row in pack.get('deferred_topic_resolutions', []):
         if (row.get('source_projection_role') != 'reviewed_filing'
-                or row.get('decision_basis') != 'user_confirmed'
+                or row.get('decision_basis') not in {'user_confirmed', 'primary_source_verified'}
                 or row.get('consumption_status') != 'ready'):
             continue
         if (row.get('available_at') or '')[:10] > state['as_of']:
@@ -47,10 +47,11 @@ def enrich(data, pack, pack_path, state):
                       else 'ready' if numeric else 'original_readable')
             data['items'].append({
                 'material_id': ident, 'parent_id': parents.get(row['dataset_id']),
-                'category': 'business' if row['dataset_id'] == 'customers_peer' else 'governance',
+                'category': row.get('material_category') or ('business' if row['dataset_id'] == 'customers_peer' else 'governance'),
                 'title': row['dataset_id'] + '：' + row['conclusion_text'], 'period': period,
                 'status': 'readable', 'status_label': '已有原文', 'reader': 'filing_check',
-                'purpose': '已确认的报告披露与结构化结论',
+                'purpose': ('已确认的报告披露与结构化结论' if row['decision_basis'] == 'user_confirmed'
+                            else '已核验的来源披露与结构化结论'),
                 'payload': {**row, 'period': period, 'state': status,
                             'finding': row['conclusion_text'], 'scope': row.get('scope', period),
                             'path': str(source), 'sha256': sha(source), 'originals': originals},
