@@ -1,9 +1,13 @@
-# 项目执行入口
+## Agent skills
 
-产品职责与业务不变量见[项目总计划](项目总计划.md)。当前实施以仓库中的代码、测试、运行手册和验收记录为准；历史规划材料已移出主仓库，不再作为执行入口。
+### Issue tracker
 
-代码负责采集、整理、计算、绘图和组装；宿主模型自主分析、假设、估值、评级和写作。知识按需读取，skeleton 不作成熟依据。旧计划、历史变更和阶段记录不是并行启动指令；历史快照和原件不改写。实际运行证据追加到阶段日志。
+Issues and specs live in GitHub Issues for `Cyrusi6/AstraValue`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
-执行公司研究时，两宿主统一读取 [买方研究主提示](config/prompts/buy_side_research.md)；审阅统一读取 [研究审阅提示](config/prompts/buy_side_review.md)。公司任务参数另传，不维护模型专属研究提示；新研究使用get_research_brief和当前写作schema，旧报告仅作历史成果。
+### Triage labels
 
-纯公司研究任务以这两份提示为研究规范，不默认加载开发计划、历史测试或阶段日志；具体调用只按需查[工具参考](docs/acquisition/research-tool-reference.md)。启动消息使用[公司任务模板](config/prompts/company_research_task.md)，只填研究对象、截止日、资料范围、入口及交付位置，不重复金融规范、不附加框架验收或双版本实验。参数错误按工具说明修正；实际框架缺陷记录操作、错误及受影响判断，交由工程任务处理。实施和修复代码的任务按对应代码、测试、运行手册和验收清单执行。
+Use the five canonical state labels plus AstraValue `area:*` and `scope:*` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+先读根 [GLOSSARY-MAP.md](GLOSSARY-MAP.md)，再按任务读取相关域及本次变更涉及的依赖域术语表。领域表位于 `docs/domains/<domain>/GLOSSARY.md`，决策记录位于 `docs/adr/`；读取与维护规则见 [docs/agents/domain.md](docs/agents/domain.md)。

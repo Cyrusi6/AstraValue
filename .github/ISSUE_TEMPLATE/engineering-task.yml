@@ -1,0 +1,33 @@
+name: Engineering task
+description: Request a code, tooling, or workflow change
+labels: ["enhancement", "scope:engineering"]
+body:
+  - type: input
+    id: module
+    attributes:
+      label: Affected module
+      description: Package, path, or pipeline stage
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed and expected behavior
+      description: Describe the current behavior and the desired result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproduction or evidence
+      description: Commands, logs, fixtures, or screenshots
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation and acceptance criteria
+      description: State the check to run and the conditions for completion
+    validations:
+      required: true
+

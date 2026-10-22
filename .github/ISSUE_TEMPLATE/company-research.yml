@@ -1,0 +1,47 @@
+name: Company research
+description: Request an evidence-bounded company research task
+labels: ["enhancement", "scope:research"]
+body:
+  - type: input
+    id: company
+    attributes:
+      label: Company or security
+      description: Name and ticker, for example 贵州茅台（600519）
+    validations:
+      required: true
+  - type: input
+    id: cutoff_date
+    attributes:
+      label: Cutoff date
+      description: Latest date whose information may be used
+    validations:
+      required: true
+  - type: input
+    id: reporting_period
+    attributes:
+      label: Reporting period
+      description: Annual, quarterly, or other period in scope
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Source scope
+      description: Required filings, APIs, websites, or existing materials
+    validations:
+      required: true
+  - type: textarea
+    id: es_steps
+    attributes:
+      label: Affected ES01–ES08 steps
+      description: State which analysis steps need evidence
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance boundary
+      description: What must be evidenced, and what may remain unknown?
+    validations:
+      required: true
+

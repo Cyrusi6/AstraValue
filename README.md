@@ -13,6 +13,8 @@
 产品目标是：框架准备紧凑资料，Codex／Claude Code 自主研究、提出估值假设并给出评级，代码负责核算、绘图和组装，模型检查最终研报。知识库按需读取。
 
 - [四层职责与验收](项目总计划.md)：产品决策。
+- [对象级数据流程](docs/architecture/data-flow.md)：从研究任务、采集快照到 `ReportVersion` 的主链。
+- [领域术语地图](GLOSSARY-MAP.md)：按任务定位采集、事实、研究、计算、报告和知识六域的定义与依赖。
 - [结构化数据层运行说明](docs/acquisition/research-data-layer-runbook.md)：当前实施和复现入口。
 - [轻量包运行说明](docs/acquisition/eight-step-lite-runbook.md)：已实现的低层命令。
 - [茅台报告验收](docs/acquisition/moutai-golden-report-acceptance.md)：`贵州茅台-6.1sol-20261003-final` 已完成代人工成品验收，延期项单独登记。
